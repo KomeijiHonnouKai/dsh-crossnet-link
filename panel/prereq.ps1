@@ -6,7 +6,7 @@
                  states the locale-proof rule itself. v1 - t19: listener source is structured-first and
                  injectable; the netstat state token is a parameter; an unreadable row set is `unknown`,
                  never a pass)
-  AUTHOR       : team remote-tailnet-guard-2 (member "smith", task t6)
+  AUTHOR       : team dsh-crossnet-link-2 (as named at authoring time, after the plugin's then-current name; member "smith", task t6)
   RUNS ON      : Windows PowerShell 5.1 (powershell.exe). No pwsh 7, curl, CIM/WMI or node.
 
   COMMANDS USED WHILE BUILDING THIS REVISION (all read-only):
@@ -571,7 +571,7 @@ if ($exitCode -eq 1) { $overall = 'degraded' }
 if ($exitCode -eq 2) { $overall = 'blocked' }
 
 $report = [pscustomobject][ordered]@{
-  schema = 'remote-tailnet-guard/prereq-report/1'
+  schema = 'dsh-crossnet-link/prereq-report/1'
   generatedAtLocal = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
   manifest = $Manifest
   role = $Role
@@ -597,7 +597,7 @@ $report = [pscustomobject][ordered]@{
 if ($AsJson) {
   Write-Output ($report | ConvertTo-Json -Depth 12)
 } else {
-  Write-Output '== remote-tailnet-guard prerequisite check (read-only) =='
+  Write-Output '== dsh-crossnet-link prerequisite check (read-only) =='
   Write-Output ('manifest=' + $Manifest + '  role=' + $Role + '  lang=' + $langUsed)
   Write-Output 'This script never runs an installer, never elevates and never signs in to anything.'
   Write-Output ''

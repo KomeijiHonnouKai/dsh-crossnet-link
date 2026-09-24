@@ -12,6 +12,6 @@
   "expect": {
     "exitCode": 2,
     "stdoutMatch": ["REFUSED"],
-    "stdoutNotMatch": ["remote-tailnet-guard/collect/1"]
+    "stdoutNotMatch": ["dsh-crossnet-link/collect/1"]
   }
 }

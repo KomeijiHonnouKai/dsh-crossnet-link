@@ -1,5 +1,5 @@
 {
-    "schema":  "remote-tailnet-guard/fixture/1",
+    "schema":  "dsh-crossnet-link/fixture/1",
     "name":  "English-UI variant derived from zh.json (identical state, tool output in English)",
     "locale":  "en-US",
     "role":  "both",

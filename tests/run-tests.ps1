@@ -1,6 +1,6 @@
 <#
   run-tests.ps1 - cross-environment and fault-injection test suite for the
-                 remote-tailnet-guard collector (remote-tailnet-plugin).
+                 dsh-crossnet-link collector (remote-tailnet-plugin).
 
   LAST UPDATED : 2026-09-24 (v4 - t38: the write-verb filescan assertion is narrowed to the read-only
                  surface with an explicit allowFiles list naming tools/uninstall.ps1 (the repository's

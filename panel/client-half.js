@@ -1,5 +1,5 @@
 /*
- * remote-tailnet-guard - CLIENT half of the posture panel package (t6).
+ * dsh-crossnet-link - CLIENT half of the posture panel package (t6).
  * LAST UPDATED : 2026-09-24 (v0.1 - t26: CREDENTIAL_NOTICES gained a FOURTH entry that states the
  * non-intrusive promise in the panel itself - nothing is changed and suggested fixes are yours to
  * run - and the notices heading now says so. The three credential-discipline strings, the slot
@@ -19,9 +19,9 @@
  *   powershell -NoProfile -Command '$f="remote-tailnet-plugin/panel/client-half.js"; $b=[IO.File]::ReadAllBytes((Resolve-Path $f)); "nonAscii=" + @($b | Where-Object { $_ -gt 127 }).Count + " bom=" + ($b[0..2] -join ",")'
  *   powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1
  */
-const SECTION_ID = 'remote-tailnet-guard';
+const SECTION_ID = 'dsh-crossnet-link';
 const SECTION_LABEL = 'Remote access link (read-only posture)';
-const METHOD = 'remote-tailnet-guard/panel/posture';
+const METHOD = 'dsh-crossnet-link/panel/posture';
 const VERDICTS = ['blocked', 'unknown', 'degraded', 'pass'];
 const VERDICT_STYLE = {
   blocked: { label: 'BLOCKED', color: '#c0392b' },
@@ -221,7 +221,7 @@ function GuardPanel() {
 }
 
 return {
-  name: 'remote-tailnet-guard-panel',
+  name: 'dsh-crossnet-link-panel',
   inject: ['slots'],
   apply(ctx) {
     ctx.slots.inject('settings.section', function () {

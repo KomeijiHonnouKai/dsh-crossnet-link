@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  README style gate (read-only). Companion to the remote-tailnet-guard README revision plan.
+  README style gate (read-only). Companion to the dsh-crossnet-link README revision plan.
 .DESCRIPTION
   Reads one Markdown file, judges it against the plan's hard rules, prints measured
   numbers plus PASS/FAIL per rule. Fenced code blocks are excluded; inline code spans

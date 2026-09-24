@@ -1,5 +1,5 @@
 /*
- * remote-tailnet-guard - HOST half of the persistent DSH plugin (t43, phase 1).
+ * dsh-crossnet-link - HOST half of the persistent DSH plugin (t43, phase 1).
  * LAST UPDATED : 2026-09-25 (v0.3 - first-load auto-config: the host half now fills the four
  * machine-detectable settings (port/profile/dshHome/appDir) through the platform settings service,
  * one key at a time and never overwriting. v0.2 declared this plugin's own check parameters instead
@@ -38,17 +38,17 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const name = 'remote-tailnet-guard';
+export const name = 'dsh-crossnet-link';
 
 /** Route family served on the existing web server (prefix match, longest prefix wins). */
-const ROUTE_PREFIX = '/remote-tailnet-guard/api';
+const ROUTE_PREFIX = '/dsh-crossnet-link/api';
 /**
  * Settings namespace owned by this plugin. It is ALSO the key of the plugins-page card: the
  * configurable tab renders a `settings.plugin.item` card only while its key is a namespace the
  * Host has registered (dsh-client-ui-settings-plugins/lib/client.js:1144-1145 gates on the served
  * set, :416 renders one card per served namespace). Same string as the client half's SETTINGS_NS.
  */
-const SETTINGS_NS = 'remote-tailnet-guard';
+const SETTINGS_NS = 'dsh-crossnet-link';
 /**
  * The schema library is resolved AT RUNTIME and never through a static import. Reason (t46): this
  * package is installed with `link:`, so it has no node_modules of its own, and a static import of a
@@ -116,7 +116,7 @@ async function resolveSchemaLibrary(ctx) {
       const candidate = loaded !== null && loaded.default !== undefined ? loaded.default : loaded;
       if (candidate !== null && candidate !== undefined && typeof candidate.object === 'function') return candidate;
     } catch (error) {
-      logLine(ctx, 'warn', 'remote-tailnet-guard: schema library "' + specifier + '" is not reachable here: ' + errorText(error));
+      logLine(ctx, 'warn', 'dsh-crossnet-link: schema library "' + specifier + '" is not reachable here: ' + errorText(error));
     }
   }
   return null;
@@ -326,7 +326,7 @@ async function autoFillSettings(ctx) {
   }
   if (settings === null || settings === undefined ||
       typeof settings.mutate !== 'function' || typeof settings.describe !== 'function') {
-    logLine(ctx, 'warn', 'remote-tailnet-guard: auto-config skipped - settings service unavailable in this host');
+    logLine(ctx, 'warn', 'dsh-crossnet-link: auto-config skipped - settings service unavailable in this host');
     return;
   }
 
@@ -347,7 +347,7 @@ async function autoFillSettings(ctx) {
       }
     }
   } catch (error) {
-    logLine(ctx, 'warn', 'remote-tailnet-guard: auto-config could not read the current section: ' + errorText(error));
+    logLine(ctx, 'warn', 'dsh-crossnet-link: auto-config could not read the current section: ' + errorText(error));
     return;
   }
 
@@ -361,11 +361,11 @@ async function autoFillSettings(ctx) {
   for (let index = 0; index < fields.length; index += 1) {
     const field = fields[index];
     if (field.value === null || field.value === undefined) {
-      logLine(ctx, 'warn', 'remote-tailnet-guard: auto-config: "' + field.key + '" undetected, left blank');
+      logLine(ctx, 'warn', 'dsh-crossnet-link: auto-config: "' + field.key + '" undetected, left blank');
       continue;
     }
     if (ownsKey(userSection, field.key)) {
-      logLine(ctx, 'info', 'remote-tailnet-guard: auto-config: "' + field.key + '" already present, skipped');
+      logLine(ctx, 'info', 'dsh-crossnet-link: auto-config: "' + field.key + '" already present, skipped');
       continue;
     }
     ops.push({ op: 'set', path: [field.key], value: field.value });
@@ -375,9 +375,9 @@ async function autoFillSettings(ctx) {
   try {
     await settings.mutate(SETTINGS_NS, ops, revision);
     const keys = ops.map(function (op) { return op.path[0]; }).join(', ');
-    logLine(ctx, 'info', 'remote-tailnet-guard: auto-config wrote ' + ops.length + ' machine setting(s) (' + keys + ') through the platform settings service');
+    logLine(ctx, 'info', 'dsh-crossnet-link: auto-config wrote ' + ops.length + ' machine setting(s) (' + keys + ') through the platform settings service');
   } catch (error) {
-    logLine(ctx, 'warn', 'remote-tailnet-guard: auto-config write failed: ' + errorText(error));
+    logLine(ctx, 'warn', 'dsh-crossnet-link: auto-config write failed: ' + errorText(error));
   }
 }
 
@@ -590,7 +590,7 @@ export function apply(ctx) {
       const webServer = wctx.get('webServer');
       if (webServer === undefined || typeof webServer.register !== 'function') {
         if (ctx.logger && typeof ctx.logger.warn === 'function') {
-          ctx.logger.warn('remote-tailnet-guard: no webServer service - the settings section will report unknown, never a pass');
+          ctx.logger.warn('dsh-crossnet-link: no webServer service - the settings section will report unknown, never a pass');
         }
         return undefined;
       }
@@ -616,7 +616,7 @@ export function apply(ctx) {
             const pathname = new URL(String(req.url || '/'), 'http://dsh.invalid').pathname;
             const method = pathname.indexOf(ROUTE_PREFIX + '/') === 0 ? pathname.slice(ROUTE_PREFIX.length + 1) : '';
             if (method !== 'posture') {
-              writeJson(res, 404, { ok: false, code: 'not-found', message: 'unknown remote-tailnet-guard API method' });
+              writeJson(res, 404, { ok: false, code: 'not-found', message: 'unknown dsh-crossnet-link API method' });
               return;
             }
             const body = await readJsonBody(req);
@@ -629,7 +629,7 @@ export function apply(ctx) {
         }
       });
       if (ctx.logger && typeof ctx.logger.info === 'function') {
-        ctx.logger.info('remote-tailnet-guard: read-only posture route ready at ' + ROUTE_PREFIX + ' (collector ' + collectorPath + ')');
+        ctx.logger.info('dsh-crossnet-link: read-only posture route ready at ' + ROUTE_PREFIX + ' (collector ' + collectorPath + ')');
       }
       return function () {
         try {
@@ -638,7 +638,7 @@ export function apply(ctx) {
           /* already disposed */
         }
       };
-    }, 'remote-tailnet-guard: read-only posture route on the existing web server');
+    }, 'dsh-crossnet-link: read-only posture route on the existing web server');
   });
 
   // Plugins-page card seat (t46) + the settings the card edits (t47). The card the client half
@@ -658,20 +658,20 @@ export function apply(ctx) {
       resolveSchemaLibrary(ctx).then(function (schemaFactory) {
         if (cancelled) return;
         if (schemaFactory === null) {
-          logLine(ctx, 'warn', 'remote-tailnet-guard: no schema library reachable - settings namespace "' + SETTINGS_NS + '" skipped, so the plugins-page card will not render (everything else keeps working)');
+          logLine(ctx, 'warn', 'dsh-crossnet-link: no schema library reachable - settings namespace "' + SETTINGS_NS + '" skipped, so the plugins-page card will not render (everything else keeps working)');
           return;
         }
         try {
           sctx.settings.register(SETTINGS_NS, settingsSchema(schemaFactory), { base: {}, applies: 'live' });
-          logLine(ctx, 'info', 'remote-tailnet-guard: settings namespace "' + SETTINGS_NS + '" registered with this plugin\'s check parameters (the plugins-page card can render and save them)');
+          logLine(ctx, 'info', 'dsh-crossnet-link: settings namespace "' + SETTINGS_NS + '" registered with this plugin\'s check parameters (the plugins-page card can render and save them)');
           autoFillSettings(ctx).catch(function (error) {
-            logLine(ctx, 'warn', 'remote-tailnet-guard: auto-config failed: ' + errorText(error));
+            logLine(ctx, 'warn', 'dsh-crossnet-link: auto-config failed: ' + errorText(error));
           });
         } catch (error) {
-          logLine(ctx, 'warn', 'remote-tailnet-guard: settings namespace "' + SETTINGS_NS + '" was refused: ' + errorText(error));
+          logLine(ctx, 'warn', 'dsh-crossnet-link: settings namespace "' + SETTINGS_NS + '" was refused: ' + errorText(error));
         }
       });
     });
     return function () { cancelled = true; };
-  }, 'remote-tailnet-guard: settings namespace with this plugin\'s check parameters');
+  }, 'dsh-crossnet-link: settings namespace with this plugin\'s check parameters');
 }

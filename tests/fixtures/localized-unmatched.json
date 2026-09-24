@@ -1,5 +1,5 @@
 {
-  "schema": "remote-tailnet-guard/fixture/1",
+  "schema": "dsh-crossnet-link/fixture/1",
   "name": "localized-but-unmatched netsh output (German-style field names)",
   "locale": "de-DE",
   "note": "Deliberately partial: only the netsh probes are supplied and their field names match neither the English nor the zh-CN pattern set. With -NoNative every other probe is absent too. This fixture exists to prove the fail-closed rule: an unmatched localized text must produce 'unknown' plus raw output, never a guessed verdict.",

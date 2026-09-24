@@ -12,6 +12,6 @@
   "expect": {
     "exitCode": 0,
     "stdoutMatch": ["resolution order", "NOT supported", "fixture injection", "exit code contract", "readOnly", "registry install dir", "-ToolPath"],
-    "stdoutNotMatch": ["remote-tailnet-guard/collect/1"]
+    "stdoutNotMatch": ["dsh-crossnet-link/collect/1"]
   }
 }

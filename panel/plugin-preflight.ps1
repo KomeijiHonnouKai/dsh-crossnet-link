@@ -1,5 +1,5 @@
 <#
-  remote-tailnet-guard - read-only preflight for the PERSISTENT plugin package (tasks t43 + t46).
+  dsh-crossnet-link - read-only preflight for the PERSISTENT plugin package (tasks t43 + t46).
   LAST UPDATED : 2026-09-25 (v0.3: the standalone settings-section seat is removed; the plugin is a
   standard plugins-page card only - the single-card assertions and the -SelfTest fault-injection proof).
 
@@ -314,13 +314,13 @@ function Invoke-PreflightSelfTest {
 
       if ($case.Mutate -eq 'hide-host-half') { Remove-Item -LiteralPath $hostCopy -Force }
       if ($case.Mutate -eq 'break-row-id') {
-        Write-Text -Path $patchCopy -Text ((Read-Text -Path $patchCopy) -replace '- id: remote-tailnet-guard', '- id: remote-tailnet-guard-WRONG')
+        Write-Text -Path $patchCopy -Text ((Read-Text -Path $patchCopy) -replace '- id: dsh-crossnet-link', '- id: dsh-crossnet-link-WRONG')
       }
       if ($case.Mutate -eq 'enable-row') {
         Write-Text -Path $patchCopy -Text ((Read-Text -Path $patchCopy) -replace 'disabled: true', 'disabled: false')
       }
       if ($case.Mutate -eq 'break-shared-body') {
-        Write-Text -Path $srcCopy -Text ((Read-Text -Path $srcCopy) -replace "const SETTINGS_NS = 'remote-tailnet-guard';", "const SETTINGS_NS = 'remote-tailnet-guard-DRIFTED';")
+        Write-Text -Path $srcCopy -Text ((Read-Text -Path $srcCopy) -replace "const SETTINGS_NS = 'dsh-crossnet-link';", "const SETTINGS_NS = 'dsh-crossnet-link-DRIFTED';")
       }
       if ($case.Mutate -eq 'drop-card-seat') {
         Write-Text -Path $bundCopy -Text ((Read-Text -Path $bundCopy) -replace "'settings\.plugin\.item'", "'settings.plugin.item.dropped'")
@@ -351,7 +351,7 @@ if ($SelfTest) {
   exit (Invoke-PreflightSelfTest -ScriptPath $PSCommandPath -SourceRepo $RepoRoot)
 }
 
-Write-Host 'remote-tailnet-guard - persistent plugin preflight (read-only)'
+Write-Host 'dsh-crossnet-link - persistent plugin preflight (read-only)'
 Write-Host ('repo root : ' + $RepoRoot)
 Write-Host ('plugin dir: ' + $pluginDir)
 Write-Host ('profile   : ' + $(if ($Profile -eq '') { '(not selected; paths are printed as placeholders)' } else { $profileDir }))
@@ -535,7 +535,7 @@ if ($null -ne $shape -and $shape.Ok -and $null -ne $pkg) {
     Add-Equal -Id 'row.name' -Rule 'row name equals package.json name (the loader specifier)' -Expected ([string]$pkg.name) -Actual ([string](Get-RowValue -Row $row -Key 'name'))
     Add-Equal -Id 'row.disabled' -Rule 'the row ships disabled on purpose (nothing can load before you say so)' -Expected 'true' -Actual ([string](Get-RowValue -Row $row -Key 'disabled'))
   }
-  Add-Equal -Id 'pkg.name' -Rule 'package.json name' -Expected 'remote-tailnet-guard' -Actual ([string]$pkg.name)
+  Add-Equal -Id 'pkg.name' -Rule 'package.json name' -Expected 'dsh-crossnet-link' -Actual ([string]$pkg.name)
   Add-Equal -Id 'pkg.type' -Rule 'package.json type is module' -Expected 'module' -Actual ([string]$pkg.type)
   Add-Equal -Id 'pkg.main' -Rule 'package.json main' -Expected './lib/index.js' -Actual ([string]$pkg.main)
   if ($pkg.dsh -and $pkg.dsh.client) {
@@ -571,8 +571,8 @@ Write-Host ('  1. ' + (Join-Path (Join-Path $homeLabel 'profiles') (Join-Path $p
 Write-Host ('  2. ' + (Join-Path (Join-Path $homeLabel 'profiles') (Join-Path $profLabel 'package.json')))
 Write-Host ('  3. ' + (Join-Path (Join-Path $homeLabel 'profiles') (Join-Path $profLabel 'pnpm-lock.yaml')))
 Write-Host '--- the user-layer override row that enables the plugin (see docs/install/plugin-package.md) ---'
-Write-Host '- id: remote-tailnet-guard'
-Write-Host '  name: remote-tailnet-guard'
+Write-Host '- id: dsh-crossnet-link'
+Write-Host '  name: dsh-crossnet-link'
 Write-Host '  disabled: false'
 Write-Host ''
 

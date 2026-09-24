@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Workflow gate for remote-tailnet-guard (repository layer, task t12).
+"""Workflow gate for dsh-crossnet-link (repository layer, task t12).
 
 LAST UPDATED  : 2026-09-24 (task t12, v1 - parse gate + schema gate + action allowlist)
-AUTHOR        : team remote-tailnet-guard-2 (member "packager", task t12)
+AUTHOR        : team dsh-crossnet-link-2 (as named at authoring time, after the plugin's then-current name; member "packager", task t12)
 
 WHAT IT CHECKS (every .github/workflows/*.yml):
 

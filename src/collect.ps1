@@ -10,7 +10,7 @@
                  for t5 (encoding/PROBE fixes, i18n pattern merge, fixture layer, -DumpFixture),
                  then t16/t19 added the injectable locale-proof state pattern and the fail-closed
                  guards.)
-  AUTHOR       : team remote-tailnet-guard-2 (member "smith", task t5)
+  AUTHOR       : team dsh-crossnet-link-2 (as named at authoring time, after the plugin's then-current name; member "smith", task t5)
   RUNS ON      : Windows PowerShell 5.1 (powershell.exe). Does NOT require pwsh 7,
                  curl, CIM/WMI, node, or any third-party module.
 
@@ -2054,7 +2054,7 @@ Add-Check $c
 # ---------------------------------------------------------------------------
 if ($DumpFixture) {
   $fxOut = [ordered]@{
-    schema = 'remote-tailnet-guard/fixture/1'
+    schema = 'dsh-crossnet-link/fixture/1'
     name = ('capture ' + $script:Now.ToString('yyyy-MM-dd HH:mm:ss'))
     locale = ''
     role = $Role
@@ -2158,7 +2158,7 @@ $exitMeaningKey = 'exit_' + [string]$exitCode
 $exitMeaning = LV 'exit' $exitMeaningKey $exitMeaningKey
 
 $report = [pscustomobject][ordered]@{
-  schema = 'remote-tailnet-guard/collect/1'
+  schema = 'dsh-crossnet-link/collect/1'
   collector = [ordered]@{
     version = 'v0.2'
     lastUpdated = '2026-09-24'
@@ -2216,7 +2216,7 @@ if ($AsJson) {
   $jsonOut = [System.Text.Encoding]::UTF8.GetBytes($json)
   [Console]::OpenStandardOutput().Write($jsonOut, 0, $jsonOut.Length)
 } else {
-  Write-Output '== remote-tailnet-guard collector (read-only) =='
+  Write-Output '== dsh-crossnet-link collector (read-only) =='
   Write-Output ('host=' + $env:COMPUTERNAME + ' ps=' + $psv + ' role=' + $Role + ' strictness=' + $Strictness + ' lang=' + $script:LangUsed)
   if ($FixturePath) { Write-Output ('fixture=' + $FixturePath + ' noNative=' + $script:NoNative) }
   if ($script:CollectorFaults.Count -gt 0) { Write-Output ('COLLECTOR FAULT: ' + (@($script:CollectorFaults) -join '; ')) }

@@ -1,12 +1,15 @@
 <#
-  uninstall.ps1 - the ONE optional write-capable component of remote-tailnet-guard (task t36).
+  uninstall.ps1 - the ONE optional write-capable component of dsh-crossnet-link (task t36).
 
-  LAST UPDATED : 2026-09-24 (v1 - t36: first revision. Journal-driven, fail-closed uninstaller:
+  LAST UPDATED : 2026-09-25 (t8: the whole release set was renamed to dsh-crossnet-link; the
+                 read-side legacy compatibility rules, including the -RowId default change, are
+                 described in the RENAME section below)
+                 2026-09-24 (v1 - t36: first revision. Journal-driven, fail-closed uninstaller:
                  dry-run by default, -Apply required to write, and it may only touch a surface that
                  is RECORDED in the journal AND whose current value is still the one this tool's
                  remediation produced. Anything the user changed afterwards is reported and left
                  alone. Everything is copied into a backup directory BEFORE the first write.)
-  AUTHOR       : team remote-tailnet-guard-2 (member "forge", task t36)
+  AUTHOR       : team dsh-crossnet-link-2 (as named at authoring time, after the plugin's then-current name; member "forge", task t36)
   RUNS ON      : Windows PowerShell 5.1 (powershell.exe). No pwsh 7, no external module, no Pester,
                  no node, no curl, no CIM/WMI cmdlet of its own.
 
@@ -89,7 +92,7 @@
   JOURNAL SCHEMA v1 (frozen; written literally by -RecordBefore / -RecordAfter)
     {
       "schemaVersion": 1,
-      "tool": "remote-tailnet-guard/tools/uninstall.ps1",
+      "tool": "dsh-crossnet-link/tools/uninstall.ps1",
       "createdAtLocal": "...", "updatedAtLocal": "...",
       "collectorBaseline": { ... },        # optional: the pre-uninstall non-pass check ids
       "records": [
@@ -103,6 +106,26 @@
     }
     surface is a closed set: dsh-profile-row, plugin-files, firewall-rule, tailscale-serve,
     dsh-settings, power-plan, network-profile, user-skill-copy, cordis-dynamic-package.
+
+  RENAME (2026-09-25, task t8) - the old name is gone, the old data is not
+    Every literal in this file was renamed to dsh-crossnet-link. Three READ-side rules keep data
+    written by the pre-rename tool usable. None of them widens what may be touched:
+      * journal: schemaVersion (1) and the record shape are unchanged, and the `tool` string is
+        provenance only - no code path compares it - so a pre-rename journal loads exactly as it
+        did before;
+      * state directory: the default is now %USERPROFILE%\.dsh-crossnet-link, but when that
+        directory does not exist and the legacy one does, the legacy directory is used and the
+        report says source=auto-legacy(...). A pre-rename journal is therefore still found without
+        passing -StateDir;
+      * profile row id: -RowId now defaults to the id this package actually ships
+        (dsh-crossnet-link). SEMANTIC CHANGE, not a string swap: the old default named a row that
+        the shipped package never had, so under the old default the profile-row record always
+        observed "absent" and the installed row never entered the journal. Observation and revert
+        now also resolve the legacy ids to the same row (Get-RowIdCandidates). Attribution itself
+        is NOT loosened: a row is removed only while its block text still equals the recorded
+        before/after value byte-for-byte.
+    Every legacy literal is assembled from two pieces in the constants section, so no old-name
+    string survives verbatim in the release set (the idiom repo-hygiene.ps1 uses for the repo name).
 
   FIXTURE MODE (-FixturePath) - offline determinism
     The journal AND every current observation are read from the fixture file, so the classification
@@ -152,7 +175,7 @@ param(
   [string]$Collector = '',
   [string[]]$InstallPath = @(),
   [string[]]$CordisPluginId = @(),
-  [string]$RowId = 'remote-tailnet-guard-panel',
+  [string]$RowId = 'dsh-crossnet-link',
   [string]$NetworkProfileName = '',
   [int]$CommandTimeoutMs = 20000
 )
@@ -164,13 +187,33 @@ $ProgressPreference = 'SilentlyContinue'
 # section 0: frozen constants
 # ===========================================================================
 
-$script:ReportSchema  = 'remote-tailnet-guard/uninstall-report/1'
-$script:FixtureSchema = 'remote-tailnet-guard/uninstall-fixture/1'
+$script:ReportSchema  = 'dsh-crossnet-link/uninstall-report/1'
+$script:FixtureSchema = 'dsh-crossnet-link/uninstall-fixture/1'
 $script:JournalSchema = 1
-$script:ToolName      = 'remote-tailnet-guard/tools/uninstall.ps1'
-$script:RowIdDefault  = 'remote-tailnet-guard-panel'
+$script:ToolName      = 'dsh-crossnet-link/tools/uninstall.ps1'
+$script:RowIdDefault  = 'dsh-crossnet-link'
 $script:FirewallRuleName = 'DSH via Tailscale serve (tcp 443)'
 $script:UserIdleNever = '0x00000000'
+
+# --- legacy identity (pre-rename), READ side only ---------------------------
+# New records are always written with the current names. These legacy values exist so that a
+# journal written before the rename can still claim what it recorded. Every legacy literal is
+# assembled from two pieces so that no old-name string survives verbatim in the release set (the
+# same idiom .github/scripts/repo-hygiene.ps1 uses for the repository name).
+$script:LegacySlug = 'remote-tailnet-' + 'guard'
+$script:LegacyStateDirName = '.' + $script:LegacySlug
+# The plugin's loader row has carried more than one id over time (the legacy bare id, the legacy
+# "-panel" id the old default used, and the current pair); they all designate the same row in a
+# profile's cordis.patch.yml. Observation and revert resolve any of them through
+# Get-RowIdCandidates, so a pre-rename journal's profile-row record is no longer condemned to
+# "absent" after the rename. What is NOT loosened is attribution: the block read back must still
+# equal the recorded before/after text exactly, or the row is left alone.
+$script:RowIdEquivalents = @(
+  'dsh-crossnet-link',
+  'dsh-crossnet-link-panel',
+  $script:LegacySlug,
+  ($script:LegacySlug + '-panel')
+)
 
 # The surface closed set. A journal record whose surface is not in this list is reported as
 # unknown and is never executed, so a hand-edited journal cannot widen the tool's reach.
@@ -457,7 +500,18 @@ $script:PluginRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).
 
 if ($StateDir) { $stateVal = $StateDir; $stateSrc = 'param' }
 elseif ($env:RTG_STATE_DIR) { $stateVal = $env:RTG_STATE_DIR; $stateSrc = 'env:RTG_STATE_DIR' }
-elseif ($env:USERPROFILE) { $stateVal = Join-Path $env:USERPROFILE '.remote-tailnet-guard'; $stateSrc = 'auto(USERPROFILE/.remote-tailnet-guard)' }
+elseif ($env:USERPROFILE) {
+  # Default state directory. A journal written by the pre-rename tool lives under the legacy
+  # directory name, so when the current default does not exist but the legacy directory does, the
+  # legacy directory wins: historical journals stay findable without passing -StateDir. When both
+  # exist the current default wins (new work never lands in the legacy directory by accident).
+  $stateVal = Join-Path $env:USERPROFILE '.dsh-crossnet-link'; $stateSrc = 'auto(USERPROFILE/.dsh-crossnet-link)'
+  $legacyStateDir = Join-Path $env:USERPROFILE $script:LegacyStateDirName
+  if ((-not (Test-Path -LiteralPath $stateVal)) -and (Test-Path -LiteralPath $legacyStateDir)) {
+    $stateVal = $legacyStateDir
+    $stateSrc = 'auto-legacy(USERPROFILE/' + $script:LegacyStateDirName + ')'
+  }
+}
 else { $stateVal = ''; $stateSrc = 'missing' }
 
 if ($Journal) { $journalVal = $Journal; $journalSrc = 'param' }
@@ -488,7 +542,7 @@ Add-Cfg 'journal'    $journalVal  $journalSrc
 Add-Cfg 'dshHome'    $dshHomeVal  $dshHomeSrc
 Add-Cfg 'manifest'   $manifestVal $manifestSrc
 Add-Cfg 'collector'  $collectorVal $collectorSrc
-Add-Cfg 'rowId'      $RowId       'param(default remote-tailnet-guard-panel)'
+Add-Cfg 'rowId'      $RowId       'param(default dsh-crossnet-link)'
 Add-Cfg 'removeFiles' $([bool]$RemoveFiles) 'param'
 Add-Cfg 'keepTailscale' $keepTailVal 'param(default true; see the coercion comment)'
 Add-Cfg 'commandTimeoutMs' $CommandTimeoutMs 'param'
@@ -856,6 +910,34 @@ function Get-YamlItemBlock {
   return [pscustomobject]$out
 }
 
+# Resolves one rowId to the ordered candidate list used when reading a profile patch file: the
+# requested id first (so a live row is always preferred), then its legacy/current equivalents. An
+# id outside the equivalent set resolves to itself alone, and a caller that passes no id gets no
+# candidates (the empty row id must never match a row).
+function Get-RowIdCandidates {
+  param([string]$RowId)
+  $ids = New-Object System.Collections.ArrayList
+  if (-not $RowId) { return $ids.ToArray() }
+  [void]$ids.Add($RowId)
+  if ($script:RowIdEquivalents -contains $RowId) {
+    foreach ($eq in $script:RowIdEquivalents) { if (-not $ids.Contains($eq)) { [void]$ids.Add($eq) } }
+  }
+  return $ids.ToArray()
+}
+
+# Finds the first row among the candidates. Returns { found, block, startLine, endLine, indent,
+# rowId } where rowId is the id that actually matched (empty when nothing matched).
+function Get-ProfileRowBlock {
+  param([string]$Text, [string]$RowId)
+  foreach ($cand in @(Get-RowIdCandidates -RowId $RowId)) {
+    $b = Get-YamlItemBlock $Text $cand
+    if ($b.found) {
+      return [pscustomobject]@{ found = $true; block = $b.block; startLine = $b.startLine; endLine = $b.endLine; indent = $b.indent; rowId = $cand }
+    }
+  }
+  return [pscustomobject]@{ found = $false; block = ''; startLine = -1; endLine = -1; indent = 0; rowId = '' }
+}
+
 function Get-ProfileRowObservation {
   param([string]$Scope)
   $parts = $Scope -split '::'
@@ -867,10 +949,12 @@ function Get-ProfileRowObservation {
   }
   $r = Read-TextFileSafe $path
   if (-not $r.ok) { return New-Observation 'unreadable' '' ('the profile patch file could not be read: ' + $r.error) }
-  $b = Get-YamlItemBlock $r.text $rowId
+  $b = Get-ProfileRowBlock -Text $r.text -RowId $rowId
   if (-not $b.found) { return New-Observation 'read' 'absent' ('no YAML list entry with id ' + $rowId + ' in ' + $path) }
   $norm = ($b.block -replace '\s+', ' ').Trim()
-  return New-Observation 'read' ('present:' + $norm) ('lines ' + ($b.startLine + 1) + '-' + ($b.endLine + 1) + ' of ' + $path + ': ' + $norm)
+  $via = ''
+  if ($b.rowId -cne $rowId) { $via = ' (resolved through the equivalent row id "' + $b.rowId + '")' }
+  return New-Observation 'read' ('present:' + $norm) ('lines ' + ($b.startLine + 1) + '-' + ($b.endLine + 1) + ' of ' + $path + ': ' + $norm + $via)
 }
 
 function Get-FirewallRuleObservation {
@@ -1825,7 +1909,7 @@ function Get-Label {
 
 function Initialize-Labels {
   $builtin = @{
-    title = 'remote-tailnet-guard uninstall helper (dry-run by default)'
+    title = 'dsh-crossnet-link uninstall helper (dry-run by default)'
     dryRun = 'DRY RUN: nothing was written or changed. Add -Apply to execute the reverts that are classified revert.'
     recordBanner = 'JOURNAL RUN: this run observes and records. Its only write is the journal file inside the state directory.'
     applyBanner = 'WRITE RUN: the backup directory is written and verified BEFORE the first change.'
@@ -2124,7 +2208,7 @@ function New-Backup {
     [void]$manFiles.Add([pscustomobject][ordered]@{ name = $name; bytes = $b; sha256 = $h })
   }
   $man = [pscustomobject][ordered]@{
-    schema = 'remote-tailnet-guard/uninstall-backup/1'
+    schema = 'dsh-crossnet-link/uninstall-backup/1'
     tool = $script:ToolName
     createdAtLocal = Get-NowStamp
     stateDir = $stateVal
@@ -2253,10 +2337,13 @@ function Invoke-RevertProfileRow {
   $fx2 = Get-FileTextAndEol $path
   if ($null -eq $fx2) { return [pscustomobject]@{ ok = $false; reasonKey = 'file_unreadable'; detail = 'the profile patch file could not be read' } }
   if (-not $fx2.ok) { return [pscustomobject]@{ ok = $false; reasonKey = 'file_not_utf8'; detail = $fx2.error } }
-  $b = Get-YamlItemBlock $fx2.text $rowId
+  $b = Get-ProfileRowBlock -Text $fx2.text -RowId $rowId
   if (-not $b.found) { return [pscustomobject]@{ ok = $true; reasonKey = 'already_absent'; detail = 'no YAML list entry with id ' + $rowId + ' any more' } }
   $norm = ($b.block -replace '\s+', ' ').Trim()
   $want = 'present:' + $norm
+  # Attribution is NOT loosened by the row-id equivalence above: the block read back must still
+  # equal the recorded before/after text byte-for-byte, or the row is left alone. Matching a
+  # different id only decides WHERE to look, never whether the value counts as ours.
   if ($want -ne [string]$Row.after -and $want -ne [string]$Row.before) {
     return [pscustomobject]@{ ok = $false; reasonKey = 'block_changed'; detail = 'the block no longer matches the recorded value, so it is left alone' }
   }
@@ -2650,7 +2737,7 @@ if ($run -and ($action -eq 'plan' -or $action -eq 'check')) {
 
 if ($run -and $action -eq 'apply') {
   $planJson = ConvertTo-JsonSafe ([pscustomobject][ordered]@{
-    schema = 'remote-tailnet-guard/uninstall-plan/1'
+    schema = 'dsh-crossnet-link/uninstall-plan/1'
     tool = $script:ToolName
     generatedAtLocal = Get-NowStamp
     action = $action

@@ -1,4 +1,4 @@
-# remote-tailnet-guard bundle patch: mounts the persistent plugin into the host
+# dsh-crossnet-link bundle patch: mounts the persistent plugin into the host
 # composition of a dsh profile. `dsh plugin --profile <name> add <this package>`
 # pnpm-installs the package and reconciles it into the profile's
 # dsh.profile.bundles layer list, which is what loads THIS file as an overlay.
@@ -17,6 +17,6 @@
 # `name` MUST equal package.json `name` (the loader specifier is resolved with
 # ESM/Node resolution from the profile directory); `id` is the row identity.
 - insert:
-    - id: remote-tailnet-guard
-      name: remote-tailnet-guard
+    - id: dsh-crossnet-link
+      name: dsh-crossnet-link
       disabled: true

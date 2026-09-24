@@ -1,8 +1,8 @@
 /*
- * remote-tailnet-guard - HOST half source of record (t5 deliverable, landed for t16 F4).
+ * dsh-crossnet-link - HOST half source of record (t5 deliverable, landed for t16 F4).
  *
  * LAST UPDATED : 2026-09-24 (t16 repair-round-2)
- * AUTHOR       : team remote-tailnet-guard-2 (member "smith", tasks t5 + t16)
+ * AUTHOR       : team dsh-crossnet-link-2 (as named at authoring time, after the plugin's then-current name; member "smith", tasks t5 + t16)
  *
  * WHY THIS FILE EXISTS (review finding F4)
  *   The t5 host half only ever existed inside the dynamic Cordis package, so nobody could review
@@ -17,7 +17,7 @@
  *
  * WHAT IT REGISTERS (all on ctx.effect, so cordis_stop removes everything)
  *   - Service  : remoteTailnetGuard  (ctx.provide)
- *   - RPC      : remote-tailnet-guard/posture          (harness.handle, package-private)
+ *   - RPC      : dsh-crossnet-link/posture          (harness.handle, package-private)
  *   - Tool     : remote_tailnet_posture                (harness.defineTool + harness.registerTool)
  *   The effect disposer also calls activeHandle.terminate() on a still-running collector child.
  *
@@ -83,7 +83,7 @@ function guardFixturePath(value) {
 }
 
 return {
-  name: 'remote-tailnet-guard-host',
+  name: 'dsh-crossnet-link-host',
   apply(ctx) {
     const fs = ctx.get('fs');
     const subprocess = ctx.get('subprocess');
@@ -300,7 +300,7 @@ return {
     }
 
     function compactText(result) {
-      if (!result.ok) return 'remote-tailnet-guard: collection failed [' + result.code + '] ' + result.message;
+      if (!result.ok) return 'dsh-crossnet-link: collection failed [' + result.code + '] ' + result.message;
       const summary = result.summary;
       const lines = [
         'verdict=' + summary.verdict + ' exit=' + summary.exitCode + ' (pass=' + summary.pass + ' degraded=' + summary.degraded + ' blocked=' + summary.blocked + ' unknown=' + summary.unknown + ')',
@@ -381,13 +381,13 @@ return {
 
     ctx.effect(function () {
       const disposeService = ctx.provide('remoteTailnetGuard', service);
-      const disposeRpc = harness.handle('remote-tailnet-guard/posture', async function (args) {
+      const disposeRpc = harness.handle('dsh-crossnet-link/posture', async function (args) {
         const result = await runCollector(args || {});
         if (!result.ok) return { ok: false, code: result.code, message: result.message };
         return { ok: true, exitCode: result.exitCode, summary: result.summary, checks: result.checks, script: result.script, fixture: result.fixture };
       });
       const disposeTool = harness.registerTool(ctx, tool);
-      console.log('remote-tailnet-guard: read-only posture service ready (' + COLLECTOR_REL + ')');
+      console.log('dsh-crossnet-link: read-only posture service ready (' + COLLECTOR_REL + ')');
       return function () {
         try { disposeTool(); } catch (error) { }
         try { disposeRpc(); } catch (error) { }
@@ -397,6 +397,6 @@ return {
           activeHandle = null;
         }
       };
-    }, 'remote-tailnet-guard: posture service, private method, verification tool');
+    }, 'dsh-crossnet-link: posture service, private method, verification tool');
   }
 };

@@ -1,5 +1,5 @@
 {
-    "schema":  "remote-tailnet-guard/fixture/1",
+    "schema":  "dsh-crossnet-link/fixture/1",
     "name":  "server-side capture from a zh-CN Windows 10 box",
     "locale":  "en-US",
     "role":  "both",

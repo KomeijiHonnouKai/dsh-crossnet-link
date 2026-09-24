@@ -1,5 +1,5 @@
 /*
- * remote-tailnet-guard - CLIENT half of the persistent DSH plugin - BROWSER BUNDLE.
+ * dsh-crossnet-link - CLIENT half of the persistent DSH plugin - BROWSER BUNDLE.
  * LAST UPDATED : 2026-09-25 (v0.5 - this half ALSO registers one OPTIONAL dsh-better-sidebar tab
  * (id dsh-crossnet-link:posture, order 60, single): a read-only posture view over the host half's
  * own route, read only while the panel is visible. The sidebar service is reached with ctx.get and
@@ -28,11 +28,11 @@
  * The region between the two SHARED BODY markers is byte-identical to the ESM source of the same
  * half (lib/client/index.js); panel/plugin-preflight.ps1 fails if the two ever drift apart.
  */
-window.__ModuleLoader__.load({ id: "remote-tailnet-guard", factory: (require) => {
+window.__ModuleLoader__.load({ id: "dsh-crossnet-link", factory: (require) => {
 var module = { exports: {} }; var exports = module.exports;
 var React = require("react");
 // ==== SHARED BODY BEGIN (byte-identical in lib/client.js and lib/client/index.js) ====
-const SETTINGS_NS = 'remote-tailnet-guard';
+const SETTINGS_NS = 'dsh-crossnet-link';
 const CARD_ORDER = 100;
 const CSS_ID = 'dsh-rtg-card-css';
 const CARD_TITLE = 'dsh-crossnet-link';
@@ -668,21 +668,21 @@ function apply(ctx) {
     if (document.getElementById(CSS_ID) !== null) return;
     const tag = document.createElement('style');
     tag.id = CSS_ID;
-    tag.dataset.plugin = 'remote-tailnet-guard';
+    tag.dataset.plugin = 'dsh-crossnet-link';
     tag.textContent = CARD_CSS;
     document.head.appendChild(tag);
     return function () { tag.remove(); };
-  }, 'remote-tailnet-guard: settings card css');
+  }, 'dsh-crossnet-link: settings card css');
   ctx.effect(function () {
     if (typeof document === 'undefined') return undefined;
     if (document.getElementById(TAB_CSS_ID) !== null) return undefined;
     const tag = document.createElement('style');
     tag.id = TAB_CSS_ID;
-    tag.dataset.plugin = 'remote-tailnet-guard';
+    tag.dataset.plugin = 'dsh-crossnet-link';
     tag.textContent = TAB_CSS;
     document.head.appendChild(tag);
     return function () { tag.remove(); };
-  }, 'remote-tailnet-guard: sidebar tab css');
+  }, 'dsh-crossnet-link: sidebar tab css');
   // Reads and writes go through the platform's own per-namespace scope: staged drafts, revision
   // fencing, and the read-back that decides whether a write landed all belong to it, and the
   // namespace stays the one the Host registers. The service is optional here (the card only ever
@@ -731,7 +731,7 @@ function apply(ctx) {
         single: true,
         component: function (tabProps) { return React.createElement(PostureTab, tabProps); }
       });
-    }, 'remote-tailnet-guard: better-sidebar tab');
+    }, 'dsh-crossnet-link: better-sidebar tab');
     return true;
   }
   if (registerSidebarTab(ctx) === false && typeof ctx.inject === 'function') {
@@ -739,7 +739,7 @@ function apply(ctx) {
   }
 }
 // ==== SHARED BODY END ====
-exports.name = "remote-tailnet-guard";
+exports.name = "dsh-crossnet-link";
 exports.inject = ["slots"];
 exports.apply = apply;
 return module.exports; } });

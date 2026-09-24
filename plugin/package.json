@@ -1,8 +1,8 @@
 {
-  "name": "remote-tailnet-guard",
+  "name": "dsh-crossnet-link",
   "version": "0.1.0",
   "private": true,
-  "description": "Persistent DSH plugin face of remote-tailnet-guard (display name dsh-crossnet-link): the plugins-page settings card that edits this link guard's own check parameters (settings.plugin.item, keyed by the remote-tailnet-guard settings namespace), plus a read-only HTTP route that runs the repository's read-only collector (src/collect.ps1 -CheckOnly -AsJson) with those stored parameters. The host half never edits a settings document directly - a one-time, per-key auto-fill of the machine-detectable fields (never overwriting existing values) and the card's saves both go through the platform settings service into the user's own settings - opens no listener, reads no credential material and changes no system setting. The loader row ships disabled: see plugin/cordis.patch.yml.",
+  "description": "Persistent DSH plugin face of dsh-crossnet-link (the plugin display name is the package name): the plugins-page settings card that edits this link's own check parameters (settings.plugin.item, keyed by the dsh-crossnet-link settings namespace), plus a read-only HTTP route that runs the repository's read-only collector (src/collect.ps1 -CheckOnly -AsJson) with those stored parameters. The host half never edits a settings document directly - a one-time, per-key auto-fill of the machine-detectable fields (never overwriting existing values) and the card's saves both go through the platform settings service into the user's own settings - opens no listener, reads no credential material and changes no system setting. The loader row ships disabled: see plugin/cordis.patch.yml.",
   "type": "module",
   "main": "./lib/index.js",
   "exports": {

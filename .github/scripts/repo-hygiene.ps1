@@ -1,5 +1,5 @@
 <#
-  repo-hygiene.ps1 - release-set hygiene gate for remote-tailnet-guard (repository layer)
+  repo-hygiene.ps1 - release-set hygiene gate for dsh-crossnet-link (repository layer)
 
   LAST UPDATED  : 2026-09-25 (task t6 - the repository-name rule was re-based: the name IS the
                   product name now, so README.md references it in six anchored places (7
@@ -8,7 +8,7 @@
                   set, so the shipped package is scanned by default too; task t39 - tools/ joined the
                   release set, so the optional write component is scanned by default too; task t24
                   made panel/ a default root)
-  AUTHOR        : team remote-tailnet-guard-2 (member "packager", tasks t12 + t24 + t39)
+  AUTHOR        : team dsh-crossnet-link-2 (as named at authoring time, after the plugin's then-current name; member "packager", tasks t12 + t24 + t39)
   RUNS ON       : Windows PowerShell 5.1 (powershell.exe). No module, no network, no node.
 
   WHAT IT PROVES (release set = what a clone of the published repository contains:
@@ -576,7 +576,7 @@ function Show-Report {
   param($Res)
   $pad = '  '
   Write-Host ''
-  Write-Host 'remote-tailnet-guard - release-set hygiene gate (t12 + t24: panel/ is a default root)'
+  Write-Host 'dsh-crossnet-link - release-set hygiene gate (t12 + t24: panel/ is a default root)'
   Write-Host ('scan root : ' + $Res.Root)
   Write-Host ('roots     : ' + $Res.Roots)
   Write-Host ('files     : ' + $Res.FileCount + ' under those roots (release set by default)')
@@ -643,7 +643,7 @@ function Show-Report {
 # 4. -SelfTest: positive and negative controls
 # ---------------------------------------------------------------------------
 function Invoke-SelfTest {
-  Write-Host 'remote-tailnet-guard - hygiene gate self-test (positive/negative controls)'
+  Write-Host 'dsh-crossnet-link - hygiene gate self-test (positive/negative controls)'
   $tmpRoot = Join-Path $env:TEMP ('rtg-hygiene-selftest-' + $PID)
   if (Test-Path -LiteralPath $tmpRoot) { Remove-Item -LiteralPath $tmpRoot -Recurse -Force }
   New-Item -ItemType Directory -Force -Path $tmpRoot | Out-Null

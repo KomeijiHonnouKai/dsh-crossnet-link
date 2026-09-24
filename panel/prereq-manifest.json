@@ -1,5 +1,5 @@
 {
-  "schema": "remote-tailnet-guard/prereq/1",
+  "schema": "dsh-crossnet-link/prereq/1",
   "updated": "2026-09-24",
   "purpose": "Machine-readable prerequisite manifest for the cross-network remote-access link (Tailscale + serve + loopback-only DSH). panel/prereq.ps1 reads it; docs/install/prerequisites.md renders it. Nothing here is executed automatically.",
   "roleSemantics": {
@@ -26,7 +26,7 @@
   },
   "uninstallLabels": {
     "en": {
-      "title": "remote-tailnet-guard uninstall helper (dry-run by default)",
+      "title": "dsh-crossnet-link uninstall helper (dry-run by default)",
       "dryRun": "DRY RUN: nothing was written or changed. Add -Apply to execute the reverts that are classified revert.",
       "recordBanner": "JOURNAL RUN: this run observes and records. Its only write is the journal file inside the state directory.",
       "applyBanner": "WRITE RUN: the backup directory is written and verified BEFORE the first change.",
@@ -34,7 +34,7 @@
       "readTheExit": "exit 0 = clean (a kept backup is a normal state) / 1 = left-alone, unknown or residue / 2 = refused, nothing written"
     },
     "zh": {
-      "title": "remote-tailnet-guard 卸载助手(默认干跑)",
+      "title": "dsh-crossnet-link 卸载助手(默认干跑)",
       "dryRun": "干跑:没有写入也没有改动。加 -Apply 才会执行分类为 revert 的回滚项。",
       "recordBanner": "台账运行:本次只做观测与记录,唯一的写动作是状态目录里的 journal 文件。",
       "applyBanner": "写入运行:备份目录已经写完并校验通过,之后才会执行改动。",
@@ -45,7 +45,7 @@
   "journalSchema": {
     "schemaVersion": 1,
     "writtenBy": "tools/uninstall.ps1 -RecordBefore and -RecordAfter",
-    "file": "<StateDir>/state-journal.json   (default StateDir: %USERPROFILE%\\.remote-tailnet-guard)",
+    "file": "<StateDir>/state-journal.json   (default StateDir: %USERPROFILE%\\.dsh-crossnet-link; a state directory left by a pre-rename install is still read when the current default does not exist)",
     "recordFields": ["id", "surface", "scope", "before", "expected", "after", "revert{kind,command,note}", "verify{command,expect}", "userOwned", "remediation", "recordedAtLocal", "recordedBy"],
     "surfaceClosedSet": ["dsh-profile-row", "plugin-files", "firewall-rule", "tailscale-serve", "dsh-settings", "power-plan", "network-profile", "user-skill-copy", "cordis-dynamic-package"],
     "revertKinds": {

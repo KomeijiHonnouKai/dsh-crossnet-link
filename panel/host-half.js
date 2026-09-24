@@ -1,5 +1,5 @@
 /*
- * remote-tailnet-guard - HOST half of the posture panel package (t6).
+ * dsh-crossnet-link - HOST half of the posture panel package (t6).
  * LAST UPDATED : 2026-09-24 (t16 repair-round-2: F10 fixture-path whitelist added to BOTH the
  * service path and the direct fallback; absolute paths, UNC paths and ".." segments are refused).
  * This file IS the exact text passed as `code.host` to
@@ -13,7 +13,7 @@
  *   powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly
  * See docs/install/install.md for the slot/builtin evidence table and the activation checklist.
  */
-const METHOD = 'remote-tailnet-guard/panel/posture';
+const METHOD = 'dsh-crossnet-link/panel/posture';
 const SERVICE_KEY = 'remoteTailnetGuard';
 const COLLECTOR_REL = 'remote-tailnet-plugin/src/collect.ps1';
 const FIXTURE_PREFIX = 'tests/fixtures/';
@@ -47,7 +47,7 @@ function guardFixturePath(value) {
 }
 
 return {
-  name: 'remote-tailnet-guard-panel-host',
+  name: 'dsh-crossnet-link-panel-host',
   apply(ctx) {
     function pickString(value, fallback) {
       if (typeof value !== 'string') return fallback;
@@ -254,10 +254,10 @@ return {
       const dispose = harness.handle(METHOD, function (args) {
         return fetchPosture(args);
       });
-      console.log('remote-tailnet-guard panel bridge ready: ' + METHOD);
+      console.log('dsh-crossnet-link panel bridge ready: ' + METHOD);
       return function () {
         try { dispose(); } catch (error) { /* already disposed */ }
       };
-    }, 'remote-tailnet-guard: panel bridge (package-private JSON method)');
+    }, 'dsh-crossnet-link: panel bridge (package-private JSON method)');
   }
 };

@@ -1,5 +1,5 @@
 <#
-  run-smoke.ps1 - clean-room smoke entry for the remote-tailnet-guard release set.
+  run-smoke.ps1 - clean-room smoke entry for the dsh-crossnet-link release set.
 
   WHAT THIS IS
     One offline command that re-proves, on a freshly reset machine, everything that can be
@@ -339,7 +339,7 @@ if (-not (Test-Path -LiteralPath $collectorPath)) {
     $collectExit[$role] = $res.exitCode
 
     $problems = New-Object System.Collections.ArrayList
-    if ([string]$report.schema -ne 'remote-tailnet-guard/collect/1') { [void]$problems.Add('schema=' + [string]$report.schema) }
+    if ([string]$report.schema -ne 'dsh-crossnet-link/collect/1') { [void]$problems.Add('schema=' + [string]$report.schema) }
     if ([bool]$report.collector.readOnly -ne $true) { [void]$problems.Add('collector.readOnly is not true') }
     $sum = $report.summary
     $nBlk = [int]$sum.blocked; $nDeg = [int]$sum.degraded; $nUnk = [int]$sum.unknown
