@@ -65,7 +65,24 @@ jobs:
       - name: Run the cross-environment and fault-injection suite
         shell: powershell
         run: |
-          .\tests\run-tests.ps1
+          # The suite is launched as a CHILD process (-File), so its own `exit N` cannot
+          # terminate this wrapper before the failure lines have been turned into annotations.
+          # On failure every FAIL line and the tail of the output (the FAILURES block and the
+          # summary) become ::error annotations, so a red run explains itself on the check
+          # itself instead of only inside the raw job log.
+          $lines = @(& powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tests.ps1 2>&1 | ForEach-Object { $_.ToString() })
+          $code = $LASTEXITCODE
+          foreach ($l in $lines) { Write-Host $l }
+          if ($null -eq $code) { $code = 1 }
+          if ($code -ne 0) {
+            foreach ($l in @($lines | Where-Object { $_ -match '\bFAIL\b' } | Select-Object -First 6)) {
+              Write-Host ('::error title=suite-fail::' + $l.Trim())
+            }
+            foreach ($l in @($lines | Select-Object -Last 20)) {
+              Write-Host ('::error title=suite-tail::' + $l.Trim())
+            }
+          }
+          exit $code
 
       - name: Static analysis (PSScriptAnalyzer, pinned version)
         shell: powershell

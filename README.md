@@ -12,6 +12,40 @@
 >                 `Select-String -Path README.md -Pattern 'uninstall'`
 >                 `powershell -NoProfile -Command '(Select-String -Path README.md -SimpleMatch <the repository name> | Measure-Object).Count'` - expect **1** (the clone URL below is its single source of truth; this header therefore refers to it by description, not by literal)
 
+## 中文说明(先读这一段)
+
+**这是什么** —— 一个**只读**的跨网远程访问链路体检工具:检查 DSH 是否只监听 loopback、tailnet 链路与隔离性是否正常、防火墙 / 电源 / 代理姿态,以及前置件是否齐备。四态判定 `pass / degraded / blocked / unknown`,退出码 `0 / 1 / 2` 全部 **fail-closed**(不确定绝不当作通过)。它**不新增监听、不改任何配置、不读任何凭据**;所有写操作都必须显式点名目录、可回滚、可溯源。
+
+**三分钟上手**(下面每条都是只读的;唯一会写东西的是最后那条,而它默认**干跑**)
+
+```powershell
+# 1) 在工作区根克隆 —— 第二个参数不能省(原因见下方 Repository 一行)
+git clone <仓库地址> remote-tailnet-plugin
+cd remote-tailnet-plugin
+# 2) 一条命令自证:离线、只读;5 条 SKIP 是设计值,判据是 fail=0
+powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-smoke.ps1
+# 3) 看本机姿态(加 -AsJson 得到机器可读报告)
+powershell -NoProfile -ExecutionPolicy Bypass -File src\collect.ps1 -CheckOnly
+# 4) 卸载:默认干跑、不写任何东西;要真回滚才加 -Apply(写前自动备份)
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\uninstall.ps1 -Plan
+```
+
+**中文文档在哪**
+
+| 想看什么 | 看哪里 |
+| --- | --- |
+| 装什么、怎么装、每步怎么回滚 | `docs/install/prerequisites.md`、`docs/install/install.md`、`docs/install/rollback.md` |
+| **完整卸载**(保留清单 / 备份保留或清空 / 残留自查) | `docs/install/uninstall.md` |
+| 采集器 24 项判据与实现说明 | `docs/collect.md` |
+| 谁能看到什么、边界在哪 | `docs/threat-model.md` |
+| 本 README 的中文摘要 + 英文正文 | 下面的「中文摘要」一节 / 英文部分 |
+
+**卸载的三条硬规则**(全文见 `docs/install/uninstall.md`)
+
+1. **只回滚它自己改过的**:journal 记录过、**且当前值仍等于本工具 remediation 应产生值**的项才回滚;别人后来改过的一律只报告、不触碰。
+2. **默认保留**:Tailscale 本体、其它 DSH 插件、**你自己写的防火墙规则**、工作区文件、用户级 skill 副本 —— 全部保留;工具里没有任何卸载 Tailscale 的代码路径。
+3. **备份可留可清**:备份默认保留;要清空得显式 `-PurgeBackup`,而且只删它在 `StateDir` 下自己创建、且逐文件 sha256 校验通过的备份目录。
+
 Read-only posture detector for a **cross-network remote-access link**: [Tailscale](https://tailscale.com/)
 plus `tailscale serve` fronting a **loopback-only** DSH port, so a browser on one machine can
 drive the DSH UI of another machine in the same tailnet.
