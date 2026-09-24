@@ -1,6 +1,10 @@
 /*
  * remote-tailnet-guard - CLIENT half of the persistent DSH plugin - ESM SOURCE.
- * LAST UPDATED : 2026-09-25 (v0.4 - see ../client.js: the plugins-page card body is the plugin's
+ * LAST UPDATED : 2026-09-25 (v0.5 - see ../client.js: this half also registers one OPTIONAL
+ * dsh-better-sidebar tab (id dsh-crossnet-link:posture, order 60, single) whose body reads the host
+ * half's own posture route only while the panel is visible; the sidebar service is reached with
+ * ctx.get and ctx.inject, never with a declared dependency.
+ * v0.4 - see ../client.js: the plugins-page card body is the plugin's
  * settings form over the Host settings namespace, staged and saved through the platform's
  * settingsScope service; the posture report dump was removed).
  *
@@ -27,7 +31,39 @@ const OVERRIDE_MARK = ' \u00b7 \u5df2\u8986\u76d6';
 const RESET_LABEL = '\u6062\u590d\u9ed8\u8ba4';
 const SAVE_LABEL = '\u4fdd\u5b58';
 const DISCARD_LABEL = '\u653e\u5f03';
-const CARD_CSS = '.dsh-rtg-card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:12px;list-style:none;transition:border-color .16s,background .16s}.dsh-rtg-card:hover{border-color:var(--dsw-alias-label-dimmed)}.dsh-rtg-card--open{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-label-dimmed)}.dsh-rtg-card__header{appearance:none;width:100%;font:inherit;color:inherit;text-align:left;cursor:pointer;background:0 0;border:0;border-radius:12px;align-items:center;gap:12px;padding:14px 16px;display:flex}.dsh-rtg-card__header:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.dsh-rtg-card__head-text{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.dsh-rtg-card__name{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:600;line-height:1.4}.dsh-rtg-card__desc{color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:1.5}.dsh-rtg-card__chevron{color:var(--dsw-alias-label-tertiary);flex:none;transition:transform .16s;display:inline-flex;align-items:center}.dsh-rtg-card__chevron--open{transform:rotate(180deg)}.dsh-rtg-card__body{border-top:1px solid var(--dsw-alias-border-l2);margin:0 16px;padding:12px 0 4px}.dsh-rtg-card__form{flex-direction:column;gap:14px;display:flex}.dsh-rtg-line{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:1.6;margin:0}.dsh-rtg-group{flex-direction:column;gap:10px;display:flex}.dsh-rtg-group__title{color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:600}.dsh-rtg-field{flex-direction:column;gap:3px;display:flex}.dsh-rtg-field__label{flex-direction:column;gap:3px;display:flex}.dsh-rtg-field__label--check{flex-direction:row;align-items:center;gap:8px}.dsh-rtg-field__row{align-items:center;gap:8px;display:flex}.dsh-rtg-field__control{font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-4);border:1px solid var(--dsw-alias-border-l3);border-radius:6px;padding:5px 8px;min-width:240px;max-width:340px}.dsh-rtg-field__control:disabled{opacity:.6}.dsh-rtg-field--invalid .dsh-rtg-field__control{border-color:var(--dsw-alias-label-error)}.dsh-rtg-field__reset{appearance:none;font:inherit;font-size:12px;color:var(--dsw-alias-brand-primary);background:0 0;border:0;cursor:pointer;padding:0}.dsh-rtg-field__reset:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}.dsh-rtg-field__hint{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:1.5}.dsh-rtg-footer{border-top:1px solid var(--dsw-alias-border-l2);align-items:center;gap:8px;margin-top:2px;padding-top:10px;display:flex}.dsh-rtg-footer__status{flex:1;color:var(--dsw-alias-label-tertiary);font-size:12px}.dsh-rtg-footer__status--error{color:var(--dsw-alias-label-error)}.dsh-rtg-button{appearance:none;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-4);border:1px solid var(--dsw-alias-border-l3);border-radius:6px;cursor:pointer;padding:5px 12px}.dsh-rtg-button--primary{background:var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-brand-primary);color:#ffffff}.dsh-rtg-button:disabled{opacity:.5;cursor:default}';
+/**
+ * better-sidebar tab (v0.5). A SECOND, read-only surface beside the settings card: the card keeps
+ * editing this plugin's check parameters, while the tab renders the posture the host route returns.
+ * dsh-better-sidebar is an OPTIONAL service - see apply(): the tab is registered through ctx.get
+ * and never through a declared dependency, so an absent sidebar changes nothing else here.
+ */
+const SIDEBAR_TAB_ID = 'dsh-crossnet-link:posture';
+const SIDEBAR_TAB_ORDER = 60;
+const TAB_CSS_ID = 'dsh-rtg-tab-css';
+/** The host half serves its read-only posture route under the SAME namespace, so one rename moves both. */
+const POSTURE_ROUTE = '/' + SETTINGS_NS + '/api/posture';
+const TAB_HINT_LINE = '\u53ea\u8bfb\u59ff\u6001:\u672c\u673a\u94fe\u8def\u4f53\u68c0\u7684\u8bfb\u6570\u4e0e\u5224\u5b9a(\u9762\u677f\u4e0d\u53ef\u89c1\u65f6\u4e0d\u8bf7\u6c42)\u3002';
+const TAB_IDLE_LINE = '\u5c1a\u672a\u8bfb\u53d6\u3002';
+const TAB_LOADING_LINE = '\u8bfb\u53d6\u4e2d\u2026';
+const TAB_READY_LINE = '\u5df2\u8bfb\u53d6\u3002';
+const TAB_FAIL_PREFIX = '\u8bfb\u53d6\u5931\u8d25: ';
+const TAB_EMPTY_LINE = '\u8fd9\u4e00\u6b21\u6ca1\u6709\u68c0\u67e5\u9879\u3002';
+const REFRESH_LABEL = '\u5237\u65b0';
+const TOTAL_LABEL = '\u603b\u6570';
+const EXIT_LABEL = '\u9000\u51fa\u7801';
+const PASS_LABEL = '\u901a\u8fc7';
+const DEGRADED_LABEL = '\u964d\u7ea7';
+const BLOCKED_LABEL = '\u963b\u65ad';
+const UNKNOWN_LABEL = '\u672a\u77e5';
+const GENERATED_LABEL = '\u91c7\u96c6\u65f6\u95f4';
+const CARD_CSS = '.dsh-rtg-card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:12px;list-style:none;transition:border-color .16s,background .16s}.dsh-rtg-card:hover{border-color:var(--dsw-alias-label-dimmed)}.dsh-rtg-card--open{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-label-dimmed)}.dsh-rtg-card__header{appearance:none;width:100%;font:inherit;color:inherit;text-align:left;cursor:pointer;background:0 0;border:0;border-radius:12px;align-items:center;gap:12px;padding:14px 16px;display:flex}.dsh-rtg-card__header:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.dsh-rtg-card__head-text{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.dsh-rtg-card__name{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:600;line-height:1.4}.dsh-rtg-card__desc{color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:1.5}.dsh-rtg-card__chevron{color:var(--dsw-alias-label-tertiary);flex:none;transition:transform .16s;display:inline-flex;align-items:center}.dsh-rtg-card__chevron--open{transform:rotate(180deg)}.dsh-rtg-card__body{border-top:1px solid var(--dsw-alias-border-l2);margin:0 16px;padding:12px 0 4px}.dsh-rtg-card__form{flex-direction:column;gap:14px;display:flex}.dsh-rtg-line{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:1.6;margin:0}.dsh-rtg-group{flex-direction:column;gap:10px;display:flex}.dsh-rtg-group__title{color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:600}.dsh-rtg-field{flex-direction:column;gap:3px;display:flex}.dsh-rtg-field__label{flex-direction:column;gap:3px;display:flex}.dsh-rtg-field__label--check{flex-direction:row;align-items:center;gap:8px}.dsh-rtg-field__row{align-items:center;gap:8px;display:flex}.dsh-rtg-field__control{font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-4);border:1px solid var(--dsw-alias-border-l3);border-radius:6px;padding:5px 8px;min-width:240px;max-width:340px}.dsh-rtg-field__control:disabled{opacity:.6}.dsh-rtg-field--invalid .dsh-rtg-field__control{border-color:var(--dsw-alias-label-error)}.dsh-rtg-field__reset{appearance:none;font:inherit;font-size:12px;color:var(--dsw-alias-brand-primary);background:0 0;border:0;cursor:pointer;padding:0}.dsh-rtg-field__reset:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}.dsh-rtg-field__hint{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:1.5}.dsh-rtg-footer{border-top:1px solid var(--dsw-alias-border-l2);align-items:center;gap:8px;margin-top:2px;padding-top:10px;display:flex}.dsh-rtg-footer__status{flex:1;color:var(--dsw-alias-label-tertiary);font-size:12px}.dsh-rtg-footer__status--error{color:var(--dsw-alias-label-error)}.dsh-rtg-button{appearance:none;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-4);border:1px solid var(--dsw-alias-border-l3);border-radius:6px;cursor:pointer;padding:5px 12px}.dsh-rtg-button--primary{background:var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-label-primary-inverted)}.dsh-rtg-button:disabled{opacity:.5;cursor:default}';
+/**
+ * Skin-neutral styles for the sidebar tab body: every colour is a --dsw-alias-* design token, so
+ * the tab follows the active skin like the card does. The root claims the full height the native
+ * tab host gives it (flex:1 + height:100% + min-height:0); the pane body is a block scroller, not a
+ * flex container, so a root that only leans on the outer flex collapses to its content height.
+ */
+const TAB_CSS = '.dsh-rtg-tab{box-sizing:border-box;display:flex;flex-direction:column;gap:10px;height:100%;min-height:0;padding:12px 14px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}.dsh-rtg-tab__hint{margin:0;flex:none;font-size:12px;line-height:1.6;color:var(--dsw-alias-label-tertiary)}.dsh-rtg-tab__bar{flex:none;align-items:center;gap:8px;display:flex}.dsh-rtg-tab__state{flex:1;min-width:0;font-size:12px;line-height:1.5;color:var(--dsw-alias-label-tertiary)}.dsh-rtg-tab__state--error{color:var(--dsw-alias-state-error-primary)}.dsh-rtg-tab__body{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:8px}.dsh-rtg-tab__summary{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;font-size:12px;line-height:1.6}.dsh-rtg-tab__summary-verdict{font-weight:600;color:var(--dsw-alias-label-primary)}.dsh-rtg-tab__summary-item{color:var(--dsw-alias-label-tertiary)}.dsh-rtg-tab__check{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-2)}.dsh-rtg-tab__check-head{display:flex;align-items:baseline;gap:8px}.dsh-rtg-tab__check-title{font-size:12px;font-weight:600;color:var(--dsw-alias-label-primary)}.dsh-rtg-tab__check-role{font-size:11px;color:var(--dsw-alias-label-dimmed)}.dsh-rtg-tab__check-verdict{margin-left:auto;font-size:11px;font-weight:600}.dsh-rtg-tab__check-line{margin:0;font-size:12px;line-height:1.5;color:var(--dsw-alias-label-tertiary)}.dsh-rtg-verdict--pass{color:var(--dsw-alias-state-success-primary)}.dsh-rtg-verdict--degraded{color:var(--dsw-alias-state-warn-primary)}.dsh-rtg-verdict--blocked{color:var(--dsw-alias-state-error-primary)}.dsh-rtg-verdict--unknown{color:var(--dsw-alias-label-tertiary)}';
 /**
  * The card's settings surface. Every field name here is a field of the Host-side schema for
  * SETTINGS_NS (plugin/lib/index.js), and every default repeats what that schema declares - the
@@ -63,7 +99,7 @@ const SETTINGS_GROUPS = [
         label: '\u5bf9\u7aef\u5730\u5740',
         def: '',
         maxLength: 253,
-        hint: '\u5bf9\u7aef\u7684 MagicDNS \u540d\u6216 IP;\u7559\u7a7a\u5c31\u4e0d\u6838\u5bf9\u5bf9\u7aef\u76f8\u5173\u7684\u68c0\u67e5\u9879\u3002'
+        hint: '\u5bf9\u7aef\u7684 MagicDNS \u540d\u6216 IP;\u7559\u7a7a\u5c31\u4e0d\u6838\u5bf9\u5bf9\u7aef\u76f8\u5173\u7684\u68c0\u67e5\u9879\u3002 \u00b7 \u9700\u624b\u586b'
       },
       {
         field: 'peerName',
@@ -71,7 +107,7 @@ const SETTINGS_GROUPS = [
         label: '\u5bf9\u7aef MagicDNS \u540d',
         def: '',
         maxLength: 253,
-        hint: '\u5f53\u4e0a\u9762\u586b\u7684\u662f IP,\u6216\u8005\u9700\u8981\u6838\u5bf9\u53ef\u4fe1\u4e3b\u673a\u540d\u65f6,\u586b\u8fd9\u4e00\u9879\u3002'
+        hint: '\u5f53\u4e0a\u9762\u586b\u7684\u662f IP,\u6216\u8005\u9700\u8981\u6838\u5bf9\u53ef\u4fe1\u4e3b\u673a\u540d\u65f6,\u586b\u8fd9\u4e00\u9879\u3002 \u00b7 \u9700\u624b\u586b'
       },
       {
         field: 'profile',
@@ -79,7 +115,7 @@ const SETTINGS_GROUPS = [
         label: '\u672c\u673a DSH profile',
         def: '',
         maxLength: 64,
-        hint: '\u4ece\u54ea\u4e2a profile \u8bfb patch \u6587\u4ef6;\u7559\u7a7a\u65f6\u591a profile \u4f1a\u8bb0 unknown,\u91c7\u96c6\u5668\u4e0d\u4f1a\u66ff\u4f60\u9009\u7b2c\u4e00\u4e2a\u3002'
+        hint: '\u4ece\u54ea\u4e2a profile \u8bfb patch \u6587\u4ef6;\u7559\u7a7a\u65f6\u591a profile \u4f1a\u8bb0 unknown,\u91c7\u96c6\u5668\u4e0d\u4f1a\u66ff\u4f60\u9009\u7b2c\u4e00\u4e2a\u3002 \u00b7 \u672c\u673a\u5df2\u81ea\u52a8\u63a2\u6d4b'
       },
       {
         field: 'tailnetDomain',
@@ -132,7 +168,7 @@ const SETTINGS_GROUPS = [
         def: '',
         min: 1,
         max: 65535,
-        hint: '\u672c\u673a DSH \u7684 loopback \u7aef\u53e3;\u7559\u7a7a\u6309\u73af\u5883\u53d8\u91cf\u4e0e\u5185\u7f6e\u9ed8\u8ba4\u503c\u5224\u65ad\u3002'
+        hint: '\u672c\u673a DSH \u7684 loopback \u7aef\u53e3;\u7559\u7a7a\u6309\u73af\u5883\u53d8\u91cf\u4e0e\u5185\u7f6e\u9ed8\u8ba4\u503c\u5224\u65ad\u3002 \u00b7 \u672c\u673a\u5df2\u81ea\u52a8\u63a2\u6d4b'
       }
     ]
   }
@@ -175,7 +211,7 @@ const ADVANCED_GROUP = {
       label: 'DSH home \u76ee\u5f55',
       def: '',
       maxLength: 260,
-      hint: 'DSH \u7684\u6570\u636e\u76ee\u5f55;\u7559\u7a7a\u6309\u73af\u5883\u53d8\u91cf\u4e0e\u5185\u7f6e\u9ed8\u8ba4\u503c\u63a2\u6d4b\u3002'
+      hint: 'DSH \u7684\u6570\u636e\u76ee\u5f55;\u7559\u7a7a\u6309\u73af\u5883\u53d8\u91cf\u4e0e\u5185\u7f6e\u9ed8\u8ba4\u503c\u63a2\u6d4b\u3002 \u00b7 \u672c\u673a\u5df2\u81ea\u52a8\u63a2\u6d4b'
     },
     {
       field: 'appDir',
@@ -183,7 +219,7 @@ const ADVANCED_GROUP = {
       label: 'DSH \u5e94\u7528\u76ee\u5f55',
       def: '',
       maxLength: 260,
-      hint: 'DSH \u5e94\u7528\u7684\u5b89\u88c5\u76ee\u5f55;\u7559\u7a7a\u6309\u5185\u7f6e\u9ed8\u8ba4\u503c\u63a2\u6d4b\u3002'
+      hint: 'DSH \u5e94\u7528\u7684\u5b89\u88c5\u76ee\u5f55;\u7559\u7a7a\u6309\u5185\u7f6e\u9ed8\u8ba4\u503c\u63a2\u6d4b\u3002 \u00b7 \u672c\u673a\u5df2\u81ea\u52a8\u63a2\u6d4b'
     }
   ]
 };
@@ -476,6 +512,139 @@ function GuardCard(props) {
   );
 }
 
+/**
+ * Read the posture through the plugin's own read-only host route: POST, JSON in, leaf fields out.
+ * A failed read is always reported as an error line - never as an empty panel that looks green.
+ */
+function loadPosture() {
+  if (typeof fetch !== 'function') {
+    return Promise.reject(new Error('fetch is unavailable on this page'));
+  }
+  return fetch(POSTURE_ROUTE, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{}',
+    credentials: 'same-origin'
+  }).then(function (response) {
+    return response.json().then(function (payload) {
+      return payload;
+    }, function () {
+      throw new Error('the posture route answered HTTP ' + response.status + ' without a JSON body');
+    });
+  });
+}
+
+/** Only these four verdicts exist; anything else is reported as unknown, never as a pass. */
+function verdictKey(verdict) {
+  if (verdict === 'pass' || verdict === 'degraded' || verdict === 'blocked') return verdict;
+  return 'unknown';
+}
+
+/** Numbers arrive as numbers; anything else prints as a dash rather than as a fake zero. */
+function countText(value) {
+  return typeof value === 'number' ? String(value) : '-';
+}
+
+/** One bounded check: title + role + verdict first, then the reason and the remediation line. */
+function PostureCheck(props) {
+  const check = props.check;
+  const lines = [];
+  const reason = readString(check.reason, '');
+  const remediation = readString(check.remediationAction, '');
+  const role = readString(check.role, '');
+  if (reason !== '') lines.push(React.createElement('p', { key: 'reason', className: 'dsh-rtg-tab__check-line' }, reason));
+  if (remediation !== '') lines.push(React.createElement('p', { key: 'remediation', className: 'dsh-rtg-tab__check-line' }, remediation));
+  return React.createElement('div', { className: 'dsh-rtg-tab__check' },
+    React.createElement('div', { className: 'dsh-rtg-tab__check-head' },
+      React.createElement('span', { className: 'dsh-rtg-tab__check-title' }, readString(check.title, readString(check.id, ''))),
+      role === '' ? null : React.createElement('span', { className: 'dsh-rtg-tab__check-role' }, role),
+      React.createElement('span', {
+        className: 'dsh-rtg-tab__check-verdict dsh-rtg-verdict--' + verdictKey(check.verdict)
+      }, readString(check.verdictLabel, 'UNKNOWN'))
+    ),
+    lines
+  );
+}
+
+/**
+ * The sidebar tab body. It reads once when the panel becomes visible and again on demand, and a
+ * hidden panel (`visible === false`) issues no request at all - the performance gate the sidebar
+ * contract asks for. The posture stays read-only: nothing here writes, installs or restarts.
+ */
+function PostureTab(props) {
+  const visible = props.visible !== false;
+  const statePair = React.useState({ phase: 'idle', data: null, error: '' });
+  const state = statePair[0];
+  const setState = statePair[1];
+  const tickPair = React.useState(0);
+  const tick = tickPair[0];
+  const setTick = tickPair[1];
+
+  React.useEffect(function () {
+    if (!visible) return undefined;
+    let cancelled = false;
+    setState(function (previous) { return { phase: 'loading', data: previous.data, error: '' }; });
+    loadPosture().then(function (payload) {
+      if (cancelled) return;
+      const ok = payload !== null && typeof payload === 'object' && payload.ok === true;
+      setState({
+        phase: 'ready',
+        data: ok ? payload : null,
+        error: ok ? '' : readString(payload && (payload.message || payload.code), 'unknown failure')
+      });
+    }, function (error) {
+      if (cancelled) return;
+      setState({ phase: 'ready', data: null, error: readString(error && error.message, 'request failed') });
+    });
+    return function () { cancelled = true; };
+  }, [visible, tick]);
+
+  const summary = state.data === null ? null : state.data.summary;
+  const checks = state.data !== null && Array.isArray(state.data.checks) ? state.data.checks : [];
+  let stateText = TAB_IDLE_LINE;
+  if (state.error !== '') stateText = TAB_FAIL_PREFIX + state.error;
+  else if (state.phase === 'loading') stateText = TAB_LOADING_LINE;
+  else if (summary !== null && summary !== undefined) stateText = TAB_READY_LINE;
+
+  const bar = React.createElement('div', { className: 'dsh-rtg-tab__bar' },
+    React.createElement('span', {
+      className: 'dsh-rtg-tab__state' + (state.error !== '' ? ' dsh-rtg-tab__state--error' : '')
+    }, stateText),
+    React.createElement('button', {
+      type: 'button',
+      className: 'dsh-rtg-button',
+      disabled: state.phase === 'loading',
+      onClick: function () { setTick(tick + 1); }
+    }, REFRESH_LABEL)
+  );
+
+  const body = [];
+  if (summary !== null && summary !== undefined) {
+    body.push(React.createElement('div', { key: 'summary', className: 'dsh-rtg-tab__summary' },
+      React.createElement('span', { className: 'dsh-rtg-tab__summary-verdict' }, readString(summary.verdictLabel, 'UNKNOWN')),
+      React.createElement('span', { className: 'dsh-rtg-tab__summary-item' },
+        TOTAL_LABEL + ' ' + countText(summary.total) + ' \u00b7 ' + PASS_LABEL + ' ' + countText(summary.pass) +
+        ' \u00b7 ' + DEGRADED_LABEL + ' ' + countText(summary.degraded) + ' \u00b7 ' + BLOCKED_LABEL + ' ' + countText(summary.blocked) +
+        ' \u00b7 ' + UNKNOWN_LABEL + ' ' + countText(summary.unknown)),
+      React.createElement('span', { className: 'dsh-rtg-tab__summary-item' }, EXIT_LABEL + ' ' + countText(summary.exitCode)),
+      readString(summary.generatedAtLocal, '') === '' ? null
+        : React.createElement('span', { className: 'dsh-rtg-tab__summary-item' }, GENERATED_LABEL + ' ' + summary.generatedAtLocal)
+    ));
+  }
+  for (let index = 0; index < checks.length; index += 1) {
+    body.push(React.createElement(PostureCheck, { key: 'check:' + String(index), check: checks[index] }));
+  }
+  if (checks.length === 0 && state.phase !== 'loading') {
+    body.push(React.createElement('p', { key: 'empty', className: 'dsh-rtg-line' }, TAB_EMPTY_LINE));
+  }
+
+  return React.createElement('div', { className: 'dsh-rtg-tab' },
+    React.createElement('p', { className: 'dsh-rtg-tab__hint' }, TAB_HINT_LINE),
+    bar,
+    React.createElement('div', { className: 'dsh-rtg-tab__body' }, body)
+  );
+}
+
 function apply(ctx) {
   ctx.effect(function () {
     if (typeof document === 'undefined') return;
@@ -487,6 +656,16 @@ function apply(ctx) {
     document.head.appendChild(tag);
     return function () { tag.remove(); };
   }, 'remote-tailnet-guard: settings card css');
+  ctx.effect(function () {
+    if (typeof document === 'undefined') return undefined;
+    if (document.getElementById(TAB_CSS_ID) !== null) return undefined;
+    const tag = document.createElement('style');
+    tag.id = TAB_CSS_ID;
+    tag.dataset.plugin = 'remote-tailnet-guard';
+    tag.textContent = TAB_CSS;
+    document.head.appendChild(tag);
+    return function () { tag.remove(); };
+  }, 'remote-tailnet-guard: sidebar tab css');
   // Reads and writes go through the platform's own per-namespace scope: staged drafts, revision
   // fencing, and the read-back that decides whether a write landed all belong to it, and the
   // namespace stays the one the Host registers. The service is optional here (the card only ever
@@ -514,6 +693,33 @@ function apply(ctx) {
       function () { return React.createElement(GuardCard, { scope: bindScope() }); }
     );
   });
+
+  // dsh-better-sidebar is an OPTIONAL peer: the service is read with ctx.get, and this half never
+  // declares `inject = ['betterSidebar']` - a hard dependency would park the whole plugin in
+  // "waiting" whenever the sidebar is absent, and the settings card has to render either way. The
+  // direct call covers "sidebar already up"; ctx.inject covers "sidebar comes up later" (the
+  // callback runs once the service exists). Registration itself stays inside ctx.effect, so
+  // disabling or reloading this row takes the tab and its disposer away with it.
+  let sidebarRegistered = false;
+  function registerSidebarTab(activeCtx) {
+    if (sidebarRegistered) return true;
+    const service = activeCtx && typeof activeCtx.get === 'function' ? activeCtx.get('betterSidebar') : undefined;
+    if (service === null || service === undefined || typeof service.registerTab !== 'function') return false;
+    sidebarRegistered = true;
+    activeCtx.effect(function () {
+      return service.registerTab({
+        id: SIDEBAR_TAB_ID,
+        title: CARD_TITLE, // resolves to 'dsh-crossnet-link' - the plugin display name (same string as the card header)
+        order: SIDEBAR_TAB_ORDER,
+        single: true,
+        component: function (tabProps) { return React.createElement(PostureTab, tabProps); }
+      });
+    }, 'remote-tailnet-guard: better-sidebar tab');
+    return true;
+  }
+  if (registerSidebarTab(ctx) === false && typeof ctx.inject === 'function') {
+    ctx.inject(['betterSidebar'], function (sidebarCtx) { registerSidebarTab(sidebarCtx); });
+  }
 }
 // ==== SHARED BODY END ====
 export const name = 'remote-tailnet-guard';

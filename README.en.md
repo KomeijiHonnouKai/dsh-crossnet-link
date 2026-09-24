@@ -1,4 +1,4 @@
-# remote-tailnet-guard
+# dsh-crossnet-link
 
 **Purpose**: inside the DSH on machine A, a browser plugin drives an authenticated channel page
 to operate the DSH running on machine B - the two DSH instances link up (agent to agent).
@@ -39,11 +39,11 @@ What is not yet verified is listed in "6 Known limits".
 
 Four commands, all read-only, nothing to install.
 
-1. Clone. The second argument is the local directory name; it is not optional.
+1. Clone. The second argument is the local directory name, and it must be `dsh-crossnet-link`: the collector walks up from its base to that relative path and reports `collector-missing` otherwise.
 
 ```powershell
-git clone https://github.com/KomeijiHonnouKai/dsh-crossnet-link remote-tailnet-plugin
-cd remote-tailnet-plugin
+git clone https://github.com/KomeijiHonnouKai/dsh-crossnet-link dsh-crossnet-link
+cd dsh-crossnet-link
 ```
 
 Expect: clone succeeds, you are inside the directory.
@@ -128,12 +128,15 @@ the plain-language walkthrough for AI lives in `docs/install/agent-brief.md`.
 Two ways of "seeing it":
 
 - The line in the plugin list: installed into the profile, disabled lines included.
-- The plugin card (a folded card "跨网链路姿态" under the Configurable tab): the host half
-  registered the settings namespace the card keys on.
+- The plugin card (a folded card "dsh-crossnet-link" under the Configurable tab):
+  the host half registered the settings namespace the card keys on, and it opens as
+  a settings form, not a posture report.
 - The card is conditional: it appears when the profile can resolve the schema library
   (measured here: it does); when it cannot, only a warning is logged and the list line
   is unaffected.
-- The plugin shows up only as this standard card; it adds no sidebar or settings-navigation entry.
+- A sidebar tab is an integration surface. With dsh-better-sidebar installed, the tab is
+  titled "dsh-crossnet-link" and opens a read-only posture panel. Without the sidebar,
+  there is no tab, no error and no waiting, and Settings > Plugins keeps this one card.
 
 Removal in three steps: set the line back to `disabled: true`, or delete it, or restore the whole file
 from the backup you made before. Read the backup first; it may be an empty patch.

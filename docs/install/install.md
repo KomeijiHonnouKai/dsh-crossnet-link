@@ -8,10 +8,10 @@
   4. `grep -n "settings\.section" <app>\node_modules\@deepseek-ai\**\lib\*.js`
   5. `grep -n "React|host\.call|listBuiltins|inject: \[|slots" <app>\node_modules\@deepseek-ai\dsh-cordis-client-runner\lib\client.js`
   6. `cordis_define(...)`(host+client)/ `cordis_inspect_self(...)`
-  7. `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly`(t26 复跑:无安装执行路径,`ranAnyInstall=false`)
-  8. `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -Apply`(t26 复跑:**被拒绝**,exit 2)
-  9. `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1`(t26 复跑:52/52,含三条「无写路径」用例)
-  10. `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-fixtures.ps1`(7/7)
+  7. `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly`(t26 复跑:无安装执行路径,`ranAnyInstall=false`)
+  8. `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -Apply`(t26 复跑:**被拒绝**,exit 2)
+  9. `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-tests.ps1`(t26 复跑:52/52,含三条「无写路径」用例)
+  10. `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-fixtures.ps1`(7/7)
   11. 发布集卫生扫描 + **内部资料引用扫描**(6 类禁止模式、已批准中性占位符允许清单;**内部资料的文件名在本文件内应 0 命中**)
   12. 会话归属对照实验:同一条成员会话里 `cordis_inspect_self()` —— host-only 的 `guard-1` 能 running,带 client 半边的 `panel-2` 必然 failed ⇒ §1.4
 
@@ -62,8 +62,8 @@
 
 | 包 | pluginId / packageId | 半边 | 状态(**2026-09-24 快照,非实时**) | 作用 |
 | --- | --- | --- | --- | --- |
-| t5 采集器 host 半边 | `guard-1` / `pkg-4` | host | 快照时刻 running(run-4);**动态包,会话/进程结束即消失** | Service `remoteTailnetGuard` + 私有方法 `remote-tailnet-guard/posture` + 工具 `remote_tailnet_posture`。**源码已落盘**:`src/host-half.js`(sha256 `464BB4059B282118D5626A09B759B4557E57734FAB69E6528B159B6BF5A74E7E`,19877 B) |
-| t6 面板 | `panel-2` / `pkg-5` | host + client | 快照时刻已 define、未激活;**且它属于 subagent 成员会话 ⇒ 结构上不可激活(§1.4)** | host:私有方法 `remote-tailnet-guard/panel/posture`;client:`settings.section` 里的只读姿态面板 |
+| t5 采集器 host 半边 | `guard-1` / `pkg-4` | host | 快照时刻 running(run-4);**动态包,会话/进程结束即消失** | Service `remoteTailnetGuard` + 私有方法 `dsh-crossnet-link/posture` + 工具 `remote_tailnet_posture`。**源码已落盘**:`src/host-half.js`(sha256 `464BB4059B282118D5626A09B759B4557E57734FAB69E6528B159B6BF5A74E7E`,19877 B) |
+| t6 面板 | `panel-2` / `pkg-5` | host + client | 快照时刻已 define、未激活;**且它属于 subagent 成员会话 ⇒ 结构上不可激活(§1.4)** | host:私有方法 `dsh-crossnet-link/panel/posture`;client:`settings.section` 里的只读姿态面板 |
 
 > ⚠️ **动态包的生命周期(t16 F4/X5 实测 + t20 复核)**:动态包只活在**进程内存**里。`cordis_inspect_self()` 在 t16 复核时返回
 > `{"mode":"plugins","plugins":[]}` —— 所有包都随 DSH 进程重启**消失**。「重启后还在不在」只有一个答案:**不在**。
@@ -86,7 +86,7 @@
 
 | 项 | 预期 |
 | --- | --- |
-| 出现位置 | **设置面板左侧分区导航**多出一项 `Remote access link (read-only posture)`(slot `settings.section`,注册 `id=remote-tailnet-guard`,`order=100`) |
+| 出现位置 | **设置面板左侧分区导航**多出一项 `Remote access link (read-only posture)`(slot `settings.section`,注册 `id=dsh-crossnet-link`,`order=100`) |
 | 打开后可见 | 顶部总判定 + `pass=/degraded=/blocked=/unknown=` 计数;下面一行退出码读法;`fail-closed` 说明;`source=` / `script=` / `generated=` 溯源行 |
 | 列表 | 全部判定按「最坏优先」排列,每项含四态标签、`id`、本地化原因;`confidence=low` 的降级项带 `low confidence: localized-text path, reported as degraded` 标记;需人工的项带 `manual step required` 且单列一节 |
 | 底部 | **四条 notice**:凭据纪律三条(不读凭据 / 只显示判定、原始输出不过桥 / 不安装不监听不改设置不重启)+ **非侵入性一条**(不改任何设置、不碰防火墙、不动 profile,**建议修复由你执行**) |
@@ -99,7 +99,7 @@
 | --- | --- | --- |
 | GUI 出现 `Failed to load plugins` / 卡恢复模式 | client 半边加载失败(最可能是打包期 externals 漂移) | `cordis_stop("panel-2")` 立刻恢复;然后按 §5 的静态检查重验 `*.js` 里不引用已删包 |
 | 设置里**看不到**该分区项 | `settings.section` 未被声明(`sidebar.settings` 那个入口还没挂载),或 `slots.inject` 未触发 | 先打开一次设置面板再退出;仍无则 `cordis_stop("panel-2")` 并回报(不要反复重试) |
-| 面板显示 `No posture available yet: ...` + `[collector-missing]` / `[no-subprocess]` | host 半边定位不到采集器或取不到子进程能力 | 手工确认采集器能跑:`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly`;或先激活 `guard-1/pkg-4` |
+| 面板显示 `No posture available yet: ...` + `[collector-missing]` / `[no-subprocess]` | host 半边定位不到采集器或取不到子进程能力 | 手工确认采集器能跑:`powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly`;或先激活 `guard-1/pkg-4` |
 | `[json-parse-failed]` | 采集器输出被别的输出污染 | 手工跑 `-AsJson` 看是否可解析 |
 | 列表里全是 unknown | 本会话探针不可用(命名管道/权限/无对端) | 这是**设计预期**的 fail-closed 结果,不是面板故障 |
 | 面板一直 `checking...` | host 方法没回 | 采集器单次运行约 10–20 秒;超过 60 秒用 `cordis_stop` 停掉再排查 |
@@ -235,9 +235,9 @@ $app = Join-Path (Split-Path -Parent $exe) 'resources\app'    # ⇒ <DSH_APP> = 
 
 | 项 | 要求 | 现状 |
 | --- | --- | --- |
-| `remote-tailnet-plugin/package.json` | 声明 `dsh.client`(`platform`/`inject`)与 **`exports["./client"]`** 指向真实 client bundle | **未创建**(本任务不建,避免与 t12 冲突) |
+| `dsh-crossnet-link/package.json` | 声明 `dsh.client`(`platform`/`inject`)与 **`exports["./client"]`** 指向真实 client bundle | **未创建**(本任务不建,避免与 t12 冲突) |
 | 真实 client bundle | 由打包产物提供;必须能被 `dsh-client-modules` 解析出 `clientPath`,否则 `__DSH_BOOT__` 404 | **未创建** |
-| `remote-tailnet-plugin/cordis.patch.yml` | 一行 loader entry(`- id:` + `name:`) | **未创建** |
+| `dsh-crossnet-link/cordis.patch.yml` | 一行 loader entry(`- id:` + `name:`) | **未创建** |
 | profile 行 | 加到活动 profile 的 patch 层 | **未执行** |
 
 ### 4.2 备份(执行持久化的第 0 步,必做)
@@ -263,16 +263,16 @@ Copy-Item -LiteralPath $patch -Destination $backup -Force
 
 ```yaml
 # 在 <DSH_HOME>\profiles\<name>\cordis.patch.yml 末尾追加(缩进与原文件一致)
-- id: remote-tailnet-guard-panel
-  name: remote-tailnet-plugin
+- id: dsh-crossnet-link-panel
+  name: dsh-crossnet-link
 ```
 
 ### 4.4 行级开关与移除
 
 ```yaml
 # 临时停用(推荐先这样试):HMR 约 1 秒重组合,无需重启
-- id: remote-tailnet-guard-panel
-  name: remote-tailnet-plugin
+- id: dsh-crossnet-link-panel
+  name: dsh-crossnet-link
   disabled: true
 ```
 
@@ -321,23 +321,23 @@ Copy-Item -LiteralPath $backup -Destination $patch -Force
 
 **契约 verify 实测(2026-09-24;t26 复跑,全部只读)**:
 
-1. `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly`
+1. `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly`
    → 退出码 **2**(本机 verdict:1 blocked + 6 unknown;fail-closed,**不是命令失败**),`total=26 pass=15 degraded=4 blocked=1 unknown=6`。
-2. `powershell -NoProfile -Command '(Get-ChildItem remote-tailnet-plugin -Recurse -Include *.js,*.mjs,*.cjs | Select-String -SimpleMatch "@deepseek-ai/dsh-client-runtime" | Measure-Object).Count'`
+2. `powershell -NoProfile -Command '(Get-ChildItem dsh-crossnet-link -Recurse -Include *.js,*.mjs,*.cjs | Select-String -SimpleMatch "@deepseek-ai/dsh-client-runtime" | Measure-Object).Count'`
    → **0**
-3. `powershell -NoProfile -Command 'Get-ChildItem remote-tailnet-plugin -Recurse -File | Measure-Object | Select-Object -Expand Count'`
+3. `powershell -NoProfile -Command 'Get-ChildItem dsh-crossnet-link -Recurse -File | Measure-Object | Select-Object -Expand Count'`
    → **93**(t26 复核值;t20 是 85、t6 是 18。数字随任务变动,**判据是「同一条命令可复现」,不是某个固定值**)
 4. **无写路径(两处硬证据)**
-   - `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -Apply` → 退出码 **2**,原文:
+   - `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -Apply` → 退出码 **2**,原文:
      `REFUSED: -Apply. This collector is read-only; no write path exists.` / `Nothing was changed. Re-run without -Apply and execute the printed remediation commands yourself.`
-   - `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly` → 退出码 **2**,尾行原文:
+   - `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly` → 退出码 **2**,尾行原文:
      `Nothing was installed, elevated, signed in, written or changed by this run.`;`-AsJson` 里 **`ranAnyInstall=false`**、`readOnly=true`。
      静态复核:`prereq.ps1` 里 `Start-Process|runas|msiexec|Register-ScheduledTask` **只有 2 处命中** —— 头注那一行,与
      `if ($installCmd -match 'msiexec')` 这个**字符串判断**(它只决定是否显示哈希门)**没有调用点**。
    - 套件每轮复跑这三条:`fault-apply-refused`(拒绝 `-Apply` 并 exit 2)、`isolation-no-writes-to-dsh-home`(整棵临时 DSH home 逐字节不变)、
      `filescan-no-repo-write-paths`(套件自己的写动作全部落在 `%TEMP%`)—— 见下面第 5 条的 52/52。
-5. `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1` → **52/52 PASS / 0 failed / 0 xfail held / 0 xpass**,退出码 **0**;
-   `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-fixtures.ps1` → `ALL PASS: 7 cases, 0 failed assertions`。
+5. `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-tests.ps1` → **52/52 PASS / 0 failed / 0 xfail held / 0 xpass**,退出码 **0**;
+   `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-fixtures.ps1` → `ALL PASS: 7 cases, 0 failed assertions`。
 6. **不新增监听 + 不写防火墙**:`collect.ps1 -CheckOnly -AsJson` 里 `NO_NEW_WILDCARD_LISTENER = pass`(`ro_no_new_wildcard`:采集前后通配监听差集为空);
    防火墙**写操作**在 `src/` 与 `panel/` 里**没有调用点** —— 唯一命中是 `rem_fw_on` 的**文本**命令
    (`netsh advfirewall set allprofiles state on`,打印给人工执行的那一条),不是调用。

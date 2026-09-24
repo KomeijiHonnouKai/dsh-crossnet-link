@@ -2,7 +2,7 @@
   "name": "remote-tailnet-guard",
   "version": "0.1.0",
   "private": true,
-  "description": "Persistent DSH plugin face of remote-tailnet-guard (display name dsh-crossnet-link): the plugins-page settings card that edits this link guard's own check parameters (settings.plugin.item, keyed by the remote-tailnet-guard settings namespace), plus a read-only HTTP route that runs the repository's read-only collector (src/collect.ps1 -CheckOnly -AsJson) with those stored parameters. The host half writes no settings document itself - the card saves through the platform settings service into the user's own settings - opens no listener, reads no credential material and changes no system setting. The loader row ships disabled: see plugin/cordis.patch.yml.",
+  "description": "Persistent DSH plugin face of remote-tailnet-guard (display name dsh-crossnet-link): the plugins-page settings card that edits this link guard's own check parameters (settings.plugin.item, keyed by the remote-tailnet-guard settings namespace), plus a read-only HTTP route that runs the repository's read-only collector (src/collect.ps1 -CheckOnly -AsJson) with those stored parameters. The host half never edits a settings document directly - a one-time, per-key auto-fill of the machine-detectable fields (never overwriting existing values) and the card's saves both go through the platform settings service into the user's own settings - opens no listener, reads no credential material and changes no system setting. The loader row ships disabled: see plugin/cordis.patch.yml.",
   "type": "module",
   "main": "./lib/index.js",
   "exports": {
@@ -30,10 +30,14 @@
   },
   "peerDependencies": {
     "@deepseek-ai/dsh-client-ui-slots": ">=0.1.2-rc.1",
+    "dsh-better-sidebar": "^0.19.1",
     "react": "^18.2.0"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/dsh-client-ui-slots": {
+      "optional": true
+    },
+    "dsh-better-sidebar": {
       "optional": true
     },
     "react": {

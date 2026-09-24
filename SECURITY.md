@@ -27,7 +27,7 @@
   expected **0 hits** — measured 0 on 2026-09-24 (t27). The only names that may appear here are
   release-set members such as `docs/threat-model.md` and `docs/install/install.md`.
 
-Scope: everything under `remote-tailnet-plugin/` — the read-only collector (`src/collect.ps1`), the
+Scope: everything under `dsh-crossnet-link/` — the read-only collector (`src/collect.ps1`), the
 host/client halves (`src/host-half.js`, `panel/*.js`), the prerequisite checker
 (`panel/prereq.ps1`) and the docs. It does **not** cover the DSH product itself or the
 `dsh-remote-tailnet` skill (separate artefacts, separate reviews).
@@ -73,9 +73,9 @@ Select-String -Path "$P/src/collect.ps1","$P/src/host-half.js","$P/panel/host-ha
 
 ```powershell
 # reproducible relative check: the two counts must be equal
-$before = (Get-ChildItem remote-tailnet-plugin -Recurse -File).Count
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -AsJson | Out-Null
-$after  = (Get-ChildItem remote-tailnet-plugin -Recurse -File).Count
+$before = (Get-ChildItem dsh-crossnet-link -Recurse -File).Count
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -AsJson | Out-Null
+$after  = (Get-ChildItem dsh-crossnet-link -Recurse -File).Count
 "before=$before after=$after   # equal unless somebody else wrote into the tree during the window"
 ```
 

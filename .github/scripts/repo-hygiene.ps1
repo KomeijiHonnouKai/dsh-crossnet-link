@@ -1,7 +1,10 @@
 <#
   repo-hygiene.ps1 - release-set hygiene gate for remote-tailnet-guard (repository layer)
 
-  LAST UPDATED  : 2026-09-24 (task t44 - plugin/ (the persistent plugin package) joined the release
+  LAST UPDATED  : 2026-09-25 (task t6 - the repository-name rule was re-based: the name IS the
+                  product name now, so README.md references it in six anchored places (7
+                  references in total) while CHANGELOG.md and CONTRIBUTING.md still state it once;
+                  task t44 - plugin/ (the persistent plugin package) joined the release
                   set, so the shipped package is scanned by default too; task t39 - tools/ joined the
                   release set, so the optional write component is scanned by default too; task t24
                   made panel/ a default root)
@@ -45,8 +48,14 @@
    11. license finality        : README/CHANGELOG/LICENSE state the MIT license and the confirmed
                                  copyright line, and contain NONE of the provisional wordings
                                  ("pending", "proposed default", the Chinese equivalent)
-   12. repository name         : stated exactly once in README/CHANGELOG/CONTRIBUTING, so a
-                                 rename is one edit per file
+   12. repository name         : stated the expected number of times per file AND anchored slot by
+                                 slot where it is referenced more than once (README.md: title,
+                                 clone-directory sentence, the "git clone" example's URL and
+                                 directory argument, the "cd" line, the settings-card title, the
+                                 sidebar-tab title = 7 references in 6 places). A missing reference
+                                 and a moved one both fail: counting alone cannot tell a deliberate
+                                 reference from a dropped one. CHANGELOG.md and CONTRIBUTING.md
+                                 state it exactly once and carry no slots.
 
   WHY THE BLOCKED LITERALS ARE ASSEMBLED FROM FRAGMENTS
     This file is itself inside the release set. If it contained a blocked identifier as
@@ -204,12 +213,40 @@ $ForbiddenDocWording = @(
 )
 $LicenseWordingFiles = @('README.md', 'CHANGELOG.md', 'LICENSE')
 
-# Repository name (t24): stated exactly once per file, so a rename is a one-line edit each. The
-# name is assembled from fragments for the same reason as the blocklist - the count check must not
-# be able to count its own definition. Named for the FUNCTION (cross-network DSH link), not for a
-# security property: the security posture belongs in the docs and in SECURITY.md, not in the name.
+# Repository name (t24; re-based by t6). The name is also the product name, so README.md necessarily
+# refers to it in more than one place: the title, the sentence that pins the clone directory name,
+# the "git clone" example (repository URL + directory argument, two references on one line), the
+# "cd" line, the settings-card title and the sidebar-tab title. A bare count cannot tell a
+# deliberate reference from a dropped or moved one, so every reference is ALSO anchored: each slot
+# names a stable fragment of its own line and the number of references that line must carry. A slot
+# that disappears, a slot that moves to another line, and a wrong total are all blocking, and the
+# file total must be exactly the sum of its slots (no unanchored extra reference). CHANGELOG.md and
+# CONTRIBUTING.md state the name once and carry no slots.
+# The name is assembled from fragments for the same reason as the blocklist - the count check must
+# not be able to count its own definition. Named for the FUNCTION (cross-network DSH link), not for
+# a security property: the security posture belongs in the docs and in SECURITY.md, not in the name.
 $RepoName = 'dsh-crossnet-' + 'link'
-$RepoNameFiles = @('README.md', 'CHANGELOG.md', 'CONTRIBUTING.md')
+# Two slot anchors are Chinese prose fragments (the clone-directory sentence and the card-title
+# line). They are assembled from code points because this file must stay ASCII-only; grep for
+# [char]0x to audit them.
+$SlotCloneDirSentence = ([string][char]0x672C + [char]0x5730 + [char]0x76EE + [char]0x5F55 + [char]0x540D)
+$SlotCardTitleLine = ([string][char]0x51FA + [char]0x73B0 + [char]0x63D2 + [char]0x4EF6 + [char]0x5361 + [char]0x7247)
+$RepoNameSpecs = @(
+  [pscustomobject]@{
+    File = 'README.md'
+    Expected = 7
+    Slots = @(
+      [pscustomobject]@{ Id = 'title';     Line = '^# ';                                   Count = 1 },
+      [pscustomobject]@{ Id = 'directory'; Line = ('^1\. .*' + $SlotCloneDirSentence);     Count = 1 },
+      [pscustomobject]@{ Id = 'clone';     Line = '^git clone ';                           Count = 2 },
+      [pscustomobject]@{ Id = 'cd';        Line = '^cd ';                                  Count = 1 },
+      [pscustomobject]@{ Id = 'card';      Line = $SlotCardTitleLine;                      Count = 1 },
+      [pscustomobject]@{ Id = 'tab';       Line = 'dsh-better-sidebar';                    Count = 1 }
+    )
+  },
+  [pscustomobject]@{ File = 'CHANGELOG.md';    Expected = 1; Slots = @() },
+  [pscustomobject]@{ File = 'CONTRIBUTING.md'; Expected = 1; Slots = @() }
+)
 
 # ---------------------------------------------------------------------------
 # 1. helpers
@@ -466,16 +503,48 @@ function Invoke-HygieneScan {
       }
     }
 
-    # --- 12: repository name appears exactly once per file (t24)
-    foreach ($file in $RepoNameFiles) {
-      $p = Join-Path $Root $file
+    # --- 12: repository-name references: expected total AND one anchored slot per reference
+    # (t24; re-based by t6). Counting alone would pass a file whose references merely moved, so
+    # every reference has to sit where its slot says it does.
+    foreach ($spec in $RepoNameSpecs) {
+      $p = Join-Path $Root $spec.File
       if (-not (Test-Path -LiteralPath $p)) { continue }
-      $text = Get-Content -LiteralPath $p -Raw -Encoding UTF8
-      $nameCount = ([regex]::Matches($text, [regex]::Escape($RepoName))).Count
-      if ($nameCount -ne 1) {
-        [void]$res.MissingMarkers.Add([pscustomobject]@{ File = $file; Marker = ($RepoName + ' exactly once'); Why = ('measured ' + $nameCount + ' occurrence(s): the repository name must appear exactly once per file so a rename stays a one-line edit') })
+      $lines = [IO.File]::ReadAllLines($p)
+      $measured = 0
+      foreach ($line in $lines) { $measured += ([regex]::Matches($line, [regex]::Escape($RepoName))).Count }
+      $problems = New-Object System.Collections.ArrayList
+      $anchored = 0
+      foreach ($slot in $spec.Slots) {
+        $slotLines = 0
+        $slotNames = 0
+        for ($i = 0; $i -lt $lines.Length; $i++) {
+          if ($lines[$i] -match $slot.Line) {
+            $slotLines += 1
+            $slotNames += ([regex]::Matches($lines[$i], [regex]::Escape($RepoName))).Count
+          }
+        }
+        $anchored += $slotNames
+        if (($slotLines -ne 1) -or ($slotNames -ne $slot.Count)) {
+          [void]$problems.Add("slot '" + $slot.Id + "' (/" + $slot.Line + "/): expected " + $slot.Count + ' reference(s) on exactly one line, measured ' + $slotNames + ' reference(s) on ' + $slotLines + ' line(s)')
+        }
+      }
+      if ($measured -ne $spec.Expected) {
+        [void]$problems.Add('the file carries ' + $measured + ' reference(s); the expected total is ' + $spec.Expected)
+      }
+      if (($spec.Slots.Count -gt 0) -and ($anchored -ne $spec.Expected)) {
+        [void]$problems.Add('the anchored slots account for ' + $anchored + ' of the ' + $spec.Expected + ' expected reference(s)')
+      }
+      $label = ($RepoName + ': ' + $spec.Expected + ' anchored reference(s)')
+      if ($problems.Count -eq 0) {
+        [void]$res.ExistingMarkers.Add([pscustomobject]@{ File = $spec.File; Marker = $label })
       } else {
-        [void]$res.ExistingMarkers.Add([pscustomobject]@{ File = $file; Marker = ($RepoName + ' exactly once') })
+        foreach ($problem in $problems) {
+          [void]$res.MissingMarkers.Add([pscustomobject]@{
+            File = $spec.File
+            Marker = $label
+            Why = ($problem + ' - the repository name is the product name, so the README title, the clone-directory sentence, the "git clone" example (URL + directory argument), the "cd" line, the settings-card title and the sidebar-tab title necessarily reference it; a missing or moved reference is drift, not a rename')
+          })
+        }
       }
     }
   }
@@ -673,30 +742,69 @@ function Invoke-SelfTest {
     [void]$checks.Add(@{ name = 'unapproved token is classified UNCLASSIFIED'; ok = (@(Get-UnclassifiedTokens -Res $r3).Count -eq 1) })
     [void]$checks.Add(@{ name = 'unapproved token alone fails the gate (blocking = 1)'; ok = ((Get-BlockingCount -Res $r3) -eq 1) })
 
-    # ---- documentation trees: final license wording + repository-name count (t24 items 5/6)
-    # The real files carry these properties today; these two trees prove the checks still notice
-    # when they stop being true, instead of reporting a green run forever.
+    # ---- documentation trees: final license wording + anchored repository-name slots (t24 items
+    # 5/6, re-based by t6). The real files carry these properties today; these trees prove the checks
+    # still notice when they stop being true, instead of reporting a green run forever. The name is
+    # the product name, so README.md references it seven times in six anchored places: the positive
+    # control carries all of them, and the two negative controls fail in the two ways a bare count
+    # cannot see - a dropped reference (total 6) and a moved one (total still 7, slot drifted).
     $mitText = 'MIT License' + "`n`n" + $LicenseHolder + "`n`nPermission is hereby granted, free of charge.`n"
+    $okReadmeLines = @(
+      ('# ' + $RepoName),
+      ('1. ' + $SlotCloneDirSentence + ': `' + $RepoName + '`'),
+      ('git clone https://github.com/<OWNER>/' + $RepoName + ' ' + $RepoName),
+      ('cd ' + $RepoName),
+      ('- ' + $SlotCardTitleLine + ' `' + $RepoName + '`'),
+      ('- sidebar tab: with dsh-better-sidebar the title is `' + $RepoName + '`'),
+      ('MIT. SECURITY.md. read-only and report-only. ' + $InternalMaterialSentence + '.')
+    )
+    $okReadme = ($okReadmeLines -join "`n")
     $goodDocs = Join-Path $tmpRoot 'docs-ok'
     New-Item -ItemType Directory -Force -Path $goodDocs | Out-Null
     [IO.File]::WriteAllText((Join-Path $goodDocs '.gitignore'), $ignoreBody, $enc)
     [IO.File]::WriteAllText((Join-Path $goodDocs 'LICENSE'), $mitText, $enc)
-    [IO.File]::WriteAllText((Join-Path $goodDocs 'README.md'), ('MIT. SECURITY.md. read-only and report-only. ' + $InternalMaterialSentence + '. clone: https://github.com/<OWNER>/' + $RepoName + "`n"), $enc)
+    [IO.File]::WriteAllText((Join-Path $goodDocs 'README.md'), ($okReadme + "`n"), $enc)
     [IO.File]::WriteAllText((Join-Path $goodDocs 'CHANGELOG.md'), ('MIT. first cut of ' + $RepoName + "`n"), $enc)
     [IO.File]::WriteAllText((Join-Path $goodDocs 'CONTRIBUTING.md'), ('Thanks for helping with ' + $RepoName + ".`n"), $enc)
     $r4 = Invoke-HygieneScan -Root $goodDocs
-    [void]$checks.Add(@{ name = 'final license wording + one-line repo name: 0 problem'; ok = ($r4.MissingMarkers.Count -eq 0) })
+    $okReadmeCount = ([regex]::Matches($okReadme, [regex]::Escape($RepoName))).Count
+    [void]$checks.Add(@{ name = 'final license wording + six anchored repo-name slots (7 references): 0 problem'; ok = (($r4.MissingMarkers.Count -eq 0) -and ($okReadmeCount -eq 7)) })
     [void]$checks.Add(@{ name = 'documentation tree stays unclassified-free';            ok = (@(Get-UnclassifiedTokens -Res $r4).Count -eq 0) })
 
-    $badDocs = Join-Path $tmpRoot 'docs-bad'
-    New-Item -ItemType Directory -Force -Path $badDocs | Out-Null
-    [IO.File]::WriteAllText((Join-Path $badDocs '.gitignore'), $ignoreBody, $enc)
-    [IO.File]::WriteAllText((Join-Path $badDocs 'LICENSE'), ('proposed default MIT text' + "`n"), $enc)
-    [IO.File]::WriteAllText((Join-Path $badDocs 'README.md'), ('this license is pending. MIT. SECURITY.md. read-only and report-only. ' + $InternalMaterialSentence + '. ' + $RepoName + ' and again ' + $RepoName + "`n"), $enc)
-    [IO.File]::WriteAllText((Join-Path $badDocs 'CHANGELOG.md'), ('MIT. ' + $RepoName + "`n"), $enc)
-    [IO.File]::WriteAllText((Join-Path $badDocs 'CONTRIBUTING.md'), ('Thanks. ' + $RepoName + "`n"), $enc)
-    $r5 = Invoke-HygieneScan -Root $badDocs
-    [void]$checks.Add(@{ name = 'provisional wording and a duplicated repo name are caught'; ok = ($r5.MissingMarkers.Count -ge 3) })
+    # Negative control 1: one reference dropped, so the file carries six. Both the slot and the
+    # expected total must be reported.
+    $badCountLines = @($okReadmeLines)
+    $badCountLines[1] = ('1. ' + $SlotCloneDirSentence + ': the local directory name')
+    $badCountReadme = ($badCountLines -join "`n")
+    $badCount = Join-Path $tmpRoot 'docs-bad-count'
+    New-Item -ItemType Directory -Force -Path $badCount | Out-Null
+    [IO.File]::WriteAllText((Join-Path $badCount '.gitignore'), $ignoreBody, $enc)
+    [IO.File]::WriteAllText((Join-Path $badCount 'LICENSE'), ('proposed default MIT text' + "`n"), $enc)
+    [IO.File]::WriteAllText((Join-Path $badCount 'README.md'), ($badCountReadme + "`n"), $enc)
+    [IO.File]::WriteAllText((Join-Path $badCount 'CHANGELOG.md'), ('MIT. ' + $RepoName + "`n"), $enc)
+    [IO.File]::WriteAllText((Join-Path $badCount 'CONTRIBUTING.md'), ('Thanks. ' + $RepoName + "`n"), $enc)
+    $r5 = Invoke-HygieneScan -Root $badCount
+    [void]$checks.Add(@{ name = 'provisional wording and a dropped repo-name reference (total 6) are caught'; ok = ($r5.MissingMarkers.Count -ge 3) })
+
+    # Negative control 2: the total is still seven, but one slot moved (the title line now carries
+    # two references and the "cd" line none). Counting alone would call this file clean; the slot
+    # anchors must not.
+    $badDriftLines = @($okReadmeLines)
+    $badDriftLines[0] = ('# ' + $RepoName + ' (' + $RepoName + ')')
+    $badDriftLines[3] = ('cd <the repository directory>')
+    $badDriftReadme = ($badDriftLines -join "`n")
+    $badDrift = Join-Path $tmpRoot 'docs-bad-drift'
+    New-Item -ItemType Directory -Force -Path $badDrift | Out-Null
+    [IO.File]::WriteAllText((Join-Path $badDrift '.gitignore'), $ignoreBody, $enc)
+    [IO.File]::WriteAllText((Join-Path $badDrift 'LICENSE'), $mitText, $enc)
+    [IO.File]::WriteAllText((Join-Path $badDrift 'README.md'), ($badDriftReadme + "`n"), $enc)
+    [IO.File]::WriteAllText((Join-Path $badDrift 'CHANGELOG.md'), ('MIT. ' + $RepoName + "`n"), $enc)
+    [IO.File]::WriteAllText((Join-Path $badDrift 'CONTRIBUTING.md'), ('Thanks. ' + $RepoName + "`n"), $enc)
+    $r6 = Invoke-HygieneScan -Root $badDrift
+    $driftCount = ([regex]::Matches($badDriftReadme, [regex]::Escape($RepoName))).Count
+    $driftMarkers = @($r6.MissingMarkers | Where-Object { $_.File -eq 'README.md' })
+    $driftCd = @($driftMarkers | Where-Object { $_.Why -like "*slot 'cd'*" }).Count
+    [void]$checks.Add(@{ name = 'a README with the right total (7) but a moved slot is still caught'; ok = (($driftCount -eq 7) -and ($driftMarkers.Count -ge 1) -and ($driftCd -ge 1)) })
 
     $failed = @($checks | Where-Object { -not $_.ok })
     foreach ($c in $checks) { Write-Host ('  ' + $(if ($c.ok) { 'PASS' } else { 'FAIL' }) + '  ' + $c.name) }

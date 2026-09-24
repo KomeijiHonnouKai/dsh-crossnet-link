@@ -2,15 +2,15 @@
 
 - **最后更新时间**: 2026-09-24(v1.2;t26:①新增**非侵入性**口径(本清单所有命令都是「**可选修复:由你执行**」,影响面与回滚见 `install.md` §0);②§3.7 补**影响面**(新增窄放行可能与既有规则重叠 / 不要改成放宽 profile 默认策略);③去掉对**内部资料**的引用(发布集文件不深链内部文档),改为就地复述。v1.1(t20):§3.10 的凭据撤销回滚改成 `rollback.md` §3 的三步版 —— 清客户端 cookie / 删服务端 credentials 的 `client-connection`+`browser-session` 记录 / 「仅重启 DSH 不会让已发出的 30 天 cookie 失效」。来源仍是 `panel/prereq-manifest.json` + `panel/prereq.ps1`)
 - **本次使用的命令**(全部只读;无 `platform:"client"` 的 Inspect、无 `ego_*`、无长等待):
-  1. `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly`
-  2. `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly -Role client`
-  3. `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly -Role server -ShowInstallPlan`
-  4. `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly -AsJson`
-  5. `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -Describe`
+  1. `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly`
+  2. `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly -Role client`
+  3. `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly -Role server -ShowInstallPlan`
+  4. `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly -AsJson`
+  5. `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -Describe`
   6. `Get-FileHash -LiteralPath 'C:\Program Files\Tailscale\tailscale.exe' -Algorithm SHA256`
   7. `Get-AuthenticodeSignature -LiteralPath 'C:\Program Files\Tailscale\tailscale.exe'`
-  8. 交叉核对:`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role server`
-- **克隆目录名**:本文件里所有 `remote-tailnet-plugin/...` 路径都从工作区根写;仓库名是 `dsh-crossnet-link`,而克隆目录**必须**叫 `remote-tailnet-plugin` —— 改了目录名,采集器就会找不到 `src/collect.ps1`(改报 `collector-missing`)。
+  8. 交叉核对:`powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -Role server`
+- **克隆目录名**:本文件里所有 `dsh-crossnet-link/...` 路径都从工作区根写;克隆目录**必须**叫 `dsh-crossnet-link` —— 改了目录名,采集器就会找不到 `src/collect.ps1`(改报 `collector-missing`)。
 
 > **单一来源**:清单本体是 `panel/prereq-manifest.json`(机器可读),`panel/prereq.ps1` 读取它并按角色逐项检测;
 > 本文件是同一份数据的人读渲染。改一处即可,不会出现「文档与脚本各说一套」。
@@ -33,7 +33,7 @@
 ⚠️ **默认 `both` 会同时校验服务端要求,所以「只做客户端」的机器默认必然非 0**——这不是坏了:
 
 ```
-client-only 机器:  powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly -Role client
+client-only 机器:  powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly -Role client
                      -> summary: total=8 pass=4 degraded=0 blocked=0 unknown=4   overall: degraded -> exit 1
 
 同一台机器默认:      ... prereq.ps1 -CheckOnly
@@ -172,7 +172,7 @@ New-NetFirewallRule -DisplayName 'DSH via Tailscale serve (tcp 443)' -Direction 
 ### 3.11 `CLIENT_MAGICDNS`(客户端,委派)
 
 - **缺失提示**:「请提供 `-PeerName` 交给采集器判定。绝不猜测或写死 tailnet 名字。」
-- **委派命令**:`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -AsJson -Role client -Peer <SERVER_IP> -PeerName <机器名>.<tailnet>.ts.net`
+- **委派命令**:`powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -AsJson -Role client -Peer <SERVER_IP> -PeerName <机器名>.<tailnet>.ts.net`
 - **回滚**:无
 
 ### 3.12 `CLIENT_PROXY_BYPASS`(客户端)
@@ -188,11 +188,11 @@ Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Setti
   Select-Object ProxyEnable, ProxyServer, ProxyOverride
 
 # 2) 本清单自己的判定(客户端角色)
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly -Role client
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly -Role client
 
 # 3) 采集器的权威判定(客户端 / 服务端各一次)
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role client
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role server
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -Role client
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -Role server
 ```
 
 - **服务端那一端**:WinINET 系统代理**不影响入站路径**,所以服务端开着它时客户端照常打得开;但 **TUN 模式**的代理会接管路由 ⇒ 采集器报 `TAILNET_ROUTE_PRESENT = blocked/route_tailnet_missing`(聚合路由不见了这一半可以证明,**是不是那个代理干的判不了**)与 `SERVER_PROXY_STATE = degraded/proxy_active_route_intact`(`confidence=low`)。
@@ -271,19 +271,19 @@ powershell -NoProfile -Command "Get-AuthenticodeSignature -LiteralPath '<MSI_PAT
 
 ```powershell
 # 只读检测(默认 both;给门禁用的退出码 0/1/2)
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly
 
 # 只做客户端的机器
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly -Role client
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly -Role client
 
 # 连「已满足项」的安装/校验/回滚命令一起看
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly -Role server -ShowInstallPlan
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly -Role server -ShowInstallPlan
 
 # 机器可读
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly -AsJson
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly -AsJson
 
 # 配置面 / 角色语义 / 自动化边界 / 哈希策略
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -Describe
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -Describe
 ```
 
 覆盖项(`全在参数/环境,无写死`):`-Role`、`-Manifest`、`-DshHome`(> `$env:DSH_HOME` > `~\.dsh`)、`-AppDir`(> `$env:DSH_APP_DIR` > 运行中 DSH 进程镜像路径)、`-Port`(> `$env:DSH_WEB_URL` > 43120)、`-MsiPath`、`-Lang`、`-CommandTimeoutMs`。

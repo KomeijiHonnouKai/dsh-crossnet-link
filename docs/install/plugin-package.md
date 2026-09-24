@@ -5,19 +5,19 @@
 > §9「未验证清单」里,不写成已验证。
 > **最后更新**:2026-09-24(任务 t43 第一阶段)。
 > **本次用过的命令**(只读,未执行任何安装):
-> `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/plugin-preflight.ps1`
-> ·`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1`
+> `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/plugin-preflight.ps1`
+> ·`powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-tests.ps1`
 > ·`.github/scripts/repo-hygiene.ps1 -Json`
 
 ## 0. 记号与前提
 
 | 记号 | 含义 |
 |---|---|
-| `<REPO>` | 本仓库 checkout 的根目录(其下有 `remote-tailnet-plugin\`) |
+| `<REPO>` | 本仓库 checkout 的根目录(其下有 `dsh-crossnet-link\`) |
 | `<DSH_HOME>` | DSH home:`$env:DSH_HOME`,默认 `$env:USERPROFILE\.dsh` |
 | `<APP_DIR>` | DSH 安装目录里的 `resources\app`(其下有 `node_modules\@deepseek-ai\`) |
 | `<profile>` | profile 名,日常那台是 `desktop` |
-| 插件目录 | `<REPO>\remote-tailnet-plugin\plugin`(本文交付的常驻插件包) |
+| 插件目录 | `<REPO>\dsh-crossnet-link\plugin`(本文交付的常驻插件包) |
 
 本文**不写任何用户主目录绝对路径**:凡是会落到 `/Users/...` 形态的地方一律用上面的记号,
 这是本仓库发布集的硬规则(`.github/scripts/repo-hygiene.ps1` 的 `abs-user-path` 一条)。
@@ -169,8 +169,8 @@ tsdown/tsc 工具链,所以 `plugin/lib/client.js` 是**按同一格式手写的
 `:1785-1810` 用 `settings.plugin.item`(keyed)挂各插件的配置卡片。
 
 > **口径提醒**:「设置 → 插件」页里那张**卡片列表**是 `settings.plugin.item` 座位,与本节这个
-> `settings.section` **不是同一个座位**(位置/渲染/可点击行为/生命周期都不同)。
-> 本插件**只**用 `settings.plugin.item`(v0.3 起移除了早期注册过的 `settings.section`):契约见 §2.6,
+> `settings.section` **与它并非同一座位**(位置/渲染/可点击行为/生命周期都不同)。
+> 本插件**只**用 `settings.plugin.item`（v0.3 起移除了早期注册过的 `settings.section`；侧边栏 tab 另走可选依赖 `dsh-better-sidebar`，不占 DSH 座位）:契约见 §2.6,
 > 「启用后你会看到什么」见 §5.1。
 
 **客户端半边可用的东西(实测)**:
@@ -207,7 +207,7 @@ tsdown/tsc 工具链,所以 `plugin/lib/client.js` 是**按同一格式手写的
     `dsh.profile.bundles` 逐项解析成 `layers`(`:849-860`),profile 自己的 `cordis.patch.yml` 单独读成 `patches`(`:861-862`);
   - 同文件 `:896-906` `composeEntries` 把两者**合进同一次** `applyEntryPatches([], [...layers.flat(), ...patches])` —— 用户层在数组末尾;
   - 同文件 `:51-52` 注释与 `:86` `buildMap(insert)`:*"Inserted entries are indexed as they are added, so a later patch in the same list can target a row an earlier patch inserted."*
-    ⇒ 先由 bundle 层插入的 `remote-tailnet-guard` 行,会被后面的用户层 patch 按 `id` 命中并覆盖 `disabled`。
+    ⇒ 先由 bundle 层插入的 `dsh-crossnet-link` 行,会被后面的用户层 patch 按 `id` 命中并覆盖 `disabled`。
 - 安装/卸载的落点:`<APP_DIR>\node_modules\@deepseek-ai\dsh\lib\plugin-Ddi42qoW.js`
   - `:46-78` `reconcilePlugins`:声明了 `dsh.bundle` 的依赖被写进 `dsh.profile.bundles`;被移除的会被摘掉。
   - `:101-128` `runPlugin`:profile 不存在就先按模板初始化(`:103-107`),然后 `pnpm <args>` 在 profile 目录里跑
@@ -266,8 +266,9 @@ tsdown/tsc 工具链,所以 `plugin/lib/client.js` 是**按同一格式手写的
 | 生命周期 | 座位由 `sidebar.settings` 条目(settings-general)声明 ⇒ 设置面板挂载期间存在 | 座位由 `settings.plugins.tab` 的 `configurable` 条目声明 ⇒ **只有插件页开着时存在**;且**还要**满足上面那条"命名空间已被服务" |
 | 额外前置件 | 无(只靠 cordis 服务 `slots`) | **Host 必须注册一个设置命名空间**,client 卡片的 `key` 必须等于它 |
 
-> 说明:上表是平台两个座位的机制对比(参考资料)。本插件自 v0.3 起**只使用 `settings.plugin.item`**,
-> 不再注册 `settings.section`(早期版本注册过的独立侧边栏分区已按用户要求移除,见 §9.1)。
+> 说明:上表是平台两个座位的机制对比(参考资料)。本插件自 v0.3 起**DSH 座位只用 `settings.plugin.item`**,
+> 不再注册 `settings.section`(早期版本注册过的独立侧边栏分区已按用户要求移除,见 §9.1)；
+> 另有一个**不属于 DSH 座位**的侧边栏 tab：它注册在可选依赖 `dsh-better-sidebar` 自己的注册表里（装了才有，未装无 tab、无报错、不 waiting）。
 
 **"脚本经典加载 + 自注册"对两个座位是否一致?** —— **完全一致**。两个座位都只是**客户端半边**向槽位注册表登记的一行;
 客户端半边只有一份(一个 bundle),它被页面按经典脚本加载、执行时自注册(§2.3),`ctx.slots.inject(...)` 等座位就绪后
@@ -277,8 +278,8 @@ ego-browser 的同一个 `lib/client.js` 同时注册 `settings.plugin.item` 与
 
 **本包的落地与安全边界(v0.4:t46 的座位 + t47 的设置)**:
 
-- client 半边(`lib/client.js` 与 `lib/client/index.js`,共享正文逐字节一致)**只注册一个座位**:
-  `settings.plugin.item`,卡片 `key: SETTINGS_NS` = `'remote-tailnet-guard'` = 包名;
+- client 半边(`lib/client.js` 与 `lib/client/index.js`，共享正文逐字节一致）**在 DSH 设置页只贡献一张可配置卡片**（座位 `settings.plugin.item`）；另有一个**侧边栏 tab**，它注册在可选依赖 `dsh-better-sidebar` 自己的注册表里、不占 DSH 座位（装了才有，未装无 tab、无报错、不 waiting）：
+  `settings.plugin.item`,卡片 `key: SETTINGS_NS` = `'dsh-crossnet-link'` = 包名;
   卡片标题用显示名 **`dsh-crossnet-link`**,副标题写**插件目的**(口径 = 交接笔记 `plugin-purpose-handover.md`,
   用户 2026-09-25 确认:"在 A 电脑的 DSH 里,通过浏览器插件驱动一个已登录的通道页面,直接操作 B 电脑上运行的 DSH,
   两台 DSH 由此形成联动(agent 对 agent)"),展开体是**设置表单**,不是报告;
@@ -315,6 +316,8 @@ ego-browser 的同一个 `lib/client.js` 同时注册 `settings.plugin.item` 与
 | 高级(默认折叠) | `dshHome` DSH home 目录 | 文本 | 空 = 自动探测 | `-DshHome` |
 | 高级(默认折叠) | `appDir` DSH 应用目录 | 文本 | 空 = 自动探测 | `-AppDir` |
 
+安装后,本机会自动探测并填好 `port` / `profile` / `dshHome` / `appDir` 四项;对端两项(`peer` / `peerName`)与 `role` 仍需手填。
+
 > 这张卡的语义就是"编辑这个插件的设置"(平台 docstring 原文:a header naming the plugin and what its
 > settings govern, disclosing that plugin's controls in place, with the save that writes them)。
 > **体检报告不属于这张卡**:报告属于只读展示面(平台对应的座位是 `settings.plugins.tab` 的 list 条),
@@ -326,24 +329,25 @@ ego-browser 的同一个 `lib/client.js` 同时注册 `settings.plugin.item` 与
 
 ```
 plugin/
-  package.json          name remote-tailnet-guard / type module / main ./lib/index.js
+  package.json          name dsh-crossnet-link / type module / main ./lib/index.js
                         exports: "." "./client" "./package.json"
                         dsh.bundle.patch ./cordis.patch.yml / dsh.client{platform:'web', inject:['@deepseek-ai/dsh-client-ui-slots']}
-  cordis.patch.yml      - insert: 一条,id 与 name 都等于 remote-tailnet-guard,**disabled: true**
+                        peerDependencies(可选): dsh-better-sidebar ^0.19.1(peerDependenciesMeta.optional = true)
+  cordis.patch.yml      - insert: 一条,id 与 name 都等于 dsh-crossnet-link,**disabled: true**
   lib/index.js          host 半边:真 ESM,只读,复用 src/collect.ps1;额外注册一个**带 14 个字段**的设置命名空间(受保护),
                         并把存下来的设置白名单化地映射成采集器参数
-  lib/client.js         client 半边(运行时 bundle,window.__ModuleLoader__.load 自注册;只注册 settings.plugin.item 一个座位)
+  lib/client.js         client 半边(运行时 bundle,window.__ModuleLoader__.load 自注册;DSH 设置页只贡献 settings.plugin.item 一张卡片;侧边栏 tab 走可选依赖 dsh-better-sidebar)
   lib/client/index.js   client 半边(打包前的 ESM 源码,与上面共享正文逐字节一致)
 ```
 
-- host 半边做的事只有三件:①在**既有** web 服务上注册 `POST /remote-tailnet-guard/api/posture`
+- host 半边做的事只有三件:①在**既有** web 服务上注册 `POST /dsh-crossnet-link/api/posture`
   (同源校验 + `application/json` + body ≤16 KiB);②把**存下来的设置**映射成参数,只读地跑一次
   `src/collect.ps1 -CheckOnly -AsJson ...`,把**叶子字段**投影成 JSON 返回;
-  ③注册设置命名空间 `remote-tailnet-guard`(t46/t47,见 §2.6)——schema 里写清本插件 14 个设置项的类型与默认值,
+  ③注册设置命名空间 `dsh-crossnet-link`(t46/t47,见 §2.6)——schema 里写清本插件 14 个设置项的类型与默认值,
   这份声明让卡片可配置、让每次写入被校验。host 自己**不写**设置文档(写发生在用户保存卡片时,由平台设置服务完成)。
   它不写文件、不新增监听、不读凭据、不改任何系统设置、不重启 DSH。
 - client 半边做的事只有一件(注册一张卡片:**设置表单**):`settings.plugin.item`
-  (key `remote-tailnet-guard`,order 100 —— 即插件页「可配置插件」tab 里的折叠卡片,**不再注册** `settings.section`);
+  (key `dsh-crossnet-link`,order 100 —— 即插件页「可配置插件」tab 里的折叠卡片,**不再注册** `settings.section`);
   读值/写值走平台服务 `settingsScope`,卡片自己不 fetch 任何东西(v0.4 起不再取数:报告不在卡里)。
 - **只有 `require("react")` 一个外部依赖**(平台 seed),其余全部自包含;`settingsScope` 是 **cordis 服务查找**
   (`ctx.get` / `ctx.inject`),不是模块依赖,所以 `dsh.client.inject` 仍然只有 `@deepseek-ai/dsh-client-ui-slots`;
@@ -354,8 +358,8 @@ plugin/
 ## 4. 只读预检(先跑这个,再谈安装)
 
 ```powershell
-$repo = '<REPO>'                       # 仓库 checkout 根(含 remote-tailnet-plugin\)
-$preflight = Join-Path $repo 'remote-tailnet-plugin\panel\plugin-preflight.ps1'
+$repo = '<REPO>'                       # 仓库 checkout 根(含 dsh-crossnet-link\)
+$preflight = Join-Path $repo 'dsh-crossnet-link\panel\plugin-preflight.ps1'
 
 # 默认:只看仓库内的东西,不碰任何 profile
 powershell -NoProfile -ExecutionPolicy Bypass -File $preflight
@@ -411,7 +415,7 @@ self-test: 7 cases  matched: 7  mismatched: 0
    所以这里用的是**有文档记录的最小结构读取器**,不是通用 YAML 解析器;通用解析发生在 profile 启动时由 Loader 完成。
 2. `main` / `exports['.']` / `exports['./client']` / `exports['./package.json']` / `dsh.bundle.patch` 指向的文件**都存在**。
 3. 三个 JS 文件的模块卫生:两个 ESM 半边 **`require(` 调用数 = 0**;bundle 必须自注册为
-   `remote-tailnet-guard` 行,且 `require("…")` 的 specifier **只能在平台 seed 白名单里**(实测只有 `react`);
+   `dsh-crossnet-link` 行,且 `require("…")` 的 specifier **只能在平台 seed 白名单里**(实测只有 `react`);
    无 JSX(元素一律 `React.createElement`)、无 TypeScript 专有语法;纯 ASCII、无 BOM、全 LF;
    两个文件的**共享正文逐字节相同**(sha256 比对)。
    另外:若 `node` 恰好在 PATH 上,会对三个文件各跑一次 `node --check`;不在 PATH 时打印 `[SKIP]`,
@@ -430,11 +434,11 @@ self-test: 7 cases  matched: 7  mismatched: 0
 
 > **先做一次第 4 节的预检,再照下面走。** 全程不需要 pnpm 手工命令,`dsh plugin` 会转发。
 > 本包**没有发布到任何 registry**(`package.json` 里 `"private": true`),所以安装一律用 `link:<插件目录>`;
-> 别试 `dsh plugin --profile <profile> add remote-tailnet-guard`(装不到)。
+> 别试 `dsh plugin --profile <profile> add dsh-crossnet-link`(装不到)。
 > `link:` 的含义是**符号链接**:profile 直接加载这份 checkout 里的代码,因此插件启用期间不要移动或删掉仓库目录。
 >
 > **下一步做什么,写在最前面**:跑完下面三步后,**从 DSH 自带菜单重启 DSH**(设置 → 桌面 → 重启;或退出应用再打开),
-> 然后去 **设置 → 插件**,清单里 `remote-tailnet-guard` 应显示**已启用**;「可配置插件」tab 里应出现
+> 然后去 **设置 → 插件**,清单里 `dsh-crossnet-link` 应显示**已启用**;「可配置插件」tab 里应出现
 > 一张折叠卡片 **`dsh-crossnet-link`**(副标题是插件目的,点开是**设置表单**:本机视角 / 对端地址 / 体检口径 / 高级,
 > 底部「保存 / 放弃」),左侧导航**不新增任何条目**。逐条带人话、给 AI 读的版本见
 > [`agent-brief.md`](agent-brief.md)。
@@ -444,7 +448,7 @@ $repo    = '<REPO>'
 $dshHome = if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $env:USERPROFILE '.dsh' }
 $profile = 'desktop'                                  # 第一次务必换成一次性 profile,见 §8
 $patch   = Join-Path $dshHome "profiles\$profile\cordis.patch.yml"
-$plugin  = Join-Path $repo 'remote-tailnet-plugin\plugin'
+$plugin  = Join-Path $repo 'dsh-crossnet-link\plugin'
 
 # ---------- 第 1 步:整文件备份 profile patch(这一步不能省) ----------
 Copy-Item -LiteralPath $patch -Destination ($patch + '.bak-' + (Get-Date -Format 'yyyyMMdd-HHmmss')) -Force
@@ -454,16 +458,16 @@ Get-Item -LiteralPath ($patch + '.bak-' + '*') | Sort-Object LastWriteTime | Sel
 
 # ---------- 第 2 步:装进 profile(会改 profile 的 package.json / pnpm-lock.yaml / node_modules) ----------
 dsh plugin --profile $profile add ('link:' + $plugin)
-# 装完自检:bundles 列表里应出现 remote-tailnet-guard
+# 装完自检:bundles 列表里应出现 dsh-crossnet-link
 (Get-Content -LiteralPath (Join-Path $dshHome "profiles\$profile\package.json") -Raw | ConvertFrom-Json).dsh.profile.bundles
-# 期望:输出里有一项 remote-tailnet-guard
+# 期望:输出里有一项 dsh-crossnet-link
 
 # ---------- 第 3 步:把"启用覆盖行"追加到 profile patch 末尾,然后从 DSH 自带菜单重启 ----------
 # 启用就是这三行(id 与 name 等于包名;无 BOM 追加,不动文件里已有的任何内容):
-[IO.File]::AppendAllText($patch, "`n- id: remote-tailnet-guard`n  name: remote-tailnet-guard`n  disabled: false`n", (New-Object Text.UTF8Encoding($false)))
+[IO.File]::AppendAllText($patch, "`n- id: dsh-crossnet-link`n  name: dsh-crossnet-link`n  disabled: false`n", (New-Object Text.UTF8Encoding($false)))
 # 期望:无输出、不报错;验证一下
-dsh --profile $profile --dump-config | Select-String -SimpleMatch 'remote-tailnet-guard' -Context 0,4
-# 期望:能看到 id/name 是 remote-tailnet-guard、disabled: false 的那一行
+dsh --profile $profile --dump-config | Select-String -SimpleMatch 'dsh-crossnet-link' -Context 0,4
+# 期望:能看到 id/name 是 dsh-crossnet-link、disabled: false 的那一行
 ```
 
 重启后核对两格,判据见 §5.1。这一步把「人肉编辑 YAML」换成了**一条可粘贴的追加命令**:
@@ -480,12 +484,12 @@ dsh --profile $profile --dump-config | Select-String -SimpleMatch 'remote-tailne
 
 ### 5.1 启用后你会看到什么(两格判据;实测口径见 §9.1)
 
-装好并重启后,本插件**只以一张标准插件卡片**出现在「设置 → 插件」里,**不再新增侧边栏分区**(与别的插件一致):
+装好并重启后,本插件在「设置 → 插件」里**只贡献一张可配置卡片**（与别的插件一致），**不新增设置页左侧导航条目**；侧边栏 tab 是新增接入面，需另装可选依赖 `dsh-better-sidebar`（装了才有，未装无 tab、无报错、不 waiting）：
 
 | 位置 | 预期看到 | 由什么实现 |
 |---|---|---|
-| **设置 → 插件**(`all` tab,插件清单) | 清单里出现 `remote-tailnet-guard` 这一行,状态**已启用** | 平台自带的 inventory tab,**不需要我们写任何代码**;只要行被装进 profile 就会有(`all` tab 同时列出**未启用**的行并把它们标成未启用,所以装完还没启用时它其实就已经在清单里了 —— 认准"已启用"三个字) |
-| **设置 → 插件 → 「可配置插件」tab** | 一张折叠卡片 **`dsh-crossnet-link`**,副标题是**插件目的**(在 A 电脑的 DSH 里驱动通道页面,直接操作 B 电脑上运行的 DSH,两台 DSH 联动 agent 对 agent);点开是**设置表单**(9 个可见控件 + 高级里 5 个,默认折叠;底部「保存 / 放弃」)。schema 库在 profile 侧解析得到,卡片就出现;解析不到只打 warning、卡片不出现(§9.1 实测:本机解析成功、卡片 active) | `settings.plugin.item`,`key` = 设置命名空间 `remote-tailnet-guard`;值走平台服务 `settingsScope`,落在 `<DSH_HOME>\settings.yaml` 的 `remote-tailnet-guard:` section |
+| **设置 → 插件**(`all` tab,插件清单) | 清单里出现 `dsh-crossnet-link` 这一行,状态**已启用** | 平台自带的 inventory tab,**不需要我们写任何代码**;只要行被装进 profile 就会有(`all` tab 同时列出**未启用**的行并把它们标成未启用,所以装完还没启用时它其实就已经在清单里了 —— 认准"已启用"三个字) |
+| **设置 → 插件 → 「可配置插件」tab** | 一张折叠卡片 **`dsh-crossnet-link`**,副标题是**插件目的**(在 A 电脑的 DSH 里驱动通道页面,直接操作 B 电脑上运行的 DSH,两台 DSH 联动 agent 对 agent);点开是**设置表单**(9 个可见控件 + 高级里 5 个,默认折叠;底部「保存 / 放弃」)。schema 库在 profile 侧解析得到,卡片就出现;解析不到只打 warning、卡片不出现(§9.1 实测:本机解析成功、卡片 active) | `settings.plugin.item`,`key` = 设置命名空间 `dsh-crossnet-link`;值走平台服务 `settingsScope`,落在 `<DSH_HOME>\settings.yaml` 的 `dsh-crossnet-link:` section |
 
 **卡片这一格的真实机制(实测澄清,取代原先"`link:` 装法必不出卡片"的推断)**:host 半边对 schema 库
 (`@deepseek-ai/schemastery` / `schemastery`)用**受保护的运行时解析**(`await import(specifier)`,try/catch),
@@ -506,8 +510,8 @@ $patch   = Join-Path $dshHome "profiles\$profile\cordis.patch.yml"
 
 # ---------- 第 1 步:先停用(首选,不动别的) ----------
 # 把覆盖行改成 disabled: true(或直接删掉那三行),然后从 DSH 自带菜单重启:
-#   - id: remote-tailnet-guard
-#     name: remote-tailnet-guard
+#   - id: dsh-crossnet-link
+#     name: dsh-crossnet-link
 #     disabled: true
 
 # ---------- 第 2 步:GUI 异常时,整文件还原 profile patch 的备份 ----------
@@ -515,14 +519,14 @@ Get-ChildItem -LiteralPath ($patch + '.bak-*') | Sort-Object LastWriteTime | Sel
 Copy-Item -LiteralPath '<上面列出的那个备份文件>' -Destination $patch -Force      # 整文件还原,然后重启
 
 # ---------- 第 3 步:从 profile 卸载这个包 ----------
-dsh plugin --profile $profile remove remote-tailnet-guard
+dsh plugin --profile $profile remove dsh-crossnet-link
 
 # ---------- 第 4 步:复原并核对 ----------
 # 4a. profile 的 package.json / pnpm-lock.yaml 用第 1 步之前的备份整文件还原(如有)
-# 4b. bundles 列表里应不再有 remote-tailnet-guard
+# 4b. bundles 列表里应不再有 dsh-crossnet-link
 (Get-Content -LiteralPath (Join-Path $dshHome "profiles\$profile\package.json") -Raw | ConvertFrom-Json).dsh.profile.bundles
 # 4c. 仓库内再跑一次预检(只读),确认骨架本身仍然自洽
-powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'remote-tailnet-plugin\panel\plugin-preflight.ps1')
+powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'dsh-crossnet-link\panel\plugin-preflight.ps1')
 ```
 
 > **为什么第 2 步是"整文件还原"而不是"逐行删掉我加的那几行"**:本机 AGENTS.md 记录过一次真实事故 ——
@@ -536,10 +540,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'remote-tai
 
 | 现象 | 第一动作 | 之后 |
 |---|---|---|
-| 设置里根本没有这张卡片 | 确认覆盖行是否真的生效(`disabled: false`)与 profile 是否重启过 | 再跑 §4 预检;确认 `dsh.profile.bundles` 里有 `remote-tailnet-guard`,并看宿主日志里那条 `settings namespace "remote-tailnet-guard" registered ...` 是 info 还是 warning(schema 库解析不到时是 warning,卡片按设计不出现) |
+| 设置里根本没有这张卡片 | 确认覆盖行是否真的生效(`disabled: false`)与 profile 是否重启过 | 再跑 §4 预检;确认 `dsh.profile.bundles` 里有 `dsh-crossnet-link`,并看宿主日志里那条 `settings namespace "dsh-crossnet-link" registered ...` 是 info 还是 warning(schema 库解析不到时是 warning,卡片按设计不出现) |
 | 卡片在,点开后只有一行"设置服务不可用" | 这一页拿不到本插件的设置命名空间(极少数情况:非本机页面,或预检 §4 第 4/5 条没通过) | 跑 §4 预检;卡片不写设置时**不会**误报成功,保存按钮也不会亮 |
 | **GUI 卡在恢复模式 / `Failed to load plugins`** | **立刻把覆盖行改回 `disabled: true`;若改不动或页面已打不开,就整文件还原 §5 第 1 步的备份,重启** | 恢复后在 `%TEMP%` 的一次性 profile 上按 §8 复现,别在日常 profile 上修 |
-| 想彻底消失 | `dsh plugin --profile <profile> remove remote-tailnet-guard` | 再核对 §6 第 4 步 |
+| 想彻底消失 | `dsh plugin --profile <profile> remove dsh-crossnet-link` | 再核对 §6 第 4 步 |
 
 ---
 
@@ -550,7 +554,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'remote-tai
 
 ```powershell
 $repo = '<REPO>'
-$plugin = Join-Path $repo 'remote-tailnet-plugin\plugin'
+$plugin = Join-Path $repo 'dsh-crossnet-link\plugin'
 
 # 1) 建一次性 profile:首次执行 dsh plugin --profile <新名字> 会按模板初始化它
 #    (证据:<APP_DIR>\node_modules\@deepseek-ai\dsh\lib\plugin-Ddi42qoW.js:101-107)
@@ -565,7 +569,7 @@ dsh --profile plugin-test --dump-config | Select-String -SimpleMatch 'webServer'
 dsh --profile plugin-test
 
 # 3) 验证完就整条拆掉
-dsh plugin --profile plugin-test remove remote-tailnet-guard
+dsh plugin --profile plugin-test remove dsh-crossnet-link
 ```
 
 一次性 profile 不碰你日常 profile 的 `package.json`、不碰日常那套设置与会话数据;坏掉直接删目录重来。
@@ -588,7 +592,7 @@ dsh plugin --profile plugin-test remove remote-tailnet-guard
    的适配属于另一条任务线,不在本阶段结论内。
 6. **`<APP_DIR>` 下的行号**来自本机这一版安装镜像;DSH 升级后行号可能平移,文件名与结构才是判据。
 7. **插件页卡片:实测澄清 —— schema 库按 profile 侧解析,解析得到卡片就出现**。卡片能否渲染取决于两点同时成立 ——
-   ①host 半边成功注册了带字段 schema 的命名空间 `remote-tailnet-guard`;②client 半边把 `settings.plugin.item`
+   ①host 半边成功注册了带字段 schema 的命名空间 `dsh-crossnet-link`;②client 半边把 `settings.plugin.item`
    以同名字符串为 `key` 注册上。第①点依赖 **schema 库能否被运行时解析**
    (`@deepseek-ai/schemastery` / `schemastery`),而解析的起点是 **profile 目录**(loader 从 profile 解析行
    specifier),**不是** `link:` 目标目录:本机桌面 profile 的 `node_modules` 里有该库(其它插件带入),
@@ -597,10 +601,10 @@ dsh plugin --profile plugin-test remove remote-tailnet-guard
    判断口诀:分区出现 = 骨架加载成功;清单里出现该行 = 行真的被装进 profile;卡片出现 = 上面两点都成立
    (其中第①点取决于 profile 能否解析 schema 库)。真实装载时的日志观察见 §9.1。
    **v0.4 之后尚未实测的部分**:卡片里点「保存」→ 平台设置服务 `settingsScope` → `<DSH_HOME>\settings.yaml`
-   的 `remote-tailnet-guard:` section → 采集器参数,这条链路目前只有静态与库级验证(schema 默认值、白名单映射、
+   的 `dsh-crossnet-link:` section → 采集器参数,这条链路目前只有静态与库级验证(schema 默认值、白名单映射、
    两份 client 正文一致性都用真库/脚本跑过),**没有真实页面上的保存记录**;§9.1 那次装载发生在 v0.4 之前,
    记录的是"座位能不能渲染",不是"设置能不能存"。真正装到一台机器上时,第一件要看的证据就是
-   `settings.yaml` 里有没有 `remote-tailnet-guard:` 这段。
+   `settings.yaml` 里有没有 `dsh-crossnet-link:` 这段。
 8. **退出码契约的自证范围**:`-SelfTest` 覆盖的是**静态**故障(入口缺失 / 行 id / 行 disabled / 共享正文漂移 /
    卡片座位消失 / 文档缺失)与基线;真实加载期的失败(路由注册失败、采集器超时、命名空间被占用)不在它的覆盖里。
 
@@ -612,8 +616,8 @@ dsh plugin --profile plugin-test remove remote-tailnet-guard
 **装载日志**(重启后;`[I]` = info,`[W]` = warning):
 
 ```text
-[I] [remote-tailnet-guard] remote-tailnet-guard: read-only posture route ready at /remote-tailnet-guard/api (collector <REPO>\src\collect.ps1)
-[I] [remote-tailnet-guard] remote-tailnet-guard: settings namespace "remote-tailnet-guard" registered (the plugins-page card can render)
+[I] [dsh-crossnet-link] dsh-crossnet-link: read-only posture route ready at /dsh-crossnet-link/api (collector <REPO>\src\collect.ps1)
+[I] [dsh-crossnet-link] dsh-crossnet-link: settings namespace "dsh-crossnet-link" registered (the plugins-page card can render)
 ```
 
 > 这两行是 **v0.3 那次装载的原文**(实测记录,不改写历史)。v0.4 起第二行的措辞变成
@@ -628,10 +632,11 @@ dsh plugin --profile plugin-test remove remote-tailnet-guard
 | 格 | 判据 | 实测 |
 |---|---|---|
 | ① 插件清单行 | 组合配置里该行 `disabled: false`;清单由平台 inventory 列出 | 行已装进 profile 且 `disabled: false`(`--dump-config` 原文:该行 `patched by <DSH_HOME>\profiles\<profile>\cordis.patch.yml`) |
-| ② 可配置插件卡片 | `settings.plugin.item` 活注册 + host 命名空间注册 | 卡片座位 `registrant: remote-tailnet-guard, key: remote-tailnet-guard, order: 100, active: true`;host 日志确认命名空间注册成功 → **渲染的两个前提都成立** |
+| ② 可配置插件卡片 | `settings.plugin.item` 活注册 + host 命名空间注册 | 卡片座位 `registrant: dsh-crossnet-link, key: dsh-crossnet-link, order: 100, active: true`;host 日志确认命名空间注册成功 → **渲染的两个前提都成立** |
 
 > 说明:早期版本还额外注册过一个独立侧边栏分区(`settings.section`),后按「与别的插件一致」的要求
-> 移除 —— 现在本插件只以这张标准卡片出现,不新增侧边栏条目。
+> 移除 —— 现在 DSH 设置页里只贡献这一张可配置卡片，不新增设置页左侧导航条目；
+> 侧边栏 tab 是新增接入面，走可选依赖 `dsh-better-sidebar`（装了才有，未装无 tab、无报错、不 waiting）。
 
 **结论**:真实装载一次通过,两格全中;本机日志是 **info 不是 warning**。
 之前「`link:` 装法必不出卡片」的推断被实测**推翻**:ESM 解析起点是 profile 目录,profile 里有 schema 库就出卡片。

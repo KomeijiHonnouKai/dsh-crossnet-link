@@ -6,8 +6,8 @@
   2. `powershell -NoProfile -Command "Copy-Item -LiteralPath <patch> -Destination <patch>.bak-<stamp> -Force"`(示例,由你执行)
   3. `powershell -NoProfile -Command "(Get-FileHash -LiteralPath <patch> -Algorithm SHA256).Hash"`
   4. `powershell -NoProfile -Command "Get-Content -LiteralPath <backup> -Encoding UTF8"` —— F9:还原前先看备份内容
-  5. `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role server`
-  6. `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly -Role server`
+  5. `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -Role server`
+  6. `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly -Role server`
   7. `cordis_inspect_self()` —— 当前返回 `plugins: []`(见 §1,进程重启后动态包消失)
   8. 内部资料引用扫描:本目录三个文件里**内部文档名应 0 命中**(t26 实测 0)
 
@@ -35,8 +35,8 @@
 
 | 目标 | 命令 | 回滚后应观察到 |
 | --- | --- | --- |
-| 临时停用面板 | `cordis_stop("panel-2")` | 设置面板里的 `Remote access link (read-only posture)` 分区项消失;host 私有方法 `remote-tailnet-guard/panel/posture` 不再可调用;GUI 正常(无 `Failed to load plugins`) |
-| 临时停用采集器 host 半边 | `cordis_stop("guard-1")` | Service `remoteTailnetGuard`、私有方法 `remote-tailnet-guard/posture`、工具 `remote_tailnet_posture` 一起消失;正在跑的子进程被 `terminate()` |
+| 临时停用面板 | `cordis_stop("panel-2")` | 设置面板里的 `Remote access link (read-only posture)` 分区项消失;host 私有方法 `dsh-crossnet-link/panel/posture` 不再可调用;GUI 正常(无 `Failed to load plugins`) |
+| 临时停用采集器 host 半边 | `cordis_stop("guard-1")` | Service `remoteTailnetGuard`、私有方法 `dsh-crossnet-link/posture`、工具 `remote_tailnet_posture` 一起消失;正在跑的子进程被 `terminate()` |
 | 永久删除面板 | `cordis_undefine("panel-2")` | Plugin 与全部 Package 删除;`cordis_inspect_self()` 里不再出现;@ 引用失效(历史卡片只留「已移除」记录) |
 | 永久删除采集器 | `cordis_undefine("guard-1")` | 同上 |
 
@@ -57,10 +57,10 @@ t16 复核时返回 **`plugins: []`** ⇒ **进程重启后动态包已消失**(
 
 | 改动 | 回滚 | 确认 |
 | --- | --- | --- |
-| 在 `<DSH_HOME>\profiles\<name>\cordis.patch.yml` 加了一行 `- id: remote-tailnet-guard-panel / name: remote-tailnet-plugin` | **推荐先停用**:在同一行下加 `disabled: true`(profile 配置有 ~1 秒 HMR 重组合,不必重启) | 设置面板里分区项消失;`cordis_inspect_self()` 里该 Plugin 不在 |
+| 在 `<DSH_HOME>\profiles\<name>\cordis.patch.yml` 加了一行 `- id: dsh-crossnet-link-panel / name: dsh-crossnet-link` | **推荐先停用**:在同一行下加 `disabled: true`(profile 配置有 ~1 秒 HMR 重组合,不必重启) | 设置面板里分区项消失;`cordis_inspect_self()` 里该 Plugin 不在 |
 | 要彻底移除 | 删掉那一行,保存 | 同上看不到 |
 | 改坏了整个 patch 文件 | 从备份整文件还原(见下) | 还原后 `Get-FileHash` 与备份时记录的值一致 |
-| 删掉了 package.json / 构建产物 | 从版本库 `git checkout -- remote-tailnet-plugin/` 还原 | `git status` 干净 |
+| 删掉了 package.json / 构建产物 | 从版本库 `git checkout -- dsh-crossnet-link/` 还原 | `git status` 干净 |
 
 **备份与还原(可粘贴;路径运行时解析,不写死)**
 
@@ -164,8 +164,8 @@ SUBCOMMANDS
 **验证回滚**:回滚后用同一套判据复查,不要凭感觉 ——
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role server
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly -Role server
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -Role server
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly -Role server
 ```
 
 期望:相应项的 `verdict` 回到改动前的值,且 `summary` 的计数与你的记录一致。

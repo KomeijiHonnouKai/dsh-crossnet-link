@@ -1,4 +1,4 @@
-# remote-tailnet-guard
+# dsh-crossnet-link
 
 **目的**：在 A 电脑的 DSH 里，通过浏览器插件驱动已登录的通道页面，
 直接操作 B 电脑上运行的 DSH，两台 DSH 由此联动（agent 对 agent）。
@@ -43,11 +43,11 @@
 
 四条命令，全部只读，不用安装任何东西。
 
-1. 克隆仓库。第二个参数是本地目录名，不能省。
+1. 克隆仓库。第二个参数是本地目录名，必须写成 `dsh-crossnet-link`（采集器靠它回溯定位）。
 
 ```powershell
-git clone https://github.com/KomeijiHonnouKai/dsh-crossnet-link remote-tailnet-plugin
-cd remote-tailnet-plugin
+git clone https://github.com/KomeijiHonnouKai/dsh-crossnet-link dsh-crossnet-link
+cd dsh-crossnet-link
 ```
 
 期望：克隆成功，进入目录。
@@ -68,8 +68,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File src\collect.ps1 -CheckOnly
 
 期望：表头 total=26。没有对端地址时链路几项报 unknown；
 本机 trustedHosts 未配置会报 blocked。
-退出 0 全通、1 有降级、2 有阻断。
-新机器上退出 2 很常见，这是 fail-closed 判定，不是命令失败。
+退出 0 全通、1 有降级、2 有阻断；新机器上退出 2 很常见，是 fail-closed 判定不是失败。
 
 4. 卸载前的干跑，不写任何东西。
 
@@ -126,11 +125,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\uninstall.ps1 -Plan
 给 AI 读的带人话版本见 `docs/install/agent-brief.md`。
 
 - 插件清单里出现那一行：装进了 profile，禁用状态也在。
-- 出现插件卡片（「可配置插件」标签页里一张折叠卡片「跨网链路姿态」）：
-  host 侧代码注册了卡片所依赖的设置命名空间。
+- 出现插件卡片（「可配置插件」标签页里一张折叠卡片 `dsh-crossnet-link`）：
+  host 侧代码注册了卡片所依赖的设置命名空间；展开体是设置表单，不是体检报告。
 - 卡片是有条件的：profile 能解析到 schema 库就出现（实测本机出现）；
   解析不到只打 warning，清单行不受影响。
-- 本插件只以这张标准卡片出现，不新增侧边栏/设置导航条目。
+- 侧边栏 tab 是新增接入面：装了 dsh-better-sidebar 时标题为 `dsh-crossnet-link`，
+  打开是只读姿态面板；未装则无 tab、无报错、不 waiting。设置 → 插件里只有那一张卡片。
 
 移除三步：把那一行改回 `disabled: true`，或删掉它，或用改动前的备份整文件还原。
 先读备份再还原，备份可能是一份空补丁。长版见 `docs/install/uninstall.md`。
@@ -144,7 +144,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\uninstall.ps1 -Plan
 | Public 网卡的静默后果 | 只能从规则推导 |
 | 服务端 HTTPS 证书判定 | 依赖 Node 或 OpenSSL 探测 |
 | 常驻包真机装载 | 真实 DSH 上装载一次（2026-09-25，两格全中，日志 info） |
-| 面板卡片渲染 | 实测渲染前提成立（命名空间注册成功、卡片座位 active） |
+| 插件卡片渲染 | 前提已实测（命名空间注册成功、卡片座位 active）；侧边栏 tab 尚未实测 |
 
 以上条目都按未验证如实报告，绝不升级成已验证。
 

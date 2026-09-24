@@ -1,10 +1,11 @@
 /*
  * remote-tailnet-guard - HOST half of the persistent DSH plugin (t43, phase 1).
- * LAST UPDATED : 2026-09-25 (v0.2 - the settings namespace the plugins-page card is keyed by now
- * declares this plugin's own check parameters instead of an empty schema, and the route maps the
- * stored values onto the collector's argument list through whitelists. v0.1 was the first
- * persistent-plugin skeleton; the row that mounts this module ships disabled: see
- * plugin/cordis.patch.yml and docs/install/plugin-package.md).
+ * LAST UPDATED : 2026-09-25 (v0.3 - first-load auto-config: the host half now fills the four
+ * machine-detectable settings (port/profile/dshHome/appDir) through the platform settings service,
+ * one key at a time and never overwriting. v0.2 declared this plugin's own check parameters instead
+ * of an empty schema and mapped the stored values onto the collector's argument list through
+ * whitelists; v0.1 was the first persistent-plugin skeleton. The row that mounts this module ships
+ * disabled: see plugin/cordis.patch.yml and docs/install/plugin-package.md).
  *
  * This file is a REAL ESM module of the installed package (package.json `main`), NOT the body of a
  * cordis_define call. It is loaded by the profile's own Loader row, not by the dynamic Package
@@ -22,16 +23,18 @@
  *     bounds). A value can never become an argument the plugin did not intend to pass;
  *   * it returns leaf fields only (bounded checks + counts): raw probe output stays in the host
  *     process and never crosses to the page;
- *   * it installs nothing, changes no system setting, touches no profile file and never restarts DSH;
- *   * this half never writes the settings document. It only DECLARES the schema (which is what makes
- *     the plugins-page card configurable); the values are written by the platform settings service
- *     when the user saves the card.
+ *   * it installs nothing, changes no system setting and never restarts DSH;
+ *   * its only settings writes go through the platform settings service, and only the first-load
+ *     auto-fill of the four machine-detectable keys (per-key, and only while the key is absent -
+ *     an existing value such as the user's `role: client` is never overwritten); otherwise it only
+ *     DECLARES the schema, and the card's own saves are written by that same service.
  *
  * COMMANDS USED while writing this file (read-only; no client Inspect, no long waits):
  *   powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/plugin-preflight.ps1
  *   powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1
  */
 import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -222,6 +225,159 @@ function readSettings(ctx) {
     return value;
   } catch (error) {
     return null;
+  }
+}
+
+/** Trim a string candidate to a non-empty value inside the collector's length cap, else null. */
+function pickDetected(value, max) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (trimmed.length === 0 || trimmed.length > max) return null;
+  return trimmed;
+}
+
+/**
+ * The four machine-detectable settings, probed with the SAME discovery chain the collector documents
+ * in `-Describe` (src/collect.ps1:1055-1084) and resolves at src/collect.ps1:846-895 / :969-984.
+ * Each probe returns a valid value, or null for "undetected" (the key is then left absent, never
+ * guessed). The length caps mirror the collector argument whitelist in this file (TEXT_ARGUMENTS).
+ */
+function probeDshHome() {
+  // -DshHome > $env:DSH_HOME > $env:USERPROFILE\.dsh   (collect.ps1:848-851)
+  const fromEnv = pickDetected(process.env.DSH_HOME, 260);
+  if (fromEnv !== null) return fromEnv;
+  try {
+    return pickDetected(join(homedir(), '.dsh'), 260);
+  } catch (error) {
+    return null;
+  }
+}
+
+function probePort(ctx) {
+  // The collector reads -Port > $env:DSH_WEB_URL > builtin 43120 (collect.ps1:859-861). The host
+  // half can do better: its own web server's bound port is the value DSH_WEB_URL is derived from
+  // (dsh-web-app/lib/index.js:96-100), so the port is measured rather than defaulted.
+  try {
+    const webServer = ctx.get('webServer');
+    const port = webServer && typeof webServer.port === 'number' ? webServer.port : null;
+    if (port !== null && Number.isInteger(port) && port >= 1 && port <= 65535) return port;
+  } catch (error) {
+    /* fall through to the collector's own env extraction */
+  }
+  const url = process.env.DSH_WEB_URL;
+  if (typeof url === 'string' && url !== '') {
+    const match = /:([0-9]{2,5})(\/|$)/.exec(url);
+    if (match !== null) {
+      const port = Number.parseInt(match[1], 10);
+      if (Number.isInteger(port) && port >= 1 && port <= 65535) return port;
+    }
+  }
+  return null;
+}
+
+function probeAppDir() {
+  // -AppDir > $env:DSH_APP_DIR > the running DSH process image dir + \resources\app
+  // (collect.ps1:970-983). process.execPath is that process image here; the auto-discovered
+  // candidate is only accepted when it actually exists (same Test-Path guard as the collector).
+  const fromEnv = pickDetected(process.env.DSH_APP_DIR, 260);
+  if (fromEnv !== null) return fromEnv;
+  try {
+    const candidate = join(dirname(process.execPath), 'resources', 'app');
+    if (!existsSync(candidate)) return null;
+    return pickDetected(candidate, 260);
+  } catch (error) {
+    return null;
+  }
+}
+
+function probeProfile(ctx) {
+  // -Profile has no environment source in the collector (collect.ps1:893-895); the active profile
+  // name comes from the Desktop profile service's context (profile-service: super(ctx,"desktopProfiles"),
+  // `current.name`). No service, no name => null (left blank), never guessed.
+  try {
+    const profiles = ctx.get('desktopProfiles');
+    const name = profiles && profiles.current ? profiles.current.name : null;
+    return pickDetected(name, 64);
+  } catch (error) {
+    return null;
+  }
+}
+
+/** Whether a plain object owns the key (the raw settings.yaml section, not the resolved value). */
+function ownsKey(object, key) {
+  return object !== null && typeof object === 'object' && !Array.isArray(object) &&
+    Object.prototype.hasOwnProperty.call(object, key);
+}
+
+/**
+ * Auto-configure the machine-detectable settings on first load. Runs once, after the namespace is
+ * registered, and only ever SETS keys still absent from the user's settings.yaml section - an
+ * existing value (including the user's `role: client`) is left exactly as it was. Writes go through
+ * the platform settings service's mutate() path (the same one the plugins-page card save uses,
+ * dsh-settings/lib/index.js:440-448), never by editing settings.yaml directly. An undetected value
+ * or a failed write is only logged - never fatal to the load.
+ */
+async function autoFillSettings(ctx) {
+  let settings = null;
+  try {
+    settings = ctx.get('settings');
+  } catch (error) {
+    settings = null;
+  }
+  if (settings === null || settings === undefined ||
+      typeof settings.mutate !== 'function' || typeof settings.describe !== 'function') {
+    logLine(ctx, 'warn', 'remote-tailnet-guard: auto-config skipped - settings service unavailable in this host');
+    return;
+  }
+
+  let userSection = null;
+  let revision;
+  try {
+    const descriptors = settings.describe();
+    if (Array.isArray(descriptors)) {
+      for (let index = 0; index < descriptors.length; index += 1) {
+        const descriptor = descriptors[index];
+        if (descriptor === null || descriptor === undefined || descriptor.ns !== SETTINGS_NS) continue;
+        if (descriptor.user !== undefined && descriptor.user !== null &&
+            typeof descriptor.user === 'object' && !Array.isArray(descriptor.user)) {
+          userSection = descriptor.user;
+        }
+        if (typeof descriptor.revision === 'number') revision = descriptor.revision;
+        break;
+      }
+    }
+  } catch (error) {
+    logLine(ctx, 'warn', 'remote-tailnet-guard: auto-config could not read the current section: ' + errorText(error));
+    return;
+  }
+
+  const fields = [
+    { key: 'dshHome', value: probeDshHome() },
+    { key: 'port', value: probePort(ctx) },
+    { key: 'appDir', value: probeAppDir() },
+    { key: 'profile', value: probeProfile(ctx) }
+  ];
+  const ops = [];
+  for (let index = 0; index < fields.length; index += 1) {
+    const field = fields[index];
+    if (field.value === null || field.value === undefined) {
+      logLine(ctx, 'warn', 'remote-tailnet-guard: auto-config: "' + field.key + '" undetected, left blank');
+      continue;
+    }
+    if (ownsKey(userSection, field.key)) {
+      logLine(ctx, 'info', 'remote-tailnet-guard: auto-config: "' + field.key + '" already present, skipped');
+      continue;
+    }
+    ops.push({ op: 'set', path: [field.key], value: field.value });
+  }
+  if (ops.length === 0) return;
+
+  try {
+    await settings.mutate(SETTINGS_NS, ops, revision);
+    const keys = ops.map(function (op) { return op.path[0]; }).join(', ');
+    logLine(ctx, 'info', 'remote-tailnet-guard: auto-config wrote ' + ops.length + ' machine setting(s) (' + keys + ') through the platform settings service');
+  } catch (error) {
+    logLine(ctx, 'warn', 'remote-tailnet-guard: auto-config write failed: ' + errorText(error));
   }
 }
 
@@ -491,8 +647,9 @@ export function apply(ctx) {
   //   * the schema DECLARES this plugin's own check parameters (role, peer, profile, timeouts, ...):
   //     that declaration is what makes the card configurable and what every write is validated
   //     against, and the same values are read back in the route above to build the collector argv;
-  //   * this half never calls update()/replace(): the card saves through the platform settings
-  //     service, so the value only ever lands in the user's own settings document;
+  //   * the card saves through the platform settings service; the only write this half ever issues
+  //     is the first-load auto-config above, a single per-key mutate() for keys still absent - never
+  //     update()/replace() and never a hand-edit of the settings document;
   //   * the whole step is optional and guarded: an unreachable schema library logs a warning and
   //     skips the registration instead of failing the load.
   ctx.effect(function () {
@@ -507,6 +664,9 @@ export function apply(ctx) {
         try {
           sctx.settings.register(SETTINGS_NS, settingsSchema(schemaFactory), { base: {}, applies: 'live' });
           logLine(ctx, 'info', 'remote-tailnet-guard: settings namespace "' + SETTINGS_NS + '" registered with this plugin\'s check parameters (the plugins-page card can render and save them)');
+          autoFillSettings(ctx).catch(function (error) {
+            logLine(ctx, 'warn', 'remote-tailnet-guard: auto-config failed: ' + errorText(error));
+          });
         } catch (error) {
           logLine(ctx, 'warn', 'remote-tailnet-guard: settings namespace "' + SETTINGS_NS + '" was refused: ' + errorText(error));
         }

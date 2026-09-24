@@ -2,11 +2,11 @@
 
 - **最后更新时间**: 2026-09-24(t37 首版;对应实现 `tools/uninstall.ps1` v1 = t36)
 - **本次使用的命令**(全部只读;没有一条会改变系统状态):
-  1. `Select-String -Pattern '^\s*\[switch\]|^\s*\[string\]' -Path remote-tailnet-plugin/tools/uninstall.ps1` —— 取参数清单(见 §1.0)
-  2. `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tools/uninstall.ps1 -CheckOnly -StateDir <临时目录>` —— 本机实测:**exit 1**(无 journal 时的 fail-closed 语义),正文与保留清单见 §2/§7
-  3. 同一条加 `-AsJson` —— 报告 schema `remote-tailnet-guard/uninstall-report/1`
-  4. `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly -AsJson` —— 读 `uninstall{}` 字段(13 项:7 keep / 6 optional-remove)
-  5. `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -AsJson` —— 残留核对的第 6/7 项复用它的判定
+  1. `Select-String -Pattern '^\s*\[switch\]|^\s*\[string\]' -Path dsh-crossnet-link/tools/uninstall.ps1` —— 取参数清单(见 §1.0)
+  2. `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tools/uninstall.ps1 -CheckOnly -StateDir <临时目录>` —— 本机实测:**exit 1**(无 journal 时的 fail-closed 语义),正文与保留清单见 §2/§7
+  3. 同一条加 `-AsJson` —— 报告 schema `dsh-crossnet-link/uninstall-report/1`
+  4. `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly -AsJson` —— 读 `uninstall{}` 字段(13 项:7 keep / 6 optional-remove)
+  5. `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -AsJson` —— 残留核对的第 6/7 项复用它的判定
 
 > **这一页要解决的问题**:卸载必须「完整干净」,但**干净 ≠ 把看到的都删掉**。本插件的本体是只读的;整个仓库里唯一的写入组件是 `tools/uninstall.ps1`,它只能**回滚 journal 记录过、并且当前值仍然是它自己产出的**那些改动。别人后来改过的东西一律不碰 —— 这一页教你跑完它、看懂它打印的每一项、校验它留下的备份,并自己核对「没有残留」。
 
@@ -26,14 +26,14 @@
 
 ### 1.0 先看参数清单(与实现逐字一致)
 
-`-StateDir`(默认 `$env:USERPROFILE\.remote-tailnet-guard`)、`-Journal`(默认 `<StateDir>\state-journal.json`)、`-RecordBefore`、`-RecordAfter`、`-Plan`、`-Apply`、`-BackupDir`、`-PurgeBackup`、`-RemoveFiles`、`-KeepTailscale`、`-CheckOnly`、`-AsJson`、`-FixturePath`、`-Lang`、`-Manifest`、`-DshHome`、`-Collector`、`-InstallPath`、`-CordisPluginId`、`-RowId`、`-NetworkProfileName`、`-CommandTimeoutMs`。
+`-StateDir`(默认 `$env:USERPROFILE\.dsh-crossnet-link`)、`-Journal`(默认 `<StateDir>\state-journal.json`)、`-RecordBefore`、`-RecordAfter`、`-Plan`、`-Apply`、`-BackupDir`、`-PurgeBackup`、`-RemoveFiles`、`-KeepTailscale`、`-CheckOnly`、`-AsJson`、`-FixturePath`、`-Lang`、`-Manifest`、`-DshHome`、`-Collector`、`-InstallPath`、`-CordisPluginId`、`-RowId`、`-NetworkProfileName`、`-CommandTimeoutMs`。
 
 > 本页只用上面这些名字。**实现里不存在的参数与行为,本页一律不写**;如果你看到别的写法,那是错的。
 
 ### 1.1 第 1 步:记录卸载前状态
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File <REPO>/tools/uninstall.ps1 -RecordBefore -StateDir "$env:USERPROFILE\.remote-tailnet-guard"
+powershell -NoProfile -ExecutionPolicy Bypass -File <REPO>/tools/uninstall.ps1 -RecordBefore -StateDir "$env:USERPROFILE\.dsh-crossnet-link"
 ```
 
 **应观察到**:横幅是 `JOURNAL RUN: this run observes and records...`;每一项以 `id` + 该项目的 remediation 命令打印;`<StateDir>\state-journal.json` 被创建,里面是 `records[]`,每条含 `before` / `expected` / `after: null`。**这一步只写这一个文件。**
@@ -59,7 +59,7 @@ cordis_undefine(<PLUGIN_ID>)
 ### 1.3 第 3 步:再记录一次(填 `after`)
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File <REPO>/tools/uninstall.ps1 -RecordAfter -StateDir "$env:USERPROFILE\.remote-tailnet-guard"
+powershell -NoProfile -ExecutionPolicy Bypass -File <REPO>/tools/uninstall.ps1 -RecordAfter -StateDir "$env:USERPROFILE\.dsh-crossnet-link"
 ```
 
 **应观察到**:journal 里每条记录的 `after` 被填上**当前值**。`after` 就是「这个值是本工具造成的」的凭据;没有它,后续只能判 `unknown`(绝不猜)。这一步必须在上一步之后跑。
@@ -67,7 +67,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File <REPO>/tools/uninstall.ps1 -
 ### 1.4 第 4 步:看计划(默认干跑)
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File <REPO>/tools/uninstall.ps1 -Plan -StateDir "$env:USERPROFILE\.remote-tailnet-guard"
+powershell -NoProfile -ExecutionPolicy Bypass -File <REPO>/tools/uninstall.ps1 -Plan -StateDir "$env:USERPROFILE\.dsh-crossnet-link"
 ```
 
 **应观察到**:`DRY RUN: nothing was written or changed...`;一行 `classification: noop=… revert=… left-alone=… unknown=… kept(userOwned)=… unknown(exempt cordis)=…`;每个记录的状态与**溯源**(`recordedBefore` / `recordedExpected` / `recordedAfter` / `observedNow`)。退出码:`0` 干净 / `1` 有 `left-alone`、`unknown` 或残留 / `2` 拒绝执行且什么都没写。
@@ -75,7 +75,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File <REPO>/tools/uninstall.ps1 -
 ### 1.5 第 5 步:执行(写前自动备份)
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File <REPO>/tools/uninstall.ps1 -Apply -StateDir "$env:USERPROFILE\.remote-tailnet-guard"
+powershell -NoProfile -ExecutionPolicy Bypass -File <REPO>/tools/uninstall.ps1 -Apply -StateDir "$env:USERPROFILE\.dsh-crossnet-link"
 ```
 
 **应观察到**:横幅 `WRITE RUN: the backup directory is written and verified BEFORE the first change.`;先打印备份目录与逐文件校验结果,然后才出现 `execution begins only now`;之后只执行状态为 `revert` 的项。备份写不完/校验不过 ⇒ exit 2 且不改任何东西。
@@ -87,7 +87,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File <REPO>/tools/uninstall.ps1 -
 powershell -NoProfile -ExecutionPolicy Bypass -File <REPO>/tools/uninstall.ps1 -CheckOnly
 
 # 想连备份一起清掉(必须与 -Apply 同一次运行,见 §4)
-powershell -NoProfile -ExecutionPolicy Bypass -File <REPO>/tools/uninstall.ps1 -Apply -PurgeBackup -StateDir "$env:USERPROFILE\.remote-tailnet-guard"
+powershell -NoProfile -ExecutionPolicy Bypass -File <REPO>/tools/uninstall.ps1 -Apply -PurgeBackup -StateDir "$env:USERPROFILE\.dsh-crossnet-link"
 ```
 
 **应观察到**:§7 的 8 项残留逐条给出 `pass` / `residue` / `unknown` / `not-recorded` / `not-requested`,以及 `cordis-dynamic-package` 那一节列出的 `cordis_undefine(<id>)`。
@@ -155,7 +155,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File <REPO>/tools/uninstall.ps1 -
 **校验备份完整性**(逐文件比对 MANIFEST 里记录的 sha256 与字节数):
 
 ```powershell
-$backup = "$env:USERPROFILE\.remote-tailnet-guard\backups\<时间戳目录>"   # 用 -Apply 打印出来的路径
+$backup = "$env:USERPROFILE\.dsh-crossnet-link\backups\<时间戳目录>"   # 用 -Apply 打印出来的路径
 $m = Get-Content -LiteralPath (Join-Path $backup 'MANIFEST.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 foreach ($f in $m.files) {
   $p = Join-Path $backup $f.rel
@@ -178,7 +178,7 @@ foreach ($f in $m.files) {
 **要清空:用 `-PurgeBackup`,并且必须与 `-Apply` 在同一次运行里**(单独跑 `-PurgeBackup` 会被拒绝):
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File <REPO>/tools/uninstall.ps1 -Apply -PurgeBackup -StateDir "$env:USERPROFILE\.remote-tailnet-guard"
+powershell -NoProfile -ExecutionPolicy Bypass -File <REPO>/tools/uninstall.ps1 -Apply -PurgeBackup -StateDir "$env:USERPROFILE\.dsh-crossnet-link"
 ```
 
 清空前的保证(实现原文语义):
@@ -238,11 +238,11 @@ provenance = { recordedBefore, recordedExpected, recordedAfter, observedNow, com
 
 | # | 检查项(residue id) | 你自己怎么核对 | 期望 |
 | --- | --- | --- | --- |
-| 1 | `profile-rows-absent` | 在 `<DSH_HOME>\profiles\*\cordis.patch.yml` 里搜本插件的 row id(默认 `remote-tailnet-guard-panel`);或在 DSH 会话里 `cordis_inspect_self()` 看该 Plugin 是否还在 | 记录过的 row id **0 命中**;没记录过则报 `not-recorded` |
+| 1 | `profile-rows-absent` | 在 `<DSH_HOME>\profiles\*\cordis.patch.yml` 里搜本插件的 row id(默认 `dsh-crossnet-link-panel`);或在 DSH 会话里 `cordis_inspect_self()` 看该 Plugin 是否还在 | 记录过的 row id **0 命中**;没记录过则报 `not-recorded` |
 | 2 | `install-artifacts-absent` | 只有带 `-RemoveFiles` 时才检查:逐个看你用 `-InstallPath` 声明过的路径 | 记录过的路径**回到 `before`**(即消失);没给 `-RemoveFiles` ⇒ `not-requested`(按设计保留) |
 | 3 | `recorded-firewall-rules-absent` | `Get-NetFirewallRule -DisplayName '<记录过的规则名>'`(或 `netsh advfirewall firewall show rule name=<名字>`) | journal 记录过的规则名 **0 命中**;⚠️ **未记录的规则不检查也不动** —— 别拿「机器上还有别的规则」当残留 |
 | 4 | `serve-target-restored` | `tailscale serve status` | proxy 目标**回到 `before`**,或 `not-configured` |
-| 5 | `state-dir-contents` | `Get-ChildItem -Force $env:USERPROFILE\.remote-tailnet-guard` | 只剩 `backups\…`(或目录已不存在/已清空);出现别的条目就是残留 |
+| 5 | `state-dir-contents` | `Get-ChildItem -Force $env:USERPROFILE\.dsh-crossnet-link` | 只剩 `backups\…`(或目录已不存在/已清空);出现别的条目就是残留 |
 | 6 | `no-new-wildcard-listener` | `powershell -NoProfile -ExecutionPolicy Bypass -File <REPO>/src/collect.ps1 -CheckOnly -AsJson`,看 `NO_NEW_WILDCARD_LISTENER` | `pass`;`blocked` ⇒ 真出现新通配监听;读不出来 ⇒ `unknown`(**不是** pass) |
 | 7 | `collector-delta` | 与第 1 步/第 3 步记录下来的采集器结果比 | **没有新出现的** degraded/blocked;有 ⇒ 报 `new_collector_findings` 并算残留 |
 | 8 | `cordis-dynamic-package` | 在 DSH 会话里 `cordis_inspect_self()` | 工具**永远报 `unknown`**(动态包只活在进程内存里,文件系统看不见),按它列出的 `cordis_undefine(<id>)` 自己执行;这一项豁免 exit-0 规则 |

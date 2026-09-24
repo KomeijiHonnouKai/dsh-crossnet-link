@@ -2,11 +2,11 @@
 
 - **最后更新时间**: 2026-09-24(v1;t16 repair-round-2 新增,对应评审 finding F7)
 - **本次使用的命令**(全部只读;无 `platform:"client"` 的 Inspect、无 `ego_*`、无长等待):
-  1. `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -AsJson`(本机姿态)
+  1. `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -AsJson`(本机姿态)
   2. `netstat -ano`(按列解析;本机 43120 与 tailnet 侧监听)
   3. 读源码:`dsh-client-connection\lib\index.js:188-206,219,227,240-246,321-338,554`(Host/Origin 栅栏、token 生命周期、cookie/grant 记录)
   4. `Get-ItemProperty 'HKLM:\...\FirewallRules'` / `netsh advfirewall monitor show currentprofile`(t2 D5 交叉)
-  5. `Select-String -Path remote-tailnet-plugin -Pattern 'Invoke-WebRequest|Invoke-RestMethod|curl|fetch\(|credentials\.yaml|ext-bridge-token|Cookies'`(插件自身面)
+  5. `Select-String -Path dsh-crossnet-link -Pattern 'Invoke-WebRequest|Invoke-RestMethod|curl|fetch\(|credentials\.yaml|ext-bridge-token|Cookies'`(插件自身面)
   6. 证据来源:本机**真机实测**(姿态采集 `-AsJson` + 按列解析的 `netstat`)、**四格组合矩阵**的实测结论、以及一次**独立安全评审**的逐条结论 —— 设计与评审记录属于**不随仓库发布的内部文件**,本文只就地复述结论;连接层语义由第一方源码直接确认(见下方 `[源码]` 档标注)。
 
 > **本文件的定位**:插件要发 GitHub,所以威胁模型必须在**本仓库里**能读到,而不是只存在于 skill 里。
@@ -25,7 +25,7 @@
 | A5 | tailnet **连接元数据**(谁在何时连了谁、流量大小/时间) | tailnet 控制面 + DERP 中继 | tailnet 管理员;中继运营方(见 §2.2) |
 
 **信任边界**:①客户端机 → ②tailnet(WireGuard 加密隧道 + ACL)→ ③服务端机的 `tailscaled` →(TLS 终结)→ ④`127.0.0.1:43120` 的 DSH。
-**本插件(remote-tailnet-plugin)不在这条链路上**:它只**读**本机姿态,不代理、不转发、不常驻、不监听。
+**本插件(dsh-crossnet-link)不在这条链路上**:它只**读**本机姿态,不代理、不转发、不常驻、不监听。
 
 ---
 

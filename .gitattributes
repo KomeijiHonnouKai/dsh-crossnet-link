@@ -1,4 +1,4 @@
-# remote-tailnet-guard - git line-ending policy
+# dsh-crossnet-link - git line-ending policy
 #
 # WHY THIS FILE EXISTS: git's own core.autocrlf (true on many Windows machines) rewrites
 # LF to CRLF in the working tree at checkout time. This repository is text-only and every

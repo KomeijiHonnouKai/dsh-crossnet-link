@@ -1,7 +1,7 @@
-# remote-tailnet-guard - shared editor defaults
+# dsh-crossnet-link - shared editor defaults
 #
 # LAST UPDATED  : 2026-09-24 (task t12, v0)
-# COMMANDS USED : powershell -NoProfile -Command 'Get-ChildItem remote-tailnet-plugin
+# COMMANDS USED : powershell -NoProfile -Command 'Get-ChildItem dsh-crossnet-link
 #                 -Recurse -File -Include *.ps1,*.md,*.json,*.js | % { $b=
 #                 [IO.File]::ReadAllBytes($_.FullName); $nonascii=0; foreach($x in $b)
 #                 { if($x -gt 127){$nonascii++} }; "$($_.Name) BOM=$($b[0] -eq 0xEF)

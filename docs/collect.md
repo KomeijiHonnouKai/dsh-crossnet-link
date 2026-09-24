@@ -1,22 +1,22 @@
 # collect.md
 
-> （历史记录）2026-09-24 17:29 的 t13 sanitize pass。当时使用的命令：powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-fixtures.ps1 ; release-set scan: Get-ChildItem remote-tailnet-plugin/src,remote-tailnet-plugin/i18n,remote-tailnet-plugin/tests,remote-tailnet-plugin/docs/collect.md -Recurse -File | Select-String -Pattern <the six real identifiers> (expect 0). This pass only replaced real identifiers with neutral placeholders; no structure changed. — 只读采集判定器 + Cordis host 半边(交付说明)
+> （历史记录）2026-09-24 17:29 的 t13 sanitize pass。当时使用的命令：powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-fixtures.ps1 ; release-set scan: Get-ChildItem dsh-crossnet-link/src,dsh-crossnet-link/i18n,dsh-crossnet-link/tests,dsh-crossnet-link/docs/collect.md -Recurse -File | Select-String -Pattern <the six real identifiers> (expect 0). This pass only replaced real identifiers with neutral placeholders; no structure changed. — 只读采集判定器 + Cordis host 半边(交付说明)
 
 - **最后更新时间**: 2026-09-24(v1.5;t25:①`SERVE_PRESENT` 按 t23 落地后的新语义**全面改写**(证据只来自可读 `tailscale serve status` 的 proxy 目标端口;目标 ≠ 实测 DSH 端口 ⇒ `blocked/serve_port_mismatch`;CLI 不可读/无可解析目标 ⇒ `unknown`;tailnet 监听形状**仅作佐证**);②全文一致性复核,修掉 10 处与当前实现不符之处(**逐条列在 §14**);③新增 §2.1 参数速查(26 个参数,以实现为准);④补「内部资料链接口径」说明。本次命令 = `collect.ps1 -CheckOnly / -AsJson / -Role server / -Role client / -Role both / -Describe`、`tests/run-tests.ps1`、`tests/run-fixtures.ps1`、发布集扫描(仓库根为 cwd)。v1.4:t20 把 §2 的 `<DSH_APP>` 占位化;v1.3:t16 的 F5/F6 修复、`-Port` 非法值拒收、`executionPolicy` 作用域;包状态 `guard-1/pkg-4`)
 - **本次使用的命令**(全部只读;无 `platform:"client"` 的 Inspect、无 `ego_*`、无无超时网络请求):
 
 ```powershell
 # 交付物本体
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -AsJson
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role server
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -ShowRaw
-powershell -NoProfile -Command '$f="remote-tailnet-plugin/src/collect.ps1"; $b=[IO.File]::ReadAllBytes((Resolve-Path $f)); $e=$null; [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f),[ref]$null,[ref]$e); "bom=" + ($b[0..2] -join ",") + " errors=" + @($e).Count'
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -AsJson
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -Role server
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -ShowRaw
+powershell -NoProfile -Command '$f="dsh-crossnet-link/src/collect.ps1"; $b=[IO.File]::ReadAllBytes((Resolve-Path $f)); $e=$null; [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f),[ref]$null,[ref]$e); "bom=" + ($b[0..2] -join ",") + " errors=" + @($e).Count'
 powershell -NoProfile -Command '(netstat -ano | Select-String "(0\.0\.0\.0|\[::\]):43120").Count'
 # 夹具注入 / 回归
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -AsJson -FixturePath remote-tailnet-plugin/tests/fixtures/zh.json -NoNative
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-fixtures.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role both -DumpFixture remote-tailnet-plugin/tests/fixtures/zh.json
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -AsJson -FixturePath dsh-crossnet-link/tests/fixtures/zh.json -NoNative
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-fixtures.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -Role both -DumpFixture dsh-crossnet-link/tests/fixtures/zh.json
 # 取证用的现场探测(读到的原文直接影响了下面 6.1–6.6 的实现决策)
 netsh advfirewall monitor show currentprofile        # 交互控制台显示英文,重定向后显示本地化中文(CP936)
 netsh advfirewall firewall show rule name=Tailscale-Process verbose
@@ -61,8 +61,8 @@ Cordis 动态包:**`guard-1` / `pkg-4`**(host 半边;**t16 复核时 `cordis_ins
 ## 2. 怎么跑 / 实测结果
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -AsJson
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -AsJson
 ```
 
 本机(非提权 agent 会话)实测:
@@ -253,7 +253,7 @@ Edge traversal 的**权威判据是注册表规则库里的 `Edge=TRUE/FALSE`**,
 **结论:能跑,而且默认就是只读、fail-closed。** 命令只有一条:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly
 ```
 
 仍然依赖本机环境的地方(全部登记,并给出消除办法):
@@ -290,7 +290,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/co
 ## 11. Cordis host 半边(动态包 `guard-1` / `pkg-4`;源码已落盘 `src/host-half.js`)
 
 > **状态快照(t16)**:`cordis_inspect_self()` 现返回 `plugins: []` —— 动态包在进程重启后消失(设计如此,不落盘)。
-> 源码与哈希已落盘:`remote-tailnet-plugin/src/host-half.js`,sha256 = `464BB4059B282118D5626A09B759B4557E57734FAB69E6528B159B6BF5A74E7E`(19877 B)。
+> 源码与哈希已落盘:`dsh-crossnet-link/src/host-half.js`,sha256 = `464BB4059B282118D5626A09B759B4557E57734FAB69E6528B159B6BF5A74E7E`(19877 B)。
 > 要复核 disposer / `terminate()`,按 `docs/install/install.md` §1 重新 define+run 一次即可。
 
 **purpose(一句话)**:暴露一个只读姿态 Service,把 `collect.ps1` 的结构化判定(pass/degraded/blocked/unknown)按需查询出来给面板/模型用。
@@ -300,7 +300,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/co
 | 面 | 名称 | 说明 |
 | --- | --- | --- |
 | Service | `remoteTailnetGuard`(`ctx.provide`) | `collect(options)` / `lastSummary()`;`readOnly: true`;`collector` 字段给出仓库相对路径 |
-| 私有方法 | `remote-tailnet-guard/posture`(`harness.handle`) | **给 t6 的 client 半边用**:`host.call('remote-tailnet-guard/posture', {role,peer,peerName,fixture})` → `{ok,exitCode,summary,checks[]}` |
+| 私有方法 | `dsh-crossnet-link/posture`(`harness.handle`) | **给 t6 的 client 半边用**:`host.call('dsh-crossnet-link/posture', {role,peer,peerName,fixture})` → `{ok,exitCode,summary,checks[]}` |
 | 模型工具 | `remote_tailnet_posture` | 自证的触发面,参数 `role`/`peer`/`peerName`/`fixture` |
 
 实现要点(全部与硬约束对齐):
@@ -309,7 +309,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/co
 - **可逆**:Service、私有方法、工具三者的 disposer 都挂在 `ctx.effect(...)` 的返回值里;effect 释放时还会 `terminate()` 正在运行的子进程。`cordis_stop guard-1` 即完全移除。
 - **不 require `@deepseek-ai/dsh-client-runtime`**;没有 client 半边(本任务不碰 client);**没有任何「杀宿主+自拉起」逻辑**。
 - **跨边界只传最小 JSON**:`checks[]` 只带 id/role/title/verdict/verdictLabel/reasonKey/reason/manualReview/manualQuestion/remediationAction/remediationRollback/autoApplied,**不带 `raw`**(raw 可能有几十 KB 的原文;需要原文时用 CLI `-OutFile`)。
-- **无机器路径**:脚本定位用「fs 默认基准 → 逐级向上找 `remote-tailnet-plugin/src/collect.ps1`」的祖先回溯(实测 fs 的默认基准**不是**工作区根,直接相对解析会 `collector-missing`),命中的那一级同时作为子进程 cwd,使相对的 `-FixturePath` 生效。
+- **无机器路径**:脚本定位用「fs 默认基准 → 逐级向上找 `dsh-crossnet-link/src/collect.ps1`」的祖先回溯(实测 fs 的默认基准**不是**工作区根,直接相对解析会 `collector-missing`),命中的那一级同时作为子进程 cwd,使相对的 `-FixturePath` 生效。
 
 激活步骤(我已在本次会话执行):
 
@@ -321,7 +321,7 @@ cordis_define(kind=existing, pluginId=guard-1) → guard-1/pkg-3(祖先回溯定
 cordis_run(guard-1, pkg-3, update)           → running(run-3)
 cordis_define(kind=existing, pluginId=guard-1) → guard-1/pkg-4(有界检查带上 evidence/confidence;t5 收尾版)
 cordis_run(guard-1, pkg-4, update)           → running(run-4)  ← 2026-09-24 快照;**t16 复核时已消失(plugins: [])**
-remote_tailnet_posture(role="both", fixture="remote-tailnet-plugin/tests/fixtures/zh.json")
+remote_tailnet_posture(role="both", fixture="dsh-crossnet-link/tests/fixtures/zh.json")
   → verdict=blocked exit=2 (pass=15 degraded=2 blocked=1 unknown=6),逐项与 CLI 一致
 ```
 

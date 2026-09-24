@@ -7,7 +7,7 @@
 
 ## 0. 你是什么、第一件事做什么
 
-你被派来把本仓库的常驻插件包(名字 `remote-tailnet-guard`,在 `plugin/` 目录)装进
+你被派来把本仓库的常驻插件包(名字 `dsh-crossnet-link`,在 `plugin/` 目录)装进
 用户的 DSH 配置(profile),并让它出现在「设置(Settings)→ 插件(Plugins)」里、
 状态为**已启用(Enabled)**。
 
@@ -44,12 +44,12 @@ dsh plugin --profile <profile> add ('link:' + '<仓库路径>\plugin')
 # 期望:pnpm 打印安装过程,最后没有报错
 
 # 3) 把"启用覆盖行"追加到 profile 补丁文件末尾(这就是启用这一步)
-[IO.File]::AppendAllText($p, "`n- id: remote-tailnet-guard`n  name: remote-tailnet-guard`n  disabled: false`n", (New-Object Text.UTF8Encoding($false)))
+[IO.File]::AppendAllText($p, "`n- id: dsh-crossnet-link`n  name: dsh-crossnet-link`n  disabled: false`n", (New-Object Text.UTF8Encoding($false)))
 # 期望:无输出、不报错
 
 # 4) 验证:组合后的配置里能看到这一行,且已启用
-dsh --profile <profile> --dump-config | Select-String -SimpleMatch 'remote-tailnet-guard' -Context 0,4
-# 期望:能看到 id/name 是 remote-tailnet-guard、disabled: false 的那一行
+dsh --profile <profile> --dump-config | Select-String -SimpleMatch 'dsh-crossnet-link' -Context 0,4
+# 期望:能看到 id/name 是 dsh-crossnet-link、disabled: false 的那一行
 ```
 
 然后请用户**重启 DSH**(用 DSH 自带菜单:设置 → 桌面 → 重启;或退出应用再打开)。
@@ -58,23 +58,25 @@ dsh --profile <profile> --dump-config | Select-String -SimpleMatch 'remote-tailn
 > 小坑(实测):刚初始化的新 profile 的补丁文件内容是一行 `[]`(空数组)。追加第 3 条之前,
 > 如果文件里就这一行 `[]`,先把它删掉再追加,避免数组里多出一个空项。
 
-### 1.1 装完看到什么(两格;不新增侧边栏条目)
+### 1.1 装完看到什么(两格;侧边栏 tab 是新增的可选接入面)
 
-本插件**只以一张标准插件卡片**出现(与别的插件一致),**不新增侧边栏/设置导航条目**:
+本插件在**设置 → 插件**里**只贡献一张可配置卡片**（与别的插件一致），**不新增设置页左侧导航条目**（侧边栏 tab 是新增接入面：装了可选依赖 `dsh-better-sidebar` 才出现，未装时没有 tab、不报错、也不进 waiting）；两格如下：
 
 | 格 | 位置 | 判据 |
 |---|---|---|
-| ① 插件清单 | 设置(Settings)→ 插件(Plugins),第一个标签页 | 清单里有 `remote-tailnet-guard`,状态显示**已启用(Enabled)**。装完但没启用时它也会在清单里(标"未启用"),所以这一格要认准"已启用"三个字 |
+| ① 插件清单 | 设置(Settings)→ 插件(Plugins),第一个标签页 | 清单里有 `dsh-crossnet-link`,状态显示**已启用(Enabled)**。装完但没启用时它也会在清单里(标"未启用"),所以这一格要认准"已启用"三个字 |
 | ② 可配置插件卡片 | 设置 → 插件 → 「可配置插件」标签页 | 一张折叠卡片:**标题 = 插件显示名 `dsh-crossnet-link`,副标题 = 这个插件的目的**(两台 DSH 联动、agent 对 agent —— 在 A 电脑的 DSH 里,通过浏览器插件驱动一个已登录的通道页面,直接操作 B 电脑上运行的 DSH);点开是**它自己的设置表单**(本机在这条链路里的位置 / 对端与 tailnet / 体检口径 / 高级,共 14 项,底部「保存 / 放弃」),**不是报告面板**。卡片要 host 半边把**带字段 schema** 的设置命名空间注册成功才渲染,这一步要能在 profile 侧解析到 schema 库(实测:profile 里已有其它插件时通常解析得到,卡片就出现;解析不到时只打一条 warning、卡片不出现,第 ① 格不受影响)。**别把卡片缺席当故障**:① 出现就算装好,② 出现与否如实告诉用户即可 |
+
+安装后,本机会自动探测并填好 `port` / `profile` / `dshHome` / `appDir` 四项;对端两项(`peer` / `peerName`)与 `role` 仍需手填。
 
 ## 2. 装完看不到时,按顺序查这 3 条
 
 1. **没重启**:改了配置不重启就没生效 → 让用户从 DSH 自带菜单重启一次。
 2. **启用行没生效**:让用户跑
-   `dsh --profile <profile> --dump-config | Select-String -SimpleMatch 'remote-tailnet-guard'`,
+   `dsh --profile <profile> --dump-config | Select-String -SimpleMatch 'dsh-crossnet-link'`,
    看不到 `disabled: false` 就是第 1 节第 3 条没跑、或跑到了别的文件上。
 3. **client 半边没加载**:设置 → 插件里连卡片都没有 → 让用户把 DSH 日志里
-   `remote-tailnet-guard` 相关的行发给你(日志在 DSH 的日志目录,文件名形如 `dsh-YYYY-MM-DD.log`),再决定下一步。
+   `dsh-crossnet-link` 相关的行发给你(日志在 DSH 的日志目录,文件名形如 `dsh-YYYY-MM-DD.log`),再决定下一步。
 
 ## 3. 对话输出模板(四段;正文 ≤ 15 行,代码块另计)
 
@@ -95,13 +97,13 @@ dsh --profile <profile> --dump-config | Select-String -SimpleMatch 'remote-tailn
 > 1. 备份配置:…(命令)→ 期望:多出一个 .bak- 文件。
 > 2. 装包:…(命令)→ 期望:安装结束、无报错。
 > 3. 启用:…(命令)→ 期望:无输出。
-> 4. 验证:…(命令)→ 期望:能看到 remote-tailnet-guard 且 disabled: false。
+> 4. 验证:…(命令)→ 期望:能看到 dsh-crossnet-link 且 disabled: false。
 > 然后需要你做一件事:从 DSH 自带菜单重启 DSH。
-> 做完你会看到:设置 → 插件 里 remote-tailnet-guard 显示已启用;「可配置插件」标签页里
+> 做完你会看到:设置 → 插件 里 dsh-crossnet-link 显示已启用;「可配置插件」标签页里
 > 多出一张折叠卡片 `dsh-crossnet-link`(副标题是上面那句话),点开是它的设置表单。(卡片是有条件的:
 > 解析得到 schema 库就出现,解析不到只打一条 warning、不出现,两种情况都不影响清单行。)
 > 看不到就先查三样:① 重启过了吗;② 第 4 步的验证输出里 disabled 是 false 吗;
-> ③ 日志里有没有 remote-tailnet-guard 相关的行。
+> ③ 日志里有没有 dsh-crossnet-link 相关的行。
 
 ## 4. 红线(违反任何一条就停下)
 
@@ -112,5 +114,5 @@ dsh --profile <profile> --dump-config | Select-String -SimpleMatch 'remote-tailn
 3. 除第 1 节列出的 profile 文件(补丁文件、package.json、pnpm-lock.yaml、node_modules)外,
    不写用户机器上任何其它配置。
 4. 不代用户输密码 / 验证码;重启、授权弹窗一律交给人。
-5. 卸载 = 删掉追加的三行覆盖行(或 `dsh plugin --profile <profile> remove remote-tailnet-guard`)再重启;
+5. 卸载 = 删掉追加的三行覆盖行(或 `dsh plugin --profile <profile> remove dsh-crossnet-link`)再重启;
    回滚优先:先把那三行改回 `disabled: true`,永远不要删用户的其它配置。
