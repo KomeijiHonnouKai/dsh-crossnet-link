@@ -1,8 +1,9 @@
 /*
  * remote-tailnet-guard - CLIENT half of the persistent DSH plugin - BROWSER BUNDLE.
- * LAST UPDATED : 2026-09-25 (v0.3 - the standalone settings-section seat is REMOVED; the plugin
- * now registers only the standard plugins-page card `settings.plugin.item`, folded like the other
- * installed plugins (dsh-ego-browser), and its UI strings are Chinese).
+ * LAST UPDATED : 2026-09-25 (v0.4 - the plugins-page card became a SETTINGS card. Its body is the
+ * plugin's own settings form (14 fields, staged drafts, save/discard) over the Host settings
+ * namespace; the posture report it used to dump is gone. The header shows the display name
+ * dsh-crossnet-link and the plugin purpose from the handover note, and every UI string is Chinese.)
  *
  * WHY THIS FILE IS A BUNDLE AND NOT PLAIN ESM: every client half in this DSH release is served to
  * the page as a classic script that must REGISTER itself with window.__ModuleLoader__.load({id,
@@ -16,7 +17,9 @@
  * the Web shell (dsh-web-frontend/dist/assets/index-*.js) and contains react, react/jsx-runtime,
  * react-dom, react-dom/client, @deepseek-ai/cordis, @deepseek-ai/dsh-client-store,
  * @deepseek-ai/dsh-client-ui-slots, @deepseek-ai/dsh-client-ui-primitives and
- * @deepseek-ai/dsh-client-ui-dockkit. Everything else stays inside this file.
+ * @deepseek-ai/dsh-client-ui-dockkit. Everything else stays inside this file: the settings scope is
+ * reached as the ordinary cordis service "settingsScope" through ctx.get / ctx.inject, which is a
+ * service lookup rather than a module dependency, so nothing else has to be required here.
  *
  * The region between the two SHARED BODY markers is byte-identical to the ESM source of the same
  * half (lib/client/index.js); panel/plugin-preflight.ps1 fails if the two ever drift apart.
@@ -27,211 +30,448 @@ var React = require("react");
 // ==== SHARED BODY BEGIN (byte-identical in lib/client.js and lib/client/index.js) ====
 const SETTINGS_NS = 'remote-tailnet-guard';
 const CARD_ORDER = 100;
-const ROUTE = '/remote-tailnet-guard/api/posture';
 const CSS_ID = 'dsh-rtg-card-css';
-const CARD_TITLE = '\u8de8\u7f51\u94fe\u8def\u59ff\u6001';
-const CARD_DESC = '\u53ea\u8bfb\u4f53\u68c0:\u5224\u5b9a\u4e24\u53f0 DSH \u4e4b\u95f4\u7684\u94fe\u8def\u59ff\u6001,\u4e0d\u88c5\u4efb\u4f55\u4e1c\u897f\u3001\u4e0d\u6539\u4efb\u4f55\u914d\u7f6e\u3002';
-const CARD_CSS = '.dsh-rtg-card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:12px;list-style:none;transition:border-color .16s,background .16s}.dsh-rtg-card:hover{border-color:var(--dsw-alias-label-dimmed)}.dsh-rtg-card--open{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-label-dimmed)}.dsh-rtg-card__header{appearance:none;width:100%;font:inherit;color:inherit;text-align:left;cursor:pointer;background:0 0;border:0;border-radius:12px;align-items:center;gap:12px;padding:14px 16px;display:flex}.dsh-rtg-card__header:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.dsh-rtg-card__head-text{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.dsh-rtg-card__name{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:600;line-height:1.4}.dsh-rtg-card__desc{color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:1.5}.dsh-rtg-card__chevron{color:var(--dsw-alias-label-tertiary);flex:none;transition:transform .16s;display:inline-flex;align-items:center}.dsh-rtg-card__chevron--open{transform:rotate(180deg)}.dsh-rtg-card__body{border-top:1px solid var(--dsw-alias-border-l2);margin:0 16px;padding:12px 0 4px}';
-const VERDICT_STYLE = {
-  blocked: { label: '\u963b\u65ad', color: '#c0392b' },
-  unknown: { label: '\u672a\u77e5', color: '#8a6d00' },
-  degraded: { label: '\u964d\u7ea7', color: '#8a6d00' },
-  pass: { label: '\u901a\u8fc7', color: '#1e7a34' }
-};
-const CREDENTIAL_NOTICES = [
-  '\u672c\u9762\u677f\u4e0d\u8bfb\u4efb\u4f55\u51ed\u636e\u6750\u6599:\u6ca1\u6709 token\u3001\u6ca1\u6709 cookie\u3001\u6ca1\u6709\u5bc6\u94a5\u6587\u4ef6\u3001\u6ca1\u6709\u51ed\u636e\u5e93\u3002',
-  '\u53ea\u663e\u793a\u5224\u5b9a:\u539f\u59cb\u63a2\u6d4b\u8f93\u51fa\u7559\u5728\u4e3b\u673a,\u4e0d\u8fc7\u6865\u3002',
-  '\u4e0d\u88c5\u4efb\u4f55\u4e1c\u897f\u3001\u4e0d\u5f00\u76d1\u542c\u3001\u4e0d\u6539\u4efb\u4f55\u7cfb\u7edf\u8bbe\u7f6e\u3001\u4ece\u4e0d\u91cd\u542f DSH\u3002',
-  '\u8fd9\u91cc\u4e0d\u6539\u4efb\u4f55\u4e1c\u897f:\u4e0d\u6539\u7cfb\u7edf\u8bbe\u7f6e\u3001\u9632\u706b\u5899\u89c4\u5219\u3001profile\u3001cordis.patch.yml,\u4e5f\u4e0d\u6539\u5176\u5b83\u63d2\u4ef6\u914d\u7f6e;\u5efa\u8bae\u7684\u4fee\u590d\u6253\u5370\u7ed9\u4f60\u6267\u884c,\u9762\u677f\u53ea\u62a5\u544a\u3002'
+const CARD_TITLE = 'dsh-crossnet-link';
+const CARD_DESC = '\u5728 A \u7535\u8111\u7684 DSH \u91cc,\u901a\u8fc7\u6d4f\u89c8\u5668\u63d2\u4ef6\u9a71\u52a8\u4e00\u4e2a\u5df2\u767b\u5f55\u7684\u901a\u9053\u9875\u9762,\u76f4\u63a5\u64cd\u4f5c B \u7535\u8111\u4e0a\u8fd0\u884c\u7684 DSH \u2014\u2014 \u4e24\u53f0 DSH \u7531\u6b64\u5f62\u6210\u8054\u52a8(agent \u5bf9 agent)\u3002';
+const SCOPE_LINE = '\u672c\u673a\u53ea\u8bfb\u4f53\u68c0:\u53ea\u62a5\u4e0d\u6539,\u4e0d\u88c5\u4efb\u4f55\u4e1c\u897f\u3001\u4e0d\u6539\u4efb\u4f55\u914d\u7f6e\u3001\u4e0d\u91cd\u542f DSH\u3002';
+const UNAVAILABLE_LINE = '\u8bbe\u7f6e\u670d\u52a1\u4e0d\u53ef\u7528:\u8fd9\u4e2a\u9875\u9762\u8bfb\u4e0d\u5230\u672c\u63d2\u4ef6\u7684\u8bbe\u7f6e\u547d\u540d\u7a7a\u95f4\u3002';
+const READONLY_LINE = '\u53ea\u8bfb:\u672c\u673a\u8bbe\u7f6e\u6587\u6863\u5f53\u524d\u4e0d\u53ef\u5199\u3002';
+const UNSAVED_LINE = '\u6709\u672a\u4fdd\u5b58\u7684\u4fee\u6539\u3002';
+const SAVING_LINE = '\u4fdd\u5b58\u4e2d\u2026';
+const SAVED_LINE = '\u5df2\u4fdd\u5b58\u3002';
+const REJECTED_LINE = '\u4fdd\u5b58\u6ca1\u6709\u751f\u6548:\u4e3b\u673a\u6ca1\u6709\u63a5\u53d7\u8fd9\u4e9b\u503c\u3002';
+const OVERRIDE_MARK = ' \u00b7 \u5df2\u8986\u76d6';
+const RESET_LABEL = '\u6062\u590d\u9ed8\u8ba4';
+const SAVE_LABEL = '\u4fdd\u5b58';
+const DISCARD_LABEL = '\u653e\u5f03';
+const CARD_CSS = '.dsh-rtg-card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:12px;list-style:none;transition:border-color .16s,background .16s}.dsh-rtg-card:hover{border-color:var(--dsw-alias-label-dimmed)}.dsh-rtg-card--open{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-label-dimmed)}.dsh-rtg-card__header{appearance:none;width:100%;font:inherit;color:inherit;text-align:left;cursor:pointer;background:0 0;border:0;border-radius:12px;align-items:center;gap:12px;padding:14px 16px;display:flex}.dsh-rtg-card__header:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.dsh-rtg-card__head-text{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.dsh-rtg-card__name{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:600;line-height:1.4}.dsh-rtg-card__desc{color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:1.5}.dsh-rtg-card__chevron{color:var(--dsw-alias-label-tertiary);flex:none;transition:transform .16s;display:inline-flex;align-items:center}.dsh-rtg-card__chevron--open{transform:rotate(180deg)}.dsh-rtg-card__body{border-top:1px solid var(--dsw-alias-border-l2);margin:0 16px;padding:12px 0 4px}.dsh-rtg-card__form{flex-direction:column;gap:14px;display:flex}.dsh-rtg-line{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:1.6;margin:0}.dsh-rtg-group{flex-direction:column;gap:10px;display:flex}.dsh-rtg-group__title{color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:600}.dsh-rtg-field{flex-direction:column;gap:3px;display:flex}.dsh-rtg-field__label{flex-direction:column;gap:3px;display:flex}.dsh-rtg-field__label--check{flex-direction:row;align-items:center;gap:8px}.dsh-rtg-field__row{align-items:center;gap:8px;display:flex}.dsh-rtg-field__control{font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-4);border:1px solid var(--dsw-alias-border-l3);border-radius:6px;padding:5px 8px;min-width:240px;max-width:340px}.dsh-rtg-field__control:disabled{opacity:.6}.dsh-rtg-field--invalid .dsh-rtg-field__control{border-color:var(--dsw-alias-label-error)}.dsh-rtg-field__reset{appearance:none;font:inherit;font-size:12px;color:var(--dsw-alias-brand-primary);background:0 0;border:0;cursor:pointer;padding:0}.dsh-rtg-field__reset:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}.dsh-rtg-field__hint{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:1.5}.dsh-rtg-footer{border-top:1px solid var(--dsw-alias-border-l2);align-items:center;gap:8px;margin-top:2px;padding-top:10px;display:flex}.dsh-rtg-footer__status{flex:1;color:var(--dsw-alias-label-tertiary);font-size:12px}.dsh-rtg-footer__status--error{color:var(--dsw-alias-label-error)}.dsh-rtg-button{appearance:none;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-4);border:1px solid var(--dsw-alias-border-l3);border-radius:6px;cursor:pointer;padding:5px 12px}.dsh-rtg-button--primary{background:var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-brand-primary);color:#ffffff}.dsh-rtg-button:disabled{opacity:.5;cursor:default}';
+/**
+ * The card's settings surface. Every field name here is a field of the Host-side schema for
+ * SETTINGS_NS (plugin/lib/index.js), and every default repeats what that schema declares - the
+ * schema stays the authority for what a write actually lands; `def` is only what the reset control
+ * shows before the next read-back.
+ */
+const SETTINGS_GROUPS = [
+  {
+    key: 'position',
+    title: '\u672c\u673a\u5728\u8fd9\u6761\u94fe\u8def\u91cc\u7684\u4f4d\u7f6e',
+    fields: [
+      {
+        field: 'role',
+        kind: 'select',
+        label: '\u672c\u673a\u89c6\u89d2',
+        def: 'both',
+        hint: '\u8fd9\u53f0\u673a\u5668\u5728\u8fd9\u6761\u94fe\u8def\u91cc\u662f\u54ea\u4e00\u7aef;\u9009\u5ba2\u6237\u7aef\u65f6\u670d\u52a1\u7aef\u68c0\u67e5\u9879\u4e0d\u51fa\u73b0,\u6458\u8981\u4e5f\u5c31\u4e0d\u4f1a\u62a5\u4f60\u6ca1\u6709\u7684\u670d\u52a1\u7aef\u7f3a\u53e3\u3002',
+        options: [
+          { value: 'both', label: '\u4e24\u8005' },
+          { value: 'client', label: '\u5ba2\u6237\u7aef(\u8fd9\u53f0\u673a\u5668\u53ea\u7528\u8fd9\u6761\u94fe\u8def)' },
+          { value: 'server', label: '\u670d\u52a1\u7aef(\u8fd9\u53f0\u673a\u5668\u63d0\u4f9b\u8fd9\u6761\u94fe\u8def)' }
+        ]
+      }
+    ]
+  },
+  {
+    key: 'peer',
+    title: '\u5bf9\u7aef\u4e0e tailnet',
+    fields: [
+      {
+        field: 'peer',
+        kind: 'text',
+        label: '\u5bf9\u7aef\u5730\u5740',
+        def: '',
+        maxLength: 253,
+        hint: '\u5bf9\u7aef\u7684 MagicDNS \u540d\u6216 IP;\u7559\u7a7a\u5c31\u4e0d\u6838\u5bf9\u5bf9\u7aef\u76f8\u5173\u7684\u68c0\u67e5\u9879\u3002'
+      },
+      {
+        field: 'peerName',
+        kind: 'text',
+        label: '\u5bf9\u7aef MagicDNS \u540d',
+        def: '',
+        maxLength: 253,
+        hint: '\u5f53\u4e0a\u9762\u586b\u7684\u662f IP,\u6216\u8005\u9700\u8981\u6838\u5bf9\u53ef\u4fe1\u4e3b\u673a\u540d\u65f6,\u586b\u8fd9\u4e00\u9879\u3002'
+      },
+      {
+        field: 'profile',
+        kind: 'text',
+        label: '\u672c\u673a DSH profile',
+        def: '',
+        maxLength: 64,
+        hint: '\u4ece\u54ea\u4e2a profile \u8bfb patch \u6587\u4ef6;\u7559\u7a7a\u65f6\u591a profile \u4f1a\u8bb0 unknown,\u91c7\u96c6\u5668\u4e0d\u4f1a\u66ff\u4f60\u9009\u7b2c\u4e00\u4e2a\u3002'
+      },
+      {
+        field: 'tailnetDomain',
+        kind: 'text',
+        label: 'Tailnet \u57df\u540d',
+        def: '',
+        maxLength: 253,
+        hint: '\u8fd9\u6761 tailnet \u7684 DNS \u540e\u7f00;\u7559\u7a7a\u5c31\u7528\u5185\u7f6e\u7684\u540e\u7f00\u6a21\u5f0f\u3002'
+      }
+    ]
+  },
+  {
+    key: 'scope',
+    title: '\u4f53\u68c0\u53e3\u5f84',
+    fields: [
+      {
+        field: 'strictness',
+        kind: 'select',
+        label: '\u5224\u5b9a\u4e25\u683c\u5ea6',
+        def: 'normal',
+        hint: '\u4e25\u683c\u6a21\u5f0f\u4f1a\u628a\u66f4\u591a\u68c0\u67e5\u9879\u5224\u4e3a\u963b\u65ad\u3002',
+        options: [
+          { value: 'normal', label: '\u666e\u901a' },
+          { value: 'strict', label: '\u4e25\u683c' }
+        ]
+      },
+      {
+        field: 'noNative',
+        kind: 'boolean',
+        label: '\u7981\u7528\u539f\u751f\u63a2\u6d4b',
+        def: false,
+        hint: '\u53d7\u9650\u73af\u5883\u6216\u975e\u7ba1\u7406\u5458\u4f1a\u8bdd\u91cc,\u8df3\u8fc7\u9700\u8981\u63d0\u5347\u6743\u9650\u7684\u539f\u751f\u63a2\u6d4b\u3002'
+      },
+      {
+        field: 'lang',
+        kind: 'select',
+        label: '\u62a5\u544a\u8bed\u8a00',
+        def: 'auto',
+        hint: '\u62a5\u544a\u6807\u7b7e\u7684\u8bed\u8a00;\u8ddf\u968f\u7cfb\u7edf\u7531\u7cfb\u7edf\u7684\u672c\u5730\u5316\u7a0b\u5ea6\u51b3\u5b9a\u3002',
+        options: [
+          { value: 'auto', label: '\u8ddf\u968f\u7cfb\u7edf' },
+          { value: 'zh', label: '\u4e2d\u6587' },
+          { value: 'en', label: 'English' }
+        ]
+      },
+      {
+        field: 'port',
+        kind: 'number',
+        label: '\u672c\u673a DSH \u7aef\u53e3',
+        def: '',
+        min: 1,
+        max: 65535,
+        hint: '\u672c\u673a DSH \u7684 loopback \u7aef\u53e3;\u7559\u7a7a\u6309\u73af\u5883\u53d8\u91cf\u4e0e\u5185\u7f6e\u9ed8\u8ba4\u503c\u5224\u65ad\u3002'
+      }
+    ]
+  }
 ];
+/** Folded away by default: the values a slow machine or a slow link needs, not the everyday ones. */
+const ADVANCED_GROUP = {
+  key: 'advanced',
+  title: '\u9ad8\u7ea7',
+  fields: [
+    {
+      field: 'tcpTimeoutMs',
+      kind: 'number',
+      label: 'TCP \u63a2\u6d4b\u8d85\u65f6(\u6beb\u79d2)',
+      def: 5000,
+      min: 1000,
+      max: 60000,
+      hint: '\u6162\u7f51\u6216\u6162\u673a\u5668\u4e0a\u52a0\u5927\u5b83,\u907f\u514d\u628a\u7b49\u5f85\u8bfb\u6210\u5931\u8d25\u3002'
+    },
+    {
+      field: 'dnsTimeoutMs',
+      kind: 'number',
+      label: 'DNS \u67e5\u8be2\u8d85\u65f6(\u6beb\u79d2)',
+      def: 4000,
+      min: 1000,
+      max: 60000,
+      hint: '\u89e3\u6790 MagicDNS \u540d\u7684\u65f6\u95f4\u4e0a\u9650\u3002'
+    },
+    {
+      field: 'commandTimeoutMs',
+      kind: 'number',
+      label: '\u547d\u4ee4\u8d85\u65f6(\u6beb\u79d2)',
+      def: 15000,
+      min: 1000,
+      max: 600000,
+      hint: '\u672c\u673a\u5355\u6761\u547d\u4ee4\u7684\u65f6\u95f4\u4e0a\u9650\u3002'
+    },
+    {
+      field: 'dshHome',
+      kind: 'text',
+      label: 'DSH home \u76ee\u5f55',
+      def: '',
+      maxLength: 260,
+      hint: 'DSH \u7684\u6570\u636e\u76ee\u5f55;\u7559\u7a7a\u6309\u73af\u5883\u53d8\u91cf\u4e0e\u5185\u7f6e\u9ed8\u8ba4\u503c\u63a2\u6d4b\u3002'
+    },
+    {
+      field: 'appDir',
+      kind: 'text',
+      label: 'DSH \u5e94\u7528\u76ee\u5f55',
+      def: '',
+      maxLength: 260,
+      hint: 'DSH \u5e94\u7528\u7684\u5b89\u88c5\u76ee\u5f55;\u7559\u7a7a\u6309\u5185\u7f6e\u9ed8\u8ba4\u503c\u63a2\u6d4b\u3002'
+    }
+  ]
+};
+/** Every editable field, in card order: the plan builder and the save writer walk this once. */
+const FIELD_SPECS = (function () {
+  const all = [];
+  const groups = SETTINGS_GROUPS.concat([ADVANCED_GROUP]);
+  for (let groupIndex = 0; groupIndex < groups.length; groupIndex += 1) {
+    const fields = groups[groupIndex].fields;
+    for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex += 1) all.push(fields[fieldIndex]);
+  }
+  return all;
+})();
 
 function readString(value, fallback) {
   if (typeof value === 'string' && value.length > 0) return value;
   return fallback;
 }
 
-function severityOf(verdict) {
-  if (verdict === 'blocked') return 0;
-  if (verdict === 'unknown') return 1;
-  if (verdict === 'degraded') return 2;
-  return 3;
+function hasOwn(object, key) {
+  return object !== null && typeof object === 'object' && Object.prototype.hasOwnProperty.call(object, key);
 }
 
-function styleOf(verdict) {
-  if (Object.prototype.hasOwnProperty.call(VERDICT_STYLE, verdict)) return VERDICT_STYLE[verdict];
-  return { label: '\u672a\u77e5', color: '#555555' };
+/** The text a control shows for a field that is not being edited: the Host-resolved value. */
+function fieldText(spec, snapshot) {
+  const value = snapshot === null || snapshot.value === undefined || snapshot.value === null ? undefined : snapshot.value[spec.field];
+  if (spec.kind === 'boolean') return value === true;
+  if (value === undefined || value === null) return '';
+  return String(value);
 }
 
-function countLine(summary) {
-  if (summary === null || typeof summary !== 'object') return '';
-  return '\u901a\u8fc7=' + summary.pass + '  \u964d\u7ea7=' + summary.degraded + '  \u963b\u65ad=' + summary.blocked +
-    '  \u672a\u77e5=' + summary.unknown + '  \uff08\u5171 ' + summary.total + '\uff09';
+/**
+ * One draft text -> what a save would write, or undefined when the field does not accept it.
+ * The same bounds the Host schema declares are checked here, so an invalid draft is marked in
+ * place instead of being sent and silently dropped.
+ */
+function parseField(spec, text) {
+  if (spec.kind === 'boolean') return { set: text === true };
+  const trimmed = typeof text === 'string' ? text.trim() : '';
+  if (trimmed === '') return { clear: true };
+  if (spec.kind === 'number') {
+    if (!/^[0-9]+$/.test(trimmed)) return undefined;
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed)) return undefined;
+    if (spec.min !== undefined && parsed < spec.min) return undefined;
+    if (spec.max !== undefined && parsed > spec.max) return undefined;
+    return { set: parsed };
+  }
+  if (spec.kind === 'select') {
+    for (let index = 0; index < spec.options.length; index += 1) {
+      if (spec.options[index].value === trimmed) return { set: trimmed };
+    }
+    return undefined;
+  }
+  if (trimmed.charAt(0) === '-') return undefined;
+  if (spec.maxLength !== undefined && trimmed.length > spec.maxLength) return undefined;
+  return { set: trimmed };
 }
 
-function exitReading(summary) {
-  if (summary === null || typeof summary !== 'object') return '';
-  if (summary.exitCode === 0) return '\u9000\u51fa 0 = \u6bcf\u4e00\u9879\u90fd\u901a\u8fc7\u3002';
-  if (summary.exitCode === 1) return '\u9000\u51fa 1 = \u6709\u964d\u7ea7\u6216\u672a\u77e5\u3002\u94fe\u8def\u53ef\u80fd\u53ef\u7528,\u4f46\u672a\u7ecf\u8bc1\u660e\u7684\u4e0d\u7b97\u901a\u8fc7\u3002';
-  return '\u9000\u51fa 2 = fail-closed \u5224\u5b9a,\u4e0d\u662f\u547d\u4ee4\u5931\u8d25:\u81f3\u5c11\u4e00\u9879\u963b\u65ad,\u6216\u91c7\u96c6\u5668\u672c\u8eab\u8dd1\u4e0d\u8d77\u6765\u3002';
+/** Staged drafts -> the path operations a save would send. An empty text means "drop the override". */
+function buildPlan(staged, snapshot) {
+  const ops = [];
+  const invalid = [];
+  for (let index = 0; index < FIELD_SPECS.length; index += 1) {
+    const spec = FIELD_SPECS[index];
+    const entry = staged[spec.field];
+    if (entry === undefined) continue;
+    const parsed = parseField(spec, entry.text);
+    if (parsed === undefined) {
+      invalid.push(spec.field);
+      continue;
+    }
+    const unchanged = entry.clear !== true && String(entry.text) === String(fieldText(spec, snapshot));
+    if (unchanged) continue;
+    if (entry.clear === true || parsed.clear === true) ops.push({ op: 'unset', path: [spec.field] });
+    else ops.push({ op: 'set', path: [spec.field], value: parsed.set });
+  }
+  return { ops: ops, invalid: invalid };
 }
 
-function queryPosture(role) {
-  return fetch(ROUTE, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ role: role })
-  }).then(function (response) {
-    return response.json();
-  }).then(function (payload) {
-    if (payload !== null && typeof payload === 'object' && payload.ok === true) return payload;
-    throw new Error(readString(payload && payload.message, '\u4e3b\u673a\u8def\u7531\u6ca1\u6709\u8fd4\u56de\u53ef\u7528\u7ed3\u679c'));
+/** The Host is the only authority on whether a write was accepted: read the user layer back. */
+function landedAll(ops, user) {
+  for (let index = 0; index < ops.length; index += 1) {
+    const field = ops[index].path[0];
+    if (ops[index].op === 'set') {
+      if (!hasOwn(user, field) || user[field] !== ops[index].value) return false;
+    } else if (hasOwn(user, field)) {
+      return false;
+    }
+  }
+  return ops.length > 0;
+}
+
+function renderControl(spec, text, writable, stage) {
+  if (spec.kind === 'boolean') {
+    return React.createElement('input', {
+      key: 'control',
+      type: 'checkbox',
+      className: 'dsh-rtg-field__check',
+      checked: text === true,
+      disabled: !writable,
+      onChange: function () { stage(spec.field, { text: text !== true, clear: false }); }
+    });
+  }
+  const change = function (event) { stage(spec.field, { text: event.target.value, clear: false }); };
+  if (spec.kind === 'select') {
+    const options = [];
+    for (let index = 0; index < spec.options.length; index += 1) {
+      options.push(React.createElement('option', { key: spec.options[index].value, value: spec.options[index].value }, spec.options[index].label));
+    }
+    return React.createElement('select', {
+      key: 'control',
+      className: 'dsh-rtg-field__control',
+      value: text,
+      disabled: !writable,
+      onChange: change
+    }, options);
+  }
+  const numeric = spec.kind === 'number';
+  return React.createElement('input', {
+    key: 'control',
+    type: numeric ? 'number' : 'text',
+    className: 'dsh-rtg-field__control',
+    value: text,
+    disabled: !writable,
+    spellCheck: false,
+    placeholder: numeric && spec.def === '' ? '\u81ea\u52a8' : '',
+    min: numeric ? spec.min : undefined,
+    max: numeric ? spec.max : undefined,
+    step: numeric ? 1 : undefined,
+    onChange: change
   });
 }
 
-function itemRow(check, key) {
-  const vstyle = styleOf(check.verdict);
-  const badges = [];
-  if (check.evidenceConfidence === 'low') {
-    badges.push(React.createElement('span', {
-      key: 'conf',
-      style: { marginLeft: '6px', padding: '1px 4px', border: '1px solid #b58900', borderRadius: '3px', fontSize: '11px', color: '#8a6d00' }
-    }, '\u4f4e\u7f6e\u4fe1\u5ea6:\u672c\u5730\u5316\u6587\u672c\u8def\u5f84,\u8bb0\u4e3a\u964d\u7ea7'));
+function renderField(spec, snapshot, staged, stage, writable) {
+  const entry = staged[spec.field];
+  const text = entry === undefined ? fieldText(spec, snapshot) : entry.text;
+  const invalid = entry !== undefined && entry.clear !== true && parseField(spec, entry.text) === undefined;
+  const overridden = hasOwn(snapshot.user, spec.field);
+  const label = spec.label + (overridden ? OVERRIDE_MARK : '');
+  const reset = React.createElement('button', {
+    key: 'reset',
+    type: 'button',
+    className: 'dsh-rtg-field__reset',
+    disabled: !writable || (entry === undefined && !overridden),
+    onClick: function () { stage(spec.field, { text: spec.def, clear: true }); }
+  }, RESET_LABEL);
+  const row = [];
+  if (spec.kind === 'boolean') {
+    row.push(renderControl(spec, text, writable, stage));
+    row.push(React.createElement('span', { key: 'label', className: 'dsh-rtg-field__label-text' }, label));
+  } else {
+    row.push(renderControl(spec, text, writable, stage));
   }
-  if (check.manualReview === true) {
-    badges.push(React.createElement('span', {
-      key: 'manual',
-      style: { marginLeft: '6px', padding: '1px 4px', border: '1px solid #777777', borderRadius: '3px', fontSize: '11px', color: '#555555' }
-    }, '\u9700\u4eba\u5de5\u5904\u7406'));
-  }
-  const children = [
-    React.createElement('div', { key: 'head', style: { marginBottom: '2px' } },
-      React.createElement('span', { style: { color: vstyle.color, fontWeight: 'bold', marginRight: '6px' } }, check.verdictLabel || vstyle.label),
-      React.createElement('span', { style: { fontFamily: 'monospace', fontSize: '12px' } }, check.id),
-      badges
+  row.push(reset);
+  return React.createElement('div', {
+    key: spec.field,
+    className: 'dsh-rtg-field' + (invalid ? ' dsh-rtg-field--invalid' : '')
+  },
+    React.createElement('label', {
+      className: 'dsh-rtg-field__label' + (spec.kind === 'boolean' ? ' dsh-rtg-field__label--check' : '')
+    },
+      spec.kind === 'boolean' ? null : React.createElement('span', { key: 'label', className: 'dsh-rtg-field__label-text' }, label),
+      React.createElement('span', { key: 'row', className: 'dsh-rtg-field__row' }, row)
     ),
-    React.createElement('div', { key: 'reason', style: { fontSize: '13px' } }, check.reason),
-    check.manualQuestion ? React.createElement('div', { key: 'mq', style: { fontSize: '12px', color: '#555555', marginTop: '2px' } }, check.manualQuestion) : null,
-    check.remediationAction ? React.createElement('div', { key: 'ra', style: { fontSize: '12px', marginTop: '2px' } }, '\u4fee\u590d(\u7531\u4f60\u6267\u884c,\u672a\u5e94\u7528): ' + check.remediationAction) : null,
-    check.remediationRollback ? React.createElement('div', { key: 'rr', style: { fontSize: '12px', color: '#555555' } }, '\u56de\u6eda: ' + check.remediationRollback) : null
-  ];
-  return React.createElement('li', {
-    key: key,
-    style: { marginBottom: '8px', paddingBottom: '6px', borderBottom: '1px solid rgba(127,127,127,0.25)' }
-  }, children);
+    React.createElement('div', { className: 'dsh-rtg-field__hint' }, spec.hint)
+  );
 }
 
-function GuardPanel() {
-  const statePair = React.useState({ phase: 'loading', payload: null, error: '' });
-  const state = statePair[0];
-  const setState = statePair[1];
-  const noncePair = React.useState(0);
-  const nonce = noncePair[0];
-  const setNonce = noncePair[1];
-  const rolePair = React.useState('client');
-  const role = rolePair[0];
-  const setRole = rolePair[1];
+function renderGroup(group, snapshot, staged, stage, writable) {
+  const fields = [];
+  for (let index = 0; index < group.fields.length; index += 1) {
+    fields.push(renderField(group.fields[index], snapshot, staged, stage, writable));
+  }
+  const title = React.createElement('span', { className: 'dsh-rtg-group__title' }, group.title);
+  if (group.key !== 'advanced') {
+    return React.createElement('div', { key: group.key, className: 'dsh-rtg-group' }, title, fields);
+  }
+  return React.createElement('details', { key: group.key, className: 'dsh-rtg-group' },
+    React.createElement('summary', { className: 'dsh-rtg-group__title' }, group.title),
+    fields
+  );
+}
+
+function SettingsForm(props) {
+  const scope = props.scope;
+  const snapshotPair = React.useState(scope === null ? null : scope.getSnapshot());
+  const snapshot = snapshotPair[0];
+  const setSnapshot = snapshotPair[1];
+  const stagedPair = React.useState({});
+  const staged = stagedPair[0];
+  const setStaged = stagedPair[1];
+  const statusPair = React.useState({ saving: false, saved: false, error: '' });
+  const status = statusPair[0];
+  const setStatus = statusPair[1];
 
   React.useEffect(function () {
-    let alive = true;
-    setState({ phase: 'loading', payload: null, error: '' });
-    queryPosture(role).then(function (result) {
-      if (!alive) return;
-      setState({ phase: 'ready', payload: result, error: '' });
-    }).catch(function (error) {
-      if (!alive) return;
-      setState({ phase: 'failed', payload: null, error: String(error && error.message ? error.message : error) });
+    if (scope === null) return undefined;
+    setSnapshot(scope.getSnapshot());
+    return scope.subscribe(function () { setSnapshot(scope.getSnapshot()); });
+  }, [scope]);
+
+  if (scope === null || snapshot === null || snapshot.status !== 'ready') {
+    return React.createElement('p', { className: 'dsh-rtg-line' }, UNAVAILABLE_LINE);
+  }
+
+  const writable = snapshot.writable === true;
+  const plan = buildPlan(staged, snapshot);
+  const dirty = plan.ops.length > 0 || plan.invalid.length > 0;
+
+  function stage(field, entry) {
+    const next = {};
+    const keys = Object.keys(staged);
+    for (let index = 0; index < keys.length; index += 1) next[keys[index]] = staged[keys[index]];
+    next[field] = entry;
+    setStaged(next);
+    setStatus({ saving: false, saved: false, error: '' });
+  }
+
+  function save() {
+    if (!writable || status.saving || plan.invalid.length > 0 || plan.ops.length === 0) return;
+    const ops = plan.ops;
+    setStatus({ saving: true, saved: false, error: '' });
+    scope.mutate(ops).then(function () {
+      const after = scope.getSnapshot();
+      const landed = landedAll(ops, after === null ? null : after.user);
+      if (landed) setStaged({});
+      setStatus({ saving: false, saved: landed, error: landed ? '' : REJECTED_LINE });
+    }, function (error) {
+      setStatus({ saving: false, saved: false, error: '\u4fdd\u5b58\u5931\u8d25: ' + readString(error && error.message, 'unknown error') });
     });
-    return function () { alive = false; };
-  }, [nonce, role]);
+  }
+
+  function discard() {
+    setStaged({});
+    setStatus({ saving: false, saved: false, error: '' });
+  }
+
+  let statusText = '';
+  if (status.error !== '') statusText = status.error;
+  else if (status.saving) statusText = SAVING_LINE;
+  else if (dirty) statusText = UNSAVED_LINE;
+  else if (status.saved) statusText = SAVED_LINE;
 
   const blocks = [];
-
-  const controls = [];
-  controls.push(React.createElement('label', { key: 'rolelabel', style: { fontSize: '12px', marginRight: '6px' } }, '\u89c6\u89d2:'));
-  controls.push(React.createElement('select', {
-    key: 'role',
-    value: role,
-    onChange: function (event) { setRole(event.target.value); },
-    style: { fontSize: '12px', marginRight: '8px' }
-  },
-    React.createElement('option', { key: 'client', value: 'client' }, '\u5ba2\u6237\u7aef(\u8fd9\u53f0\u673a\u5668\u53ea\u7528\u8fd9\u6761\u94fe\u8def)'),
-    React.createElement('option', { key: 'server', value: 'server' }, '\u670d\u52a1\u7aef(\u8fd9\u53f0\u673a\u5668\u63d0\u4f9b\u8fd9\u6761\u94fe\u8def)'),
-    React.createElement('option', { key: 'both', value: 'both' }, '\u4e24\u8005')
+  blocks.push(React.createElement('p', { key: 'scope', className: 'dsh-rtg-line' }, SCOPE_LINE));
+  for (let index = 0; index < SETTINGS_GROUPS.length; index += 1) {
+    blocks.push(renderGroup(SETTINGS_GROUPS[index], snapshot, staged, stage, writable));
+  }
+  blocks.push(renderGroup(ADVANCED_GROUP, snapshot, staged, stage, writable));
+  blocks.push(React.createElement('div', { key: 'footer', className: 'dsh-rtg-footer' },
+    React.createElement('button', {
+      type: 'button',
+      className: 'dsh-rtg-button dsh-rtg-button--primary',
+      disabled: !writable || !dirty || status.saving || plan.invalid.length > 0,
+      onClick: save
+    }, SAVE_LABEL),
+    React.createElement('button', {
+      type: 'button',
+      className: 'dsh-rtg-button',
+      disabled: !dirty || status.saving,
+      onClick: discard
+    }, DISCARD_LABEL),
+    React.createElement('span', {
+      className: 'dsh-rtg-footer__status' + (status.error !== '' ? ' dsh-rtg-footer__status--error' : '')
+    }, writable ? statusText : READONLY_LINE)
   ));
-  controls.push(React.createElement('button', {
-    key: 'refresh',
-    type: 'button',
-    onClick: function () { setNonce(nonce + 1); },
-    style: { fontSize: '12px' }
-  }, state.phase === 'loading' ? '\u68c0\u67e5\u4e2d\u2026' : '\u5237\u65b0'));
-  blocks.push(React.createElement('div', { key: 'controls', style: { marginBottom: '10px' } }, controls));
-  blocks.push(React.createElement('div', { key: 'rolehint', style: { fontSize: '12px', color: '#666666', marginBottom: '10px' } },
-    '\u7eaf\u5ba2\u6237\u7aef\u673a\u5668\u8bf7\u9009\u5ba2\u6237\u7aef\u89c6\u89d2:\u670d\u52a1\u7aef\u68c0\u67e5\u9879\u4e0d\u4f1a\u51fa\u73b0,\u6458\u8981\u4e5f\u5c31\u4e0d\u4f1a\u62a5\u4f60\u6ca1\u6709\u7684\u670d\u52a1\u7aef\u7f3a\u53e3\u3002'));
-
-  if (state.phase === 'loading') {
-    blocks.push(React.createElement('p', { key: 'loading' }, '\u6b63\u5728\u4e3b\u673a\u4e0a\u67e5\u8be2\u91c7\u96c6\u5668\u2026'));
-  } else if (state.phase === 'failed') {
-    blocks.push(React.createElement('p', { key: 'failed', style: { color: '#c0392b' } },
-      '\u6682\u65e0\u59ff\u6001\u6570\u636e: ' + state.error));
-    blocks.push(React.createElement('p', { key: 'hint', style: { fontSize: '12px', color: '#666666' } },
-      '\u8fd9\u8bb0\u4e3a\u672a\u77e5\u3001\u7edd\u4e0d\u8bb0\u4e3a\u901a\u8fc7\u3002\u82e5\u63d0\u793a\u63d0\u5230\u8def\u7531\u6216\u91c7\u96c6\u5668\u8def\u5f84,\u8bf4\u660e host \u534a\u8fb9\u6ca1\u6709\u5728\u670d\u52a1:\u8981\u4e48\u90a3\u884c\u4ecd\u88ab\u7981\u7528,\u8981\u4e48\u8def\u7531\u6ce8\u518c\u5931\u8d25\u3002'));
-  } else {
-    const payload = state.payload;
-    const summary = payload.summary;
-    const checks = Array.isArray(payload.checks) ? payload.checks : [];
-    blocks.push(React.createElement('div', { key: 'overall', style: { marginBottom: '6px' } },
-      React.createElement('span', {
-        style: { fontWeight: 'bold', color: styleOf(summary.verdict).color, marginRight: '8px' }
-      }, summary.verdictLabel || styleOf(summary.verdict).label),
-      React.createElement('span', { style: { fontSize: '13px' } }, countLine(summary))
-    ));
-    blocks.push(React.createElement('div', { key: 'exit', style: { fontSize: '12px', marginBottom: '4px' } }, exitReading(summary)));
-    blocks.push(React.createElement('div', { key: 'failclosed', style: { fontSize: '12px', color: '#666666', marginBottom: '4px' } },
-      '\u5931\u6548\u5173\u95ed: ' + readString(summary.failClosed, '\u4efb\u4f55\u672a\u77e5\u90fd\u4e0d\u5141\u8bb8\u9000\u51fa 0')));
-    blocks.push(React.createElement('div', { key: 'provenance', style: { fontSize: '11px', color: '#777777', marginBottom: '10px', fontFamily: 'monospace' } },
-      '\u6765\u6e90=' + readString(payload.source, '\u672a\u77e5') +
-      '  \u811a\u672c=' + readString(payload.script, '(\u672a\u62a5\u544a)') +
-      '  \u751f\u6210=' + readString(summary.generatedAtLocal, '(\u672a\u77e5)')));
-
-    const ordered = checks.slice(0).sort(function (left, right) {
-      const delta = severityOf(left.verdict) - severityOf(right.verdict);
-      if (delta !== 0) return delta;
-      return String(left.id) < String(right.id) ? -1 : 1;
-    });
-    blocks.push(React.createElement('div', { key: 'itemsHead', style: { fontSize: '12px', color: '#666666', marginBottom: '4px' } },
-      '\u5168\u90e8\u5224\u5b9a,\u6700\u4e25\u91cd\u5728\u524d(' + ordered.length + '):'));
-    const rows = [];
-    for (let index = 0; index < ordered.length; index += 1) rows.push(itemRow(ordered[index], ordered[index].id));
-    blocks.push(React.createElement('ul', { key: 'items', style: { listStyle: 'none', paddingLeft: '0', margin: '0 0 12px 0' } }, rows));
-
-    const manual = [];
-    for (let index = 0; index < ordered.length; index += 1) {
-      if (ordered[index].manualReview === true) manual.push(ordered[index]);
-    }
-    if (manual.length > 0) {
-      blocks.push(React.createElement('div', { key: 'manualhead', style: { fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' } },
-        '\u53ea\u80fd\u7531\u4eba\u505a\u7684\u4e8b(\u6b64\u5904\u4ece\u4e0d\u52a8\u624b):'));
-      const manualRows = [];
-      for (let index = 0; index < manual.length; index += 1) {
-        manualRows.push(React.createElement('li', { key: 'm' + manual[index].id, style: { fontSize: '12px', marginBottom: '3px' } },
-          manual[index].id + ': ' + manual[index].manualQuestion));
-      }
-      blocks.push(React.createElement('ul', { key: 'manual', style: { marginTop: '0', marginBottom: '12px' } }, manualRows));
-    }
-  }
-
-  blocks.push(React.createElement('div', { key: 'credhead', style: { fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' } },
-    '\u51ed\u636e\u7eaa\u5f8b\u4e0e\u4e0d\u6539\u52a8\u627f\u8bfa'));
-  const notices = [];
-  for (let index = 0; index < CREDENTIAL_NOTICES.length; index += 1) {
-    notices.push(React.createElement('li', { key: 'c' + index, style: { fontSize: '12px', marginBottom: '2px' } }, CREDENTIAL_NOTICES[index]));
-  }
-  blocks.push(React.createElement('ul', { key: 'cred', style: { marginTop: '0', marginBottom: '0' } }, notices));
-
-  return React.createElement('div', { style: { padding: '4px 0 8px 0' } }, blocks);
+  return React.createElement('div', { className: 'dsh-rtg-card__form' }, blocks);
 }
 
-function GuardCard() {
+function GuardCard(props) {
   const openPair = React.useState(false);
   const open = openPair[0];
   const setOpen = openPair[1];
@@ -249,7 +489,7 @@ function GuardCard() {
   );
   return React.createElement('li', { className: 'dsh-rtg-card' + (open ? ' dsh-rtg-card--open' : '') },
     header,
-    open ? React.createElement('div', { className: 'dsh-rtg-card__body' }, React.createElement(GuardPanel, null)) : null
+    open ? React.createElement('div', { className: 'dsh-rtg-card__body' }, React.createElement(SettingsForm, { scope: props.scope })) : null
   );
 }
 
@@ -264,10 +504,31 @@ function apply(ctx) {
     document.head.appendChild(tag);
     return function () { tag.remove(); };
   }, 'remote-tailnet-guard: settings card css');
+  // Reads and writes go through the platform's own per-namespace scope: staged drafts, revision
+  // fencing, and the read-back that decides whether a write landed all belong to it, and the
+  // namespace stays the one the Host registers. The service is optional here (the card only ever
+  // renders under the settings UI that provides it) and the service name is resolved with ctx.get
+  // rather than a declared dependency, so this half keeps `inject = ['slots']`.
+  let scope = null;
+  function bindScope() {
+    if (scope !== null) return scope;
+    const service = typeof ctx.get === 'function' ? ctx.get('settingsScope') : undefined;
+    if (service === undefined || service === null || typeof service.bind !== 'function') return null;
+    try {
+      scope = service.bind({ namespace: SETTINGS_NS });
+    } catch (error) {
+      scope = null;
+    }
+    return scope;
+  }
+  bindScope();
+  if (scope === null && typeof ctx.inject === 'function') {
+    ctx.inject(['settingsScope'], function () { bindScope(); });
+  }
   ctx.slots.inject('settings.plugin.item', function () {
     return ctx.slots.register(
       { name: 'settings.plugin.item', key: SETTINGS_NS, order: CARD_ORDER },
-      function () { return React.createElement(GuardCard, null); }
+      function () { return React.createElement(GuardCard, { scope: bindScope() }); }
     );
   });
 }

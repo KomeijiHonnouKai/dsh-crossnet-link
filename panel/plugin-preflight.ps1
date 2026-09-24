@@ -27,8 +27,10 @@
     (5) the single card seat: `settings.plugin.item` is registered exactly once in BOTH client files
         (key == the settings namespace the host half declares == package name), and NO `settings.section`
         seat is registered anywhere. The host half must declare that namespace through
-        a GUARDED runtime lookup and must not carry a static schema-library import (a static import
-        that cannot resolve would break the whole host half on a `link:` install).
+        a GUARDED runtime lookup, must not carry a static schema-library import (a static import
+        that cannot resolve would break the whole host half on a `link:` install), and must declare
+        this plugin's own settings FIELDS in that namespace's schema - an empty schema would leave the
+        card with nothing to edit and the card would be a report surface again.
     (6) the inventory: which files an install/enable would touch, what to back up first, and the
         user-layer override row that turns the plugin on.
 
@@ -513,7 +515,8 @@ if (Test-Path -LiteralPath $hostPath) {
   $guarded = (Get-MatchCount -Text $hostText -Pattern 'await import\(specifier\)') -ge 1
   Add-Check -Id 'ns.guarded-import' -Rule 'the schema library is resolved through a guarded dynamic import (await import(specifier) inside try/catch)' -Expected 'True' -Actual ([string]$guarded) -Ok $guarded
   $emptySchema = Get-MatchCount -Text $hostText -Pattern 'schemaFactory\.object\(\{\}\)'
-  Add-Equal -Id 'ns.empty-schema' -Rule 'the namespace schema has no fields (nothing about this plugin becomes configurable)' -Expected 1 -Actual $emptySchema
+  $schemaFields = Get-MatchCount -Text $hostText -Pattern 'schemaFactory\.(?:union|string|boolean|number)\('
+  Add-Check -Id 'ns.schema-fields' -Rule 'the namespace schema declares the plugin settings the card edits (never the empty object: an empty schema makes nothing configurable)' -Expected 'fields declared, no empty object' -Actual ($schemaFields.ToString() + ' field schema(s), ' + $emptySchema.ToString() + ' empty object(s)') -Ok (($schemaFields -gt 0) -and ($emptySchema -eq 0))
 }
 
 # ---------------------------------------------------------------------------

@@ -170,7 +170,8 @@ tsdown/tsc 工具链,所以 `plugin/lib/client.js` 是**按同一格式手写的
 
 > **口径提醒**:「设置 → 插件」页里那张**卡片列表**是 `settings.plugin.item` 座位,与本节这个
 > `settings.section` **不是同一个座位**(位置/渲染/可点击行为/生命周期都不同)。
-> t46 已经在同一个包里把两个座位都注册上了:契约见 §2.6,「启用后你会看到什么」见 §5.1。
+> 本插件**只**用 `settings.plugin.item`(v0.3 起移除了早期注册过的 `settings.section`):契约见 §2.6,
+> 「启用后你会看到什么」见 §5.1。
 
 **客户端半边可用的东西(实测)**:
 
@@ -274,17 +275,50 @@ tsdown/tsc 工具链,所以 `plugin/lib/client.js` 是**按同一格式手写的
 (反证:同一份 `dsh-client-ui-settings-plugins/lib/client.js` 里 `:1761`/`:1773`/`:1785` 三种座位都由**同一个 bundle** 注册;
 ego-browser 的同一个 `lib/client.js` 同时注册 `settings.plugin.item` 与它的其它 UI。)
 
-**本包的落地与安全边界(t46)**:
+**本包的落地与安全边界(v0.4:t46 的座位 + t47 的设置)**:
 
-- client 半边(`lib/client.js` 与 `lib/client/index.js`,共享正文逐字节一致)**同时**注册两个座位;
-  卡片 `key: SETTINGS_NS` = `'remote-tailnet-guard'` = 包名;
-- host 半边注册同名命名空间,但**schema 是空的**(`schemaFactory.object({})`):本插件**没有任何可配置项**,
-  host 也从不调用 `update()`/`replace()`,因此**不会向用户的设置文档写入任何值**;
+- client 半边(`lib/client.js` 与 `lib/client/index.js`,共享正文逐字节一致)**只注册一个座位**:
+  `settings.plugin.item`,卡片 `key: SETTINGS_NS` = `'remote-tailnet-guard'` = 包名;
+  卡片标题用显示名 **`dsh-crossnet-link`**,副标题写**插件目的**(口径 = 交接笔记 `plugin-purpose-handover.md`,
+  用户 2026-09-25 确认:"在 A 电脑的 DSH 里,通过浏览器插件驱动一个已登录的通道页面,直接操作 B 电脑上运行的 DSH,
+  两台 DSH 由此形成联动(agent 对 agent)"),展开体是**设置表单**,不是报告;
+- host 半边注册同名命名空间,**schema 里是本插件自己的体检参数**(14 个字段,清单见下面那张表):
+  这份 schema 就是"卡片可配置"的来源,也是每次写入的校验依据;
+- **写值路径 = 平台自己的设置服务**:卡片用 `settingsScope.bind({ namespace }).set()/unset()/mutate()`
+  (服务自带 revision 围栏,并在写入后回读用户层判断是否真的落地)写**用户层**,落点是
+  `<DSH_HOME>\settings.yaml` 里以命名空间为名的顶层 section;host 半边从不调用 `update()`/`replace()`,
+  插件没有自己的写接口(那条只读路由只跑采集器,不写任何设置);
+- 采集器参数**全部白名单化**:枚举按允许集合校验、自由文本拒绝首字符 `-` 与控制字符并限长、
+  数字必须落在 schema 的 min/max 内;任何一项不合法就**整项不传**,不会变成采集器没打算收到的参数;
 - **schema 库用受保护的运行时解析**取得(`await import(specifier)`,依次试 `@deepseek-ai/schemastery` 与 `schemastery`,
   整段 try/catch),**绝不写静态 `import`**:本包装法是 `link:<插件目录>`,`link:` 目标不保证自带 `node_modules`
   (包自己的依赖不会被装进 profile),静态 import 一旦解析不到就会把整个 host 半边带下去;
   解析不到时只打一条 warning 并**跳过命名空间注册** ⇒ 卡片不渲染(fail closed),其余功能照常。
-  这一点由 `panel/plugin-preflight.ps1` 的 `ns.static-import` / `ns.guarded-import` / `ns.empty-schema` 三条断言钉住。
+  这一点由 `panel/plugin-preflight.ps1` 的 `ns.static-import` / `ns.guarded-import` / `ns.schema-fields` 三条断言钉住。
+
+**卡片里的 14 个设置项**(名字就是设置文档里的字段名;括号里是它喂给 `src/collect.ps1` 的参数):
+
+| 分组 | 设置项 | 控件 | 默认 | 采集器参数 |
+|---|---|---|---|---|
+| 本机在这条链路里的位置 | `role` 本机视角 | 下拉(两者 / 客户端 / 服务端) | `both` | `-Role` |
+| 对端与 tailnet | `peer` 对端地址 | 文本 | 空 = 不核对对端 | `-Peer` |
+| 对端与 tailnet | `peerName` 对端 MagicDNS 名 | 文本 | 空 | `-PeerName` |
+| 对端与 tailnet | `profile` 本机 DSH profile | 文本 | 空 = 多 profile 时记 unknown | `-Profile` |
+| 对端与 tailnet | `tailnetDomain` Tailnet 域名 | 文本 | 空 = 用内置后缀模式 | `-TailnetDomain` |
+| 体检口径 | `strictness` 判定严格度 | 下拉(普通 / 严格) | `normal` | `-Strictness` |
+| 体检口径 | `noNative` 禁用原生探测 | 开关 | `false` | `-NoNative`(只在 true 时传) |
+| 体检口径 | `lang` 报告语言 | 下拉(跟随系统 / 中文 / English) | `auto` | `-Lang` |
+| 体检口径 | `port` 本机 DSH 端口 | 数字(1-65535) | 空 = 环境变量,再退内置默认 | `-Port` |
+| 高级(默认折叠) | `tcpTimeoutMs` TCP 探测超时 | 数字(1000-60000) | `5000` | `-TcpTimeoutMs` |
+| 高级(默认折叠) | `dnsTimeoutMs` DNS 查询超时 | 数字(1000-60000) | `4000` | `-DnsTimeoutMs` |
+| 高级(默认折叠) | `commandTimeoutMs` 命令超时 | 数字(1000-600000) | `15000` | `-CommandTimeoutMs` |
+| 高级(默认折叠) | `dshHome` DSH home 目录 | 文本 | 空 = 自动探测 | `-DshHome` |
+| 高级(默认折叠) | `appDir` DSH 应用目录 | 文本 | 空 = 自动探测 | `-AppDir` |
+
+> 这张卡的语义就是"编辑这个插件的设置"(平台 docstring 原文:a header naming the plugin and what its
+> settings govern, disclosing that plugin's controls in place, with the save that writes them)。
+> **体检报告不属于这张卡**:报告属于只读展示面(平台对应的座位是 `settings.plugins.tab` 的 list 条),
+> 不要塞回设置卡 —— 这正是 v0.4 返工要修掉的那个问题。
 
 ---
 
@@ -296,21 +330,24 @@ plugin/
                         exports: "." "./client" "./package.json"
                         dsh.bundle.patch ./cordis.patch.yml / dsh.client{platform:'web', inject:['@deepseek-ai/dsh-client-ui-slots']}
   cordis.patch.yml      - insert: 一条,id 与 name 都等于 remote-tailnet-guard,**disabled: true**
-  lib/index.js          host 半边:真 ESM,只读,复用 src/collect.ps1;额外注册一个**空 schema** 的设置命名空间(受保护)
-  lib/client.js         client 半边(运行时 bundle,window.__ModuleLoader__.load 自注册;**注册两个座位**)
+  lib/index.js          host 半边:真 ESM,只读,复用 src/collect.ps1;额外注册一个**带 14 个字段**的设置命名空间(受保护),
+                        并把存下来的设置白名单化地映射成采集器参数
+  lib/client.js         client 半边(运行时 bundle,window.__ModuleLoader__.load 自注册;只注册 settings.plugin.item 一个座位)
   lib/client/index.js   client 半边(打包前的 ESM 源码,与上面共享正文逐字节一致)
 ```
 
 - host 半边做的事只有三件:①在**既有** web 服务上注册 `POST /remote-tailnet-guard/api/posture`
-  (同源校验 + `application/json` + body ≤16 KiB);②只读地跑一次
-  `src/collect.ps1 -CheckOnly -AsJson -Role <client|server|both>`,把**叶子字段**投影成 JSON 返回;
-  ③注册一个**空 schema** 的设置命名空间 `remote-tailnet-guard`(t46,见 §2.6)——只为让插件页的卡片能被渲染,
-  没有任何可写字段,也从不写用户的设置文档。
+  (同源校验 + `application/json` + body ≤16 KiB);②把**存下来的设置**映射成参数,只读地跑一次
+  `src/collect.ps1 -CheckOnly -AsJson ...`,把**叶子字段**投影成 JSON 返回;
+  ③注册设置命名空间 `remote-tailnet-guard`(t46/t47,见 §2.6)——schema 里写清本插件 14 个设置项的类型与默认值,
+  这份声明让卡片可配置、让每次写入被校验。host 自己**不写**设置文档(写发生在用户保存卡片时,由平台设置服务完成)。
   它不写文件、不新增监听、不读凭据、不改任何系统设置、不重启 DSH。
-- client 半边做的事只有一件(注册一张卡片,只读面板):`settings.plugin.item`
+- client 半边做的事只有一件(注册一张卡片:**设置表单**):`settings.plugin.item`
   (key `remote-tailnet-guard`,order 100 —— 即插件页「可配置插件」tab 里的折叠卡片,**不再注册** `settings.section`);
-  卡片取数走上面那条 POST(动态包那一侧走的是 `host.call`)。
-- **只有 `require("react")` 一个外部依赖**(平台 seed),其余全部自包含;schema 库是**运行时可选解析**,不是依赖。
+  读值/写值走平台服务 `settingsScope`,卡片自己不 fetch 任何东西(v0.4 起不再取数:报告不在卡里)。
+- **只有 `require("react")` 一个外部依赖**(平台 seed),其余全部自包含;`settingsScope` 是 **cordis 服务查找**
+  (`ctx.get` / `ctx.inject`),不是模块依赖,所以 `dsh.client.inject` 仍然只有 `@deepseek-ai/dsh-client-ui-slots`;
+  schema 库是**运行时可选解析**,不是依赖。
 
 ---
 
@@ -380,7 +417,8 @@ self-test: 7 cases  matched: 7  mismatched: 0
    另外:若 `node` 恰好在 PATH 上,会对三个文件各跑一次 `node --check`;不在 PATH 时打印 `[SKIP]`,
    计入 skipped 但**不影响退出码**(本机 `node` 不在 PATH,实测 3 条 SKIP)。
 4. **卡片座位在、键都对**:两个 client 文件里 `settings.plugin.item` 注册**恰好一次**、且**不注册** `settings.section`;
-   卡片 key 用 `SETTINGS_NS`(**等于包名**);host 半边声明同名命名空间,且 schema 为空(`schemaFactory.object({})`)。
+   卡片 key 用 `SETTINGS_NS`(**等于包名**);host 半边声明同名命名空间,且 schema 里**有字段**
+   (断言 `ns.schema-fields`:至少一个字段 schema,且**不是** `schemaFactory.object({})` 空对象)。
 5. **host 半边不得有静态 schema import**,必须是受保护的运行时解析(`await import(specifier)` 在 try/catch 里)
    —— 这是"`link:` 装法下 import 解析不到也不会把 host 半边带下去"的静态保证。
 6. insert 行自洽且安全:唯一一行,`id` 与 `name` 都等于 package.json 的 `name`,`disabled: true`。
@@ -397,7 +435,8 @@ self-test: 7 cases  matched: 7  mismatched: 0
 >
 > **下一步做什么,写在最前面**:跑完下面三步后,**从 DSH 自带菜单重启 DSH**(设置 → 桌面 → 重启;或退出应用再打开),
 > 然后去 **设置 → 插件**,清单里 `remote-tailnet-guard` 应显示**已启用**;「可配置插件」tab 里应出现
-> 一张折叠卡片「跨网链路姿态」(点开是中文只读面板),左侧导航**不新增任何条目**。逐条带人话、给 AI 读的版本见
+> 一张折叠卡片 **`dsh-crossnet-link`**(副标题是插件目的,点开是**设置表单**:本机视角 / 对端地址 / 体检口径 / 高级,
+> 底部「保存 / 放弃」),左侧导航**不新增任何条目**。逐条带人话、给 AI 读的版本见
 > [`agent-brief.md`](agent-brief.md)。
 
 ```powershell
@@ -446,7 +485,7 @@ dsh --profile $profile --dump-config | Select-String -SimpleMatch 'remote-tailne
 | 位置 | 预期看到 | 由什么实现 |
 |---|---|---|
 | **设置 → 插件**(`all` tab,插件清单) | 清单里出现 `remote-tailnet-guard` 这一行,状态**已启用** | 平台自带的 inventory tab,**不需要我们写任何代码**;只要行被装进 profile 就会有(`all` tab 同时列出**未启用**的行并把它们标成未启用,所以装完还没启用时它其实就已经在清单里了 —— 认准"已启用"三个字) |
-| **设置 → 插件 → 「可配置插件」tab** | 一张折叠卡片(标题「跨网链路姿态」,点开是中文只读面板)。schema 库在 profile 侧解析得到,卡片就出现;解析不到只打 warning、卡片不出现(§9.1 实测:本机解析成功、卡片 active) | `settings.plugin.item`,`key` = 设置命名空间 `remote-tailnet-guard` |
+| **设置 → 插件 → 「可配置插件」tab** | 一张折叠卡片 **`dsh-crossnet-link`**,副标题是**插件目的**(在 A 电脑的 DSH 里驱动通道页面,直接操作 B 电脑上运行的 DSH,两台 DSH 联动 agent 对 agent);点开是**设置表单**(9 个可见控件 + 高级里 5 个,默认折叠;底部「保存 / 放弃」)。schema 库在 profile 侧解析得到,卡片就出现;解析不到只打 warning、卡片不出现(§9.1 实测:本机解析成功、卡片 active) | `settings.plugin.item`,`key` = 设置命名空间 `remote-tailnet-guard`;值走平台服务 `settingsScope`,落在 `<DSH_HOME>\settings.yaml` 的 `remote-tailnet-guard:` section |
 
 **卡片这一格的真实机制(实测澄清,取代原先"`link:` 装法必不出卡片"的推断)**:host 半边对 schema 库
 (`@deepseek-ai/schemastery` / `schemastery`)用**受保护的运行时解析**(`await import(specifier)`,try/catch),
@@ -497,8 +536,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'remote-tai
 
 | 现象 | 第一动作 | 之后 |
 |---|---|---|
-| 设置里根本没有这个分区 | 确认覆盖行是否真的生效(`disabled: false`)与 profile 是否重启过 | 再跑 §4 预检;确认 `dsh.profile.bundles` 里有 `remote-tailnet-guard` |
-| 分区在,但显示 `No posture available yet: …` | 这是**fail-closed 的正常形态**,不是崩溃:说明 host 路由/采集器没答上来 | 看提示里的错误码(`collector-missing` / `no-subprocess` / `json-parse-failed` …) |
+| 设置里根本没有这张卡片 | 确认覆盖行是否真的生效(`disabled: false`)与 profile 是否重启过 | 再跑 §4 预检;确认 `dsh.profile.bundles` 里有 `remote-tailnet-guard`,并看宿主日志里那条 `settings namespace "remote-tailnet-guard" registered ...` 是 info 还是 warning(schema 库解析不到时是 warning,卡片按设计不出现) |
+| 卡片在,点开后只有一行"设置服务不可用" | 这一页拿不到本插件的设置命名空间(极少数情况:非本机页面,或预检 §4 第 4/5 条没通过) | 跑 §4 预检;卡片不写设置时**不会**误报成功,保存按钮也不会亮 |
 | **GUI 卡在恢复模式 / `Failed to load plugins`** | **立刻把覆盖行改回 `disabled: true`;若改不动或页面已打不开,就整文件还原 §5 第 1 步的备份,重启** | 恢复后在 `%TEMP%` 的一次性 profile 上按 §8 复现,别在日常 profile 上修 |
 | 想彻底消失 | `dsh plugin --profile <profile> remove remote-tailnet-guard` | 再核对 §6 第 4 步 |
 
@@ -549,7 +588,7 @@ dsh plugin --profile plugin-test remove remote-tailnet-guard
    的适配属于另一条任务线,不在本阶段结论内。
 6. **`<APP_DIR>` 下的行号**来自本机这一版安装镜像;DSH 升级后行号可能平移,文件名与结构才是判据。
 7. **插件页卡片:实测澄清 —— schema 库按 profile 侧解析,解析得到卡片就出现**。卡片能否渲染取决于两点同时成立 ——
-   ①host 半边成功注册了空 schema 的命名空间 `remote-tailnet-guard`;②client 半边把 `settings.plugin.item`
+   ①host 半边成功注册了带字段 schema 的命名空间 `remote-tailnet-guard`;②client 半边把 `settings.plugin.item`
    以同名字符串为 `key` 注册上。第①点依赖 **schema 库能否被运行时解析**
    (`@deepseek-ai/schemastery` / `schemastery`),而解析的起点是 **profile 目录**(loader 从 profile 解析行
    specifier),**不是** `link:` 目标目录:本机桌面 profile 的 `node_modules` 里有该库(其它插件带入),
@@ -557,6 +596,11 @@ dsh plugin --profile plugin-test remove remote-tailnet-guard
    行为是**已知且刻意的**(打 warning、不注册、卡片不出现、其余功能照常),已被 guard 住。
    判断口诀:分区出现 = 骨架加载成功;清单里出现该行 = 行真的被装进 profile;卡片出现 = 上面两点都成立
    (其中第①点取决于 profile 能否解析 schema 库)。真实装载时的日志观察见 §9.1。
+   **v0.4 之后尚未实测的部分**:卡片里点「保存」→ 平台设置服务 `settingsScope` → `<DSH_HOME>\settings.yaml`
+   的 `remote-tailnet-guard:` section → 采集器参数,这条链路目前只有静态与库级验证(schema 默认值、白名单映射、
+   两份 client 正文一致性都用真库/脚本跑过),**没有真实页面上的保存记录**;§9.1 那次装载发生在 v0.4 之前,
+   记录的是"座位能不能渲染",不是"设置能不能存"。真正装到一台机器上时,第一件要看的证据就是
+   `settings.yaml` 里有没有 `remote-tailnet-guard:` 这段。
 8. **退出码契约的自证范围**:`-SelfTest` 覆盖的是**静态**故障(入口缺失 / 行 id / 行 disabled / 共享正文漂移 /
    卡片座位消失 / 文档缺失)与基线;真实加载期的失败(路由注册失败、采集器超时、命名空间被占用)不在它的覆盖里。
 
@@ -571,6 +615,10 @@ dsh plugin --profile plugin-test remove remote-tailnet-guard
 [I] [remote-tailnet-guard] remote-tailnet-guard: read-only posture route ready at /remote-tailnet-guard/api (collector <REPO>\src\collect.ps1)
 [I] [remote-tailnet-guard] remote-tailnet-guard: settings namespace "remote-tailnet-guard" registered (the plugins-page card can render)
 ```
+
+> 这两行是 **v0.3 那次装载的原文**(实测记录,不改写历史)。v0.4 起第二行的措辞变成
+> `... registered with this plugin's check parameters (the plugins-page card can render and save them)`,
+> 判断方式不变:**info = 命名空间注册成功 = 卡片可以渲染;warning = schema 库没解析到 = 卡片按设计不出现**。
 
 两条都是 **info,没有 warning** —— 包括 §5.1 说的 namespace 注册:它**成功**了(profile 侧解析到了 schema 库),
 所以卡片这一格在本机是**渲染前提成立**的。§2.6 的 guard 没有触发。

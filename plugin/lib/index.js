@@ -1,7 +1,10 @@
 /*
  * remote-tailnet-guard - HOST half of the persistent DSH plugin (t43, phase 1).
- * LAST UPDATED : 2026-09-24 (v0.1 - first persistent-plugin skeleton; the row that mounts this
- * module ships disabled: see plugin/cordis.patch.yml and docs/install/plugin-package.md).
+ * LAST UPDATED : 2026-09-25 (v0.2 - the settings namespace the plugins-page card is keyed by now
+ * declares this plugin's own check parameters instead of an empty schema, and the route maps the
+ * stored values onto the collector's argument list through whitelists. v0.1 was the first
+ * persistent-plugin skeleton; the row that mounts this module ships disabled: see
+ * plugin/cordis.patch.yml and docs/install/plugin-package.md).
  *
  * This file is a REAL ESM module of the installed package (package.json `main`), NOT the body of a
  * cordis_define call. It is loaded by the profile's own Loader row, not by the dynamic Package
@@ -11,11 +14,18 @@
  *   * it registers ONE read-only HTTP route on the EXISTING DSH web server (no new listener, no new
  *     bind address, no new port) - the same mechanism dsh-ego-browser uses for its own gateway;
  *   * the route only runs the repository's read-only collector
- *     (`src/collect.ps1 -CheckOnly -AsJson -Role <role>`). -CheckOnly never writes, and the
- *     collector itself installs nothing, opens no listener and reads no credential material;
+ *     (`src/collect.ps1 -CheckOnly -AsJson ...`). -CheckOnly never writes, and the collector itself
+ *     installs nothing, opens no listener and reads no credential material;
+ *   * every collector argument the route adds comes from this plugin's OWN settings namespace, and
+ *     only after a whitelist walk (enums checked against their allowed set, free text rejected when
+ *     it starts with "-" or carries control characters, numbers accepted only inside the schema
+ *     bounds). A value can never become an argument the plugin did not intend to pass;
  *   * it returns leaf fields only (bounded checks + counts): raw probe output stays in the host
  *     process and never crosses to the page;
- *   * it installs nothing, changes no system setting, touches no profile file and never restarts DSH.
+ *   * it installs nothing, changes no system setting, touches no profile file and never restarts DSH;
+ *   * this half never writes the settings document. It only DECLARES the schema (which is what makes
+ *     the plugins-page card configurable); the values are written by the platform settings service
+ *     when the user saves the card.
  *
  * COMMANDS USED while writing this file (read-only; no client Inspect, no long waits):
  *   powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/plugin-preflight.ps1
@@ -48,6 +58,33 @@ const SCHEMA_LIBRARY_SPECIFIERS = ['@deepseek-ai/schemastery', 'schemastery'];
 const COLLECTOR_REL = '../../src/collect.ps1';
 /** Accepted -Role values; anything else falls back to 'both' instead of reaching the child process. */
 const ROLES = ['client', 'server', 'both'];
+/** Accepted -Strictness / -Lang values (collect.ps1 declares the same sets in its param block). */
+const STRICTNESSES = ['normal', 'strict'];
+const LANGS = ['auto', 'zh', 'en'];
+/**
+ * Settings field -> collector argument. One row per free-text parameter; the value is only passed
+ * when it survives pickText(), and the length cap keeps a stored value from becoming an unbounded
+ * argv element (the caps follow the usual limits for host names, profile names and Windows paths).
+ */
+const TEXT_ARGUMENTS = [
+  { field: 'peer', flag: '-Peer', max: 253 },
+  { field: 'peerName', flag: '-PeerName', max: 253 },
+  { field: 'profile', flag: '-Profile', max: 64 },
+  { field: 'tailnetDomain', flag: '-TailnetDomain', max: 253 },
+  { field: 'dshHome', flag: '-DshHome', max: 260 },
+  { field: 'appDir', flag: '-AppDir', max: 260 }
+];
+/** Settings field -> collector argument for the millisecond timeouts (bounds mirror the schema). */
+const NUMBER_ARGUMENTS = [
+  { field: 'tcpTimeoutMs', flag: '-TcpTimeoutMs', min: 1000, max: 60000, def: 5000 },
+  { field: 'dnsTimeoutMs', flag: '-DnsTimeoutMs', min: 1000, max: 60000, def: 4000 },
+  { field: 'commandTimeoutMs', flag: '-CommandTimeoutMs', min: 1000, max: 600000, def: 15000 }
+];
+/**
+ * Settings bounds that exist nowhere else: the port has no default (absent means "work it out from
+ * the environment"), so it is declared optional and accepted only inside the TCP port range.
+ */
+const PORT_FIELD = { field: 'port', flag: '-Port', min: 1, max: 65535 };
 const BODY_MAX_BYTES = 16384;
 const COLLECTOR_GRACE_MS = 120000;
 const STDOUT_MAX_BYTES = 8388608;
@@ -96,6 +133,125 @@ function pickRole(value) {
     }
   }
   return 'both';
+}
+
+/** Enum values only reach argv when they are one of the accepted words; anything else is dropped. */
+function pickEnum(value, allowed, fallback) {
+  if (typeof value === 'string') {
+    for (let index = 0; index < allowed.length; index += 1) {
+      if (allowed[index] === value) return value;
+    }
+  }
+  return fallback;
+}
+
+/**
+ * Free text only: empty, over-long, leading "-" (the child would read it as a parameter name) and
+ * control characters are all dropped, so a stored value can never widen the child's own surface.
+ */
+function pickText(value, max) {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (trimmed.length === 0 || trimmed.length > max) return '';
+  if (trimmed.charAt(0) === '-') return '';
+  for (let index = 0; index < trimmed.length; index += 1) {
+    const code = trimmed.charCodeAt(index);
+    if (code < 32 || code === 127) return '';
+  }
+  return trimmed;
+}
+
+/** Integers inside the schema's own bounds; anything else (float, string, out of range) is dropped. */
+function pickNumber(value, min, max) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || !Number.isInteger(value)) return null;
+  if (value < min || value > max) return null;
+  return value;
+}
+
+/**
+ * This plugin's settings, as one schemastery schema. It is ALSO the wire envelope the browser-side
+ * settings scope validates against, so every field stays expressible as plain schema JSON: only
+ * enum (union of constants), string, boolean and number are used here.
+ *
+ * Field list (name -> the collector argument it feeds):
+ *   role             -Role               which end of the link this machine is (client|server|both)
+ *   peer             -Peer               the other end, MagicDNS name or IP (absent = not checked)
+ *   peerName         -PeerName           peer MagicDNS name when -Peer was given as an address
+ *   profile          -Profile            which DSH profile to read patch files from
+ *   tailnetDomain    -TailnetDomain      this tailnet's DNS suffix (absent = built-in suffix match)
+ *   strictness       -Strictness         normal | strict (strict turns more checks into blockers)
+ *   noNative         -NoNative           skip the probes that need elevation
+ *   lang             -Lang               report label language (auto | zh | en)
+ *   port             -Port               this machine's DSH loopback port (absent = env, then built-in)
+ *   tcpTimeoutMs     -TcpTimeoutMs       TCP probe timeout
+ *   dnsTimeoutMs     -DnsTimeoutMs       name resolution timeout
+ *   commandTimeoutMs -CommandTimeoutMs   per-command timeout
+ *   dshHome          -DshHome            DSH data directory override
+ *   appDir           -AppDir             DSH application directory override
+ */
+function settingsSchema(schemaFactory) {
+  const fields = {
+    role: schemaFactory.union(ROLES).default('both'),
+    strictness: schemaFactory.union(STRICTNESSES).default('normal'),
+    noNative: schemaFactory.boolean().default(false),
+    lang: schemaFactory.union(LANGS).default('auto')
+  };
+  for (let index = 0; index < TEXT_ARGUMENTS.length; index += 1) {
+    fields[TEXT_ARGUMENTS[index].field] = schemaFactory.string().default('');
+  }
+  for (let index = 0; index < NUMBER_ARGUMENTS.length; index += 1) {
+    const row = NUMBER_ARGUMENTS[index];
+    fields[row.field] = schemaFactory.number().step(1).min(row.min).max(row.max).default(row.def);
+  }
+  fields[PORT_FIELD.field] = schemaFactory.number().step(1).min(PORT_FIELD.min).max(PORT_FIELD.max).required(false);
+  return schemaFactory.object(fields);
+}
+
+/** The settings service when this host has one; every read of it stays inside try/catch. */
+function readSettings(ctx) {
+  let service = null;
+  try {
+    service = ctx.get('settings');
+  } catch (error) {
+    service = null;
+  }
+  if (service === null || service === undefined || typeof service.get !== 'function') return null;
+  try {
+    const value = service.get(SETTINGS_NS);
+    if (value === null || typeof value !== 'object') return null;
+    return value;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * The collector argument tail: every parameter this run passes beyond -CheckOnly -AsJson. The stored
+ * settings are the source; when the namespace is not served (no schema library reachable, or no
+ * settings service in this host) the request body's role is still honoured, so the route keeps
+ * working exactly as it did before the settings existed.
+ */
+function argumentTail(settings, bodyRole) {
+  const stored = settings === null ? {} : settings;
+  const tail = ['-Role', pickEnum(stored.role, ROLES, pickRole(bodyRole))];
+  const strictness = pickEnum(stored.strictness, STRICTNESSES, '');
+  if (strictness !== '') tail.push('-Strictness', strictness);
+  const lang = pickEnum(stored.lang, LANGS, '');
+  if (lang !== '') tail.push('-Lang', lang);
+  if (stored.noNative === true) tail.push('-NoNative');
+  const port = pickNumber(stored[PORT_FIELD.field], PORT_FIELD.min, PORT_FIELD.max);
+  if (port !== null) tail.push(PORT_FIELD.flag, String(port));
+  for (let index = 0; index < TEXT_ARGUMENTS.length; index += 1) {
+    const row = TEXT_ARGUMENTS[index];
+    const text = pickText(stored[row.field], row.max);
+    if (text !== '') tail.push(row.flag, text);
+  }
+  for (let index = 0; index < NUMBER_ARGUMENTS.length; index += 1) {
+    const row = NUMBER_ARGUMENTS[index];
+    const value = pickNumber(stored[row.field], row.min, row.max);
+    if (value !== null) tail.push(row.flag, String(value));
+  }
+  return tail;
 }
 
 /** Evidence confidence lives on the check in one shape and on check.evidence in the other. */
@@ -201,10 +357,11 @@ function guardOrigin(req) {
 }
 
 /**
- * Run the repository's read-only collector once and return a bounded report.
+ * Run the repository's read-only collector once, with the arguments built from this plugin's
+ * settings, and return a bounded report.
  * Failure is always reported as `ok:false` + a machine-readable code - never as an empty pass.
  */
-async function runCollector(ctx, collectorPath, role) {
+async function runCollector(ctx, collectorPath, tail) {
   if (!existsSync(collectorPath)) {
     return { ok: false, code: 'collector-missing', message: 'not found: ' + collectorPath };
   }
@@ -218,7 +375,7 @@ async function runCollector(ctx, collectorPath, role) {
   } catch (error) {
     return { ok: false, code: 'powershell-missing', message: String(error && error.message ? error.message : error) };
   }
-  const argv = [exe, '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', collectorPath, '-CheckOnly', '-AsJson', '-Role', role];
+  const argv = [exe, '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', collectorPath, '-CheckOnly', '-AsJson'].concat(tail);
   let handle = null;
   try {
     handle = subprocess.spawn({
@@ -307,7 +464,8 @@ export function apply(ctx) {
               return;
             }
             const body = await readJsonBody(req);
-            const result = await runCollector(ctx, collectorPath, pickRole(body.role));
+            const tail = argumentTail(readSettings(ctx), body.role);
+            const result = await runCollector(ctx, collectorPath, tail);
             writeJson(res, 200, result);
           } catch (error) {
             writeJson(res, 500, { ok: false, code: 'internal', message: String(error && error.message ? error.message : error) });
@@ -327,11 +485,14 @@ export function apply(ctx) {
     }, 'remote-tailnet-guard: read-only posture route on the existing web server');
   });
 
-  // Plugins-page card seat (t46). The card the client half registers under
-  // 'settings.plugin.item' is keyed by this namespace, and the configurable tab renders a card only
-  // for a SERVED namespace, so the namespace has to exist on this side. Two deliberate properties:
-  //   * the schema has NO fields - nothing about this plugin becomes configurable, and this half
-  //     never calls update()/replace(), so no value is ever written to the user's settings document;
+  // Plugins-page card seat (t46) + the settings the card edits (t47). The card the client half
+  // registers under 'settings.plugin.item' is keyed by this namespace, and the configurable tab
+  // renders it only for a SERVED namespace, so the namespace has to exist on this side. Properties:
+  //   * the schema DECLARES this plugin's own check parameters (role, peer, profile, timeouts, ...):
+  //     that declaration is what makes the card configurable and what every write is validated
+  //     against, and the same values are read back in the route above to build the collector argv;
+  //   * this half never calls update()/replace(): the card saves through the platform settings
+  //     service, so the value only ever lands in the user's own settings document;
   //   * the whole step is optional and guarded: an unreachable schema library logs a warning and
   //     skips the registration instead of failing the load.
   ctx.effect(function () {
@@ -344,13 +505,13 @@ export function apply(ctx) {
           return;
         }
         try {
-          sctx.settings.register(SETTINGS_NS, schemaFactory.object({}), { applies: 'live' });
-          logLine(ctx, 'info', 'remote-tailnet-guard: settings namespace "' + SETTINGS_NS + '" registered (the plugins-page card can render)');
+          sctx.settings.register(SETTINGS_NS, settingsSchema(schemaFactory), { base: {}, applies: 'live' });
+          logLine(ctx, 'info', 'remote-tailnet-guard: settings namespace "' + SETTINGS_NS + '" registered with this plugin\'s check parameters (the plugins-page card can render and save them)');
         } catch (error) {
           logLine(ctx, 'warn', 'remote-tailnet-guard: settings namespace "' + SETTINGS_NS + '" was refused: ' + errorText(error));
         }
       });
     });
     return function () { cancelled = true; };
-  }, 'remote-tailnet-guard: optional settings namespace for the plugins-page card');
+  }, 'remote-tailnet-guard: settings namespace with this plugin\'s check parameters');
 }
