@@ -1,9 +1,11 @@
 # remote-tailnet-guard
 
-**One line**: judge the posture of the cross-network DSH link from machine A to machine B.
+**Purpose**: inside the DSH on machine A, a browser plugin drives an authenticated channel page
+to operate the DSH running on machine B - the two DSH instances link up (agent to agent).
 
-It is read-only and report-only. It installs nothing, changes no configuration,
-forwards no traffic, and uninstalls cleanly.
+**This repository's role**: read-only checkup, prerequisite checks, a read-only panel
+and a clean uninstall for that link. It installs nothing, changes no configuration,
+forwards no traffic.
 For making the link itself work, see the skill `dsh-remote-tailnet`; this repository does not build the link.
 
 [简体中文](README.md) · MIT

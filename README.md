@@ -1,16 +1,17 @@
 # remote-tailnet-guard
 
-**一句话**：判定 A 电脑到 B 电脑 DSH 的跨网链路现在处于什么姿态。
+**目的**：在 A 电脑的 DSH 里，通过浏览器插件驱动已登录的通道页面，
+直接操作 B 电脑上运行的 DSH，两台 DSH 由此联动（agent 对 agent）。
 
-它只读、只报，不装任何东西，不改任何配置，不转发流量，可以干净卸载。
-要打通链路本身，看 skill `dsh-remote-tailnet`；本仓库不负责打通。
+**本仓库的角色**：只读体检、前置件检查、只读面板、完整卸载。
+它只读、只报，不装任何东西，不改任何配置，不转发流量。
+打通链路本身，看 skill `dsh-remote-tailnet`；本仓库不负责打通。
 
 [English](README.en.md) · MIT
 
 > 发布集门禁逐字检查下面的英文标记，请勿改动。
 > Internal analysis and review material does not ship with the repository。
-> 内部评审材料不随仓库发布。
-> 安全策略入口是 `SECURITY.md`；许可为 MIT。
+> 内部评审材料不随仓库发布。安全策略入口是 `SECURITY.md`；许可为 MIT。
 > The plugin is read-only and report-only。插件只读、只报。
 
 ## 1　这是什么
@@ -91,7 +92,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\uninstall.ps1 -Plan
 | `unknown` | 没有探测能回答，绝不通过 |
 
 判定是 fail-closed：不确定绝不当通过。严格模式下 unknown 抬升为退出码 2。
-
 退出码：
 
 | 退出码 | 含义 |
