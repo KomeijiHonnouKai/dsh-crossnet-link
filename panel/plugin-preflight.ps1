@@ -1,7 +1,7 @@
 <#
   remote-tailnet-guard - read-only preflight for the PERSISTENT plugin package (tasks t43 + t46).
-  LAST UPDATED : 2026-09-24 (t46: per-check severity + the 0/1/2 exit-code contract, the two-seat
-  assertions (settings.section + settings.plugin.item) and the -SelfTest fault-injection proof).
+  LAST UPDATED : 2026-09-25 (v0.3: the standalone settings-section seat is removed; the plugin is a
+  standard plugins-page card only - the single-card assertions and the -SelfTest fault-injection proof).
 
   WHAT IT PROVES (all read-only, nothing is executed and nothing is written anywhere by a normal
   run - the only writer is -SelfTest, and it writes inside %TEMP% exclusively):
@@ -24,9 +24,9 @@
             absent this is printed as SKIP (never silently dropped) and does not change the verdict.
     (4) the inserted row is self-consistent and SAFE: exactly one row, `id` and `name` both equal
         package.json `name`, and `disabled: true` (the deliberate safety default).
-    (5) BOTH seats are registered in BOTH client files: `settings.section` (the settings page entry,
-        id == package name) and `settings.plugin.item` (the Settings -> Plugins card, key == the
-        settings namespace the host half declares). The host half must declare that namespace through
+    (5) the single card seat: `settings.plugin.item` is registered exactly once in BOTH client files
+        (key == the settings namespace the host half declares == package name), and NO `settings.section`
+        seat is registered anywhere. The host half must declare that namespace through
         a GUARDED runtime lookup and must not carry a static schema-library import (a static import
         that cannot resolve would break the whole host half on a `link:` install).
     (6) the inventory: which files an install/enable would touch, what to back up first, and the
@@ -318,7 +318,7 @@ function Invoke-PreflightSelfTest {
         Write-Text -Path $patchCopy -Text ((Read-Text -Path $patchCopy) -replace 'disabled: true', 'disabled: false')
       }
       if ($case.Mutate -eq 'break-shared-body') {
-        Write-Text -Path $srcCopy -Text ((Read-Text -Path $srcCopy) -replace "const SECTION_LABEL = 'Remote access link \(read-only posture\)';", "const SECTION_LABEL = 'Remote access link (read-only posture) DRIFTED';")
+        Write-Text -Path $srcCopy -Text ((Read-Text -Path $srcCopy) -replace "const SETTINGS_NS = 'remote-tailnet-guard';", "const SETTINGS_NS = 'remote-tailnet-guard-DRIFTED';")
       }
       if ($case.Mutate -eq 'drop-card-seat') {
         Write-Text -Path $bundCopy -Text ((Read-Text -Path $bundCopy) -replace "'settings\.plugin\.item'", "'settings.plugin.item.dropped'")
@@ -474,7 +474,7 @@ if ((Test-Path -LiteralPath $bundlePath) -and (Test-Path -LiteralPath $sourcePat
 }
 
 # ---------------------------------------------------------------------------
-# (3b) BOTH seats, in BOTH client files, plus the host-side namespace they need (t46)
+# (3b) the single card seat in BOTH client files (no settings.section), plus the host-side namespace it needs
 # ---------------------------------------------------------------------------
 function Get-SeatReport {
   param([string]$Text)
@@ -491,10 +491,9 @@ if ((Test-Path -LiteralPath $bundlePath) -and (Test-Path -LiteralPath $sourcePat
     [pscustomobject]@{ Id = 'lib/client/index.js'; Text = (Read-Text -Path $sourcePath) }
   )) {
     $report = Get-SeatReport -Text $seatFile.Text
-    Add-Equal -Id ('seat.' + $seatFile.Id + '.section') -Rule ($seatFile.Id + ' registers the settings-page seat (settings.section) exactly once') -Expected 1 -Actual $report.Section
+    Add-Equal -Id ('seat.' + $seatFile.Id + '.section') -Rule ($seatFile.Id + ' registers NO standalone settings-page seat (settings.section) - the plugin is a standard plugins-page card only') -Expected 0 -Actual $report.Section
     Add-Equal -Id ('seat.' + $seatFile.Id + '.card') -Rule ($seatFile.Id + ' registers the plugins-page card seat (settings.plugin.item) exactly once') -Expected 1 -Actual $report.Card
-    $label = 'SECTION_ID'
-    Add-Equal -Id ('seat.' + $seatFile.Id + '.section-id') -Rule ($seatFile.Id + ' keys the section by ' + $label + ' (== package name)') -Expected 1 -Actual $report.SectionId
+    Add-Equal -Id ('seat.' + $seatFile.Id + '.section-id') -Rule ($seatFile.Id + ' leaves no SECTION_ID seat id (the section seat was removed)') -Expected 0 -Actual $report.SectionId
     Add-Equal -Id ('seat.' + $seatFile.Id + '.card-key') -Rule ($seatFile.Id + ' keys the card by SETTINGS_NS (== the host settings namespace)') -Expected 1 -Actual $report.CardKey
     $nsLiteral = "const SETTINGS_NS = '" + [string]$pkg.name + "';"
     $hasLiteral = $seatFile.Text.IndexOf($nsLiteral, [StringComparison]::Ordinal) -ge 0

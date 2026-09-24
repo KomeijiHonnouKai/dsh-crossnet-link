@@ -1,45 +1,33 @@
 /*
- * remote-tailnet-guard - CLIENT half of the persistent DSH plugin (t43, phase 1) - ESM SOURCE.
- * LAST UPDATED : 2026-09-24 (v0.1 - first persistent-plugin skeleton; the row that mounts this
- * package ships disabled: see plugin/cordis.patch.yml and docs/install/plugin-package.md).
+ * remote-tailnet-guard - CLIENT half of the persistent DSH plugin - ESM SOURCE.
+ * LAST UPDATED : 2026-09-25 (v0.3 - see ../client.js: the standalone settings-section seat is
+ * removed; the plugin now registers only the standard plugins-page card, folded and in Chinese).
  *
- * WHAT THIS FILE IS: the readable, importable source of the settings-page section. It registers the
- * SAME read-only section as the dynamic Package panel (panel/client-half.js): same section id, same
- * label, same notices, same verdict rendering. Only the transport differs - a dynamic Package calls
- * its host half through `host.call`, an installed plugin calls its own host half through a
- * same-origin POST on the existing web server (plugin/lib/index.js registers that route).
- *
- * HOW IT REACHES THE BROWSER: it does NOT, directly. The runtime entry named by package.json
- * `exports['./client']` is ../client.js, the browser bundle, because every client half in this DSH
- * release is a factory-form bundle registered with `window.__ModuleLoader__.load`
- * (dsh-client-modules/lib/client.js:229-233 requires it and :248 throws when a bundle does not
- * register). The region between the two SHARED BODY markers below is kept byte-identical to the
- * bundle; panel/plugin-preflight.ps1 fails if the two ever drift apart.
- *
- * Builtins available to the bundle: `React` (platform seed `react`, see the seed table in
- * dsh-web-frontend/dist/assets/index-*.js) and `fetch`. Nothing else is imported.
+ * WHAT THIS FILE IS: the readable, importable source of the plugins-page card. The runtime entry
+ * named by package.json exports['./client'] is ../client.js (the browser bundle); the region between
+ * the two SHARED BODY markers below is kept byte-identical to the bundle, and
+ * panel/plugin-preflight.ps1 fails if the two ever drift apart.
  */
 import React from 'react';
-
 // ==== SHARED BODY BEGIN (byte-identical in lib/client.js and lib/client/index.js) ====
-const SECTION_ID = 'remote-tailnet-guard';
-const SECTION_LABEL = 'Remote access link (read-only posture)';
-// Plugins-page card key (t46): the configurable tab inside 'settings.plugins.tab' renders one card
-// per SERVED settings namespace, so this key must equal the namespace the host half registers.
 const SETTINGS_NS = 'remote-tailnet-guard';
 const CARD_ORDER = 100;
 const ROUTE = '/remote-tailnet-guard/api/posture';
+const CSS_ID = 'dsh-rtg-card-css';
+const CARD_TITLE = '\u8de8\u7f51\u94fe\u8def\u59ff\u6001';
+const CARD_DESC = '\u53ea\u8bfb\u4f53\u68c0:\u5224\u5b9a\u4e24\u53f0 DSH \u4e4b\u95f4\u7684\u94fe\u8def\u59ff\u6001,\u4e0d\u88c5\u4efb\u4f55\u4e1c\u897f\u3001\u4e0d\u6539\u4efb\u4f55\u914d\u7f6e\u3002';
+const CARD_CSS = '.dsh-rtg-card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:12px;list-style:none;transition:border-color .16s,background .16s}.dsh-rtg-card:hover{border-color:var(--dsw-alias-label-dimmed)}.dsh-rtg-card--open{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-label-dimmed)}.dsh-rtg-card__header{appearance:none;width:100%;font:inherit;color:inherit;text-align:left;cursor:pointer;background:0 0;border:0;border-radius:12px;align-items:center;gap:12px;padding:14px 16px;display:flex}.dsh-rtg-card__header:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.dsh-rtg-card__head-text{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.dsh-rtg-card__name{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:600;line-height:1.4}.dsh-rtg-card__desc{color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:1.5}.dsh-rtg-card__chevron{color:var(--dsw-alias-label-tertiary);flex:none;transition:transform .16s;display:inline-flex;align-items:center}.dsh-rtg-card__chevron--open{transform:rotate(180deg)}.dsh-rtg-card__body{border-top:1px solid var(--dsw-alias-border-l2);margin:0 16px;padding:12px 0 4px}';
 const VERDICT_STYLE = {
-  blocked: { label: 'BLOCKED', color: '#c0392b' },
-  unknown: { label: 'UNKNOWN', color: '#8a6d00' },
-  degraded: { label: 'DEGRADED', color: '#8a6d00' },
-  pass: { label: 'PASS', color: '#1e7a34' }
+  blocked: { label: '\u963b\u65ad', color: '#c0392b' },
+  unknown: { label: '\u672a\u77e5', color: '#8a6d00' },
+  degraded: { label: '\u964d\u7ea7', color: '#8a6d00' },
+  pass: { label: '\u901a\u8fc7', color: '#1e7a34' }
 };
 const CREDENTIAL_NOTICES = [
-  'This panel reads no credential material: no token, no cookie, no key file, no DSH secret store.',
-  'It displays verdicts only - raw probe output stays on the host and never crosses the bridge.',
-  'It installs nothing, opens no listener, changes no system setting and never restarts DSH.',
-  'Nothing is changed here: no system setting, no firewall rule, no profile, no cordis.patch.yml and no other plugin configuration. Suggested fixes are printed for you to run - the panel itself only reports.'
+  '\u672c\u9762\u677f\u4e0d\u8bfb\u4efb\u4f55\u51ed\u636e\u6750\u6599:\u6ca1\u6709 token\u3001\u6ca1\u6709 cookie\u3001\u6ca1\u6709\u5bc6\u94a5\u6587\u4ef6\u3001\u6ca1\u6709\u51ed\u636e\u5e93\u3002',
+  '\u53ea\u663e\u793a\u5224\u5b9a:\u539f\u59cb\u63a2\u6d4b\u8f93\u51fa\u7559\u5728\u4e3b\u673a,\u4e0d\u8fc7\u6865\u3002',
+  '\u4e0d\u88c5\u4efb\u4f55\u4e1c\u897f\u3001\u4e0d\u5f00\u76d1\u542c\u3001\u4e0d\u6539\u4efb\u4f55\u7cfb\u7edf\u8bbe\u7f6e\u3001\u4ece\u4e0d\u91cd\u542f DSH\u3002',
+  '\u8fd9\u91cc\u4e0d\u6539\u4efb\u4f55\u4e1c\u897f:\u4e0d\u6539\u7cfb\u7edf\u8bbe\u7f6e\u3001\u9632\u706b\u5899\u89c4\u5219\u3001profile\u3001cordis.patch.yml,\u4e5f\u4e0d\u6539\u5176\u5b83\u63d2\u4ef6\u914d\u7f6e;\u5efa\u8bae\u7684\u4fee\u590d\u6253\u5370\u7ed9\u4f60\u6267\u884c,\u9762\u677f\u53ea\u62a5\u544a\u3002'
 ];
 
 function readString(value, fallback) {
@@ -56,20 +44,20 @@ function severityOf(verdict) {
 
 function styleOf(verdict) {
   if (Object.prototype.hasOwnProperty.call(VERDICT_STYLE, verdict)) return VERDICT_STYLE[verdict];
-  return { label: 'UNKNOWN', color: '#555555' };
+  return { label: '\u672a\u77e5', color: '#555555' };
 }
 
 function countLine(summary) {
   if (summary === null || typeof summary !== 'object') return '';
-  return 'pass=' + summary.pass + '  degraded=' + summary.degraded + '  blocked=' + summary.blocked +
-    '  unknown=' + summary.unknown + '   (total ' + summary.total + ')';
+  return '\u901a\u8fc7=' + summary.pass + '  \u964d\u7ea7=' + summary.degraded + '  \u963b\u65ad=' + summary.blocked +
+    '  \u672a\u77e5=' + summary.unknown + '  \uff08\u5171 ' + summary.total + '\uff09';
 }
 
 function exitReading(summary) {
   if (summary === null || typeof summary !== 'object') return '';
-  if (summary.exitCode === 0) return 'exit 0 = every judgement passed.';
-  if (summary.exitCode === 1) return 'exit 1 = degraded and/or unknown. The link may work, but nothing unproven counts as passing.';
-  return 'exit 2 = a fail-closed verdict, NOT a command failure: at least one blocked finding, or the collector itself could not run.';
+  if (summary.exitCode === 0) return '\u9000\u51fa 0 = \u6bcf\u4e00\u9879\u90fd\u901a\u8fc7\u3002';
+  if (summary.exitCode === 1) return '\u9000\u51fa 1 = \u6709\u964d\u7ea7\u6216\u672a\u77e5\u3002\u94fe\u8def\u53ef\u80fd\u53ef\u7528,\u4f46\u672a\u7ecf\u8bc1\u660e\u7684\u4e0d\u7b97\u901a\u8fc7\u3002';
+  return '\u9000\u51fa 2 = fail-closed \u5224\u5b9a,\u4e0d\u662f\u547d\u4ee4\u5931\u8d25:\u81f3\u5c11\u4e00\u9879\u963b\u65ad,\u6216\u91c7\u96c6\u5668\u672c\u8eab\u8dd1\u4e0d\u8d77\u6765\u3002';
 }
 
 function queryPosture(role) {
@@ -81,7 +69,7 @@ function queryPosture(role) {
     return response.json();
   }).then(function (payload) {
     if (payload !== null && typeof payload === 'object' && payload.ok === true) return payload;
-    throw new Error(readString(payload && payload.message, 'the host route returned no usable result'));
+    throw new Error(readString(payload && payload.message, '\u4e3b\u673a\u8def\u7531\u6ca1\u6709\u8fd4\u56de\u53ef\u7528\u7ed3\u679c'));
   });
 }
 
@@ -92,13 +80,13 @@ function itemRow(check, key) {
     badges.push(React.createElement('span', {
       key: 'conf',
       style: { marginLeft: '6px', padding: '1px 4px', border: '1px solid #b58900', borderRadius: '3px', fontSize: '11px', color: '#8a6d00' }
-    }, 'low confidence: localized-text path, reported as degraded'));
+    }, '\u4f4e\u7f6e\u4fe1\u5ea6:\u672c\u5730\u5316\u6587\u672c\u8def\u5f84,\u8bb0\u4e3a\u964d\u7ea7'));
   }
   if (check.manualReview === true) {
     badges.push(React.createElement('span', {
       key: 'manual',
       style: { marginLeft: '6px', padding: '1px 4px', border: '1px solid #777777', borderRadius: '3px', fontSize: '11px', color: '#555555' }
-    }, 'manual step required'));
+    }, '\u9700\u4eba\u5de5\u5904\u7406'));
   }
   const children = [
     React.createElement('div', { key: 'head', style: { marginBottom: '2px' } },
@@ -108,8 +96,8 @@ function itemRow(check, key) {
     ),
     React.createElement('div', { key: 'reason', style: { fontSize: '13px' } }, check.reason),
     check.manualQuestion ? React.createElement('div', { key: 'mq', style: { fontSize: '12px', color: '#555555', marginTop: '2px' } }, check.manualQuestion) : null,
-    check.remediationAction ? React.createElement('div', { key: 'ra', style: { fontSize: '12px', marginTop: '2px' } }, 'fix (yours to run, nothing was applied): ' + check.remediationAction) : null,
-    check.remediationRollback ? React.createElement('div', { key: 'rr', style: { fontSize: '12px', color: '#555555' } }, 'rollback: ' + check.remediationRollback) : null
+    check.remediationAction ? React.createElement('div', { key: 'ra', style: { fontSize: '12px', marginTop: '2px' } }, '\u4fee\u590d(\u7531\u4f60\u6267\u884c,\u672a\u5e94\u7528): ' + check.remediationAction) : null,
+    check.remediationRollback ? React.createElement('div', { key: 'rr', style: { fontSize: '12px', color: '#555555' } }, '\u56de\u6eda: ' + check.remediationRollback) : null
   ];
   return React.createElement('li', {
     key: key,
@@ -143,39 +131,35 @@ function GuardPanel() {
 
   const blocks = [];
 
-  blocks.push(React.createElement('h3', { key: 'title', style: { margin: '0 0 4px 0' } }, SECTION_LABEL));
-  blocks.push(React.createElement('div', { key: 'sub', style: { fontSize: '12px', color: '#666666', marginBottom: '10px' } },
-    'Read-only. Verdicts come from remote-tailnet-plugin/src/collect.ps1 - nothing is installed, no listener is opened, no setting is changed.'));
-
   const controls = [];
-  controls.push(React.createElement('label', { key: 'rolelabel', style: { fontSize: '12px', marginRight: '6px' } }, 'perspective:'));
+  controls.push(React.createElement('label', { key: 'rolelabel', style: { fontSize: '12px', marginRight: '6px' } }, '\u89c6\u89d2:'));
   controls.push(React.createElement('select', {
     key: 'role',
     value: role,
     onChange: function (event) { setRole(event.target.value); },
     style: { fontSize: '12px', marginRight: '8px' }
   },
-    React.createElement('option', { key: 'client', value: 'client' }, 'client (this machine just uses the link)'),
-    React.createElement('option', { key: 'server', value: 'server' }, 'server (this machine serves the link)'),
-    React.createElement('option', { key: 'both', value: 'both' }, 'both')
+    React.createElement('option', { key: 'client', value: 'client' }, '\u5ba2\u6237\u7aef(\u8fd9\u53f0\u673a\u5668\u53ea\u7528\u8fd9\u6761\u94fe\u8def)'),
+    React.createElement('option', { key: 'server', value: 'server' }, '\u670d\u52a1\u7aef(\u8fd9\u53f0\u673a\u5668\u63d0\u4f9b\u8fd9\u6761\u94fe\u8def)'),
+    React.createElement('option', { key: 'both', value: 'both' }, '\u4e24\u8005')
   ));
   controls.push(React.createElement('button', {
     key: 'refresh',
     type: 'button',
     onClick: function () { setNonce(nonce + 1); },
     style: { fontSize: '12px' }
-  }, state.phase === 'loading' ? 'checking...' : 'refresh'));
+  }, state.phase === 'loading' ? '\u68c0\u67e5\u4e2d\u2026' : '\u5237\u65b0'));
   blocks.push(React.createElement('div', { key: 'controls', style: { marginBottom: '10px' } }, controls));
   blocks.push(React.createElement('div', { key: 'rolehint', style: { fontSize: '12px', color: '#666666', marginBottom: '10px' } },
-    'A client-only machine should use the client perspective: the server-only checks are then not emitted at all, so the summary cannot report a server-side gap you do not have.'));
+    '\u7eaf\u5ba2\u6237\u7aef\u673a\u5668\u8bf7\u9009\u5ba2\u6237\u7aef\u89c6\u89d2:\u670d\u52a1\u7aef\u68c0\u67e5\u9879\u4e0d\u4f1a\u51fa\u73b0,\u6458\u8981\u4e5f\u5c31\u4e0d\u4f1a\u62a5\u4f60\u6ca1\u6709\u7684\u670d\u52a1\u7aef\u7f3a\u53e3\u3002'));
 
   if (state.phase === 'loading') {
-    blocks.push(React.createElement('p', { key: 'loading' }, 'Querying the collector on the host...'));
+    blocks.push(React.createElement('p', { key: 'loading' }, '\u6b63\u5728\u4e3b\u673a\u4e0a\u67e5\u8be2\u91c7\u96c6\u5668\u2026'));
   } else if (state.phase === 'failed') {
     blocks.push(React.createElement('p', { key: 'failed', style: { color: '#c0392b' } },
-      'No posture available yet: ' + state.error));
+      '\u6682\u65e0\u59ff\u6001\u6570\u636e: ' + state.error));
     blocks.push(React.createElement('p', { key: 'hint', style: { fontSize: '12px', color: '#666666' } },
-      'This is reported as unknown, never as passing. If the message mentions the route or the collector path, the host half of this plugin is not serving it: the row is either still disabled or its route failed to register (docs/install/plugin-package.md).'));
+      '\u8fd9\u8bb0\u4e3a\u672a\u77e5\u3001\u7edd\u4e0d\u8bb0\u4e3a\u901a\u8fc7\u3002\u82e5\u63d0\u793a\u63d0\u5230\u8def\u7531\u6216\u91c7\u96c6\u5668\u8def\u5f84,\u8bf4\u660e host \u534a\u8fb9\u6ca1\u6709\u5728\u670d\u52a1:\u8981\u4e48\u90a3\u884c\u4ecd\u88ab\u7981\u7528,\u8981\u4e48\u8def\u7531\u6ce8\u518c\u5931\u8d25\u3002'));
   } else {
     const payload = state.payload;
     const summary = payload.summary;
@@ -188,11 +172,11 @@ function GuardPanel() {
     ));
     blocks.push(React.createElement('div', { key: 'exit', style: { fontSize: '12px', marginBottom: '4px' } }, exitReading(summary)));
     blocks.push(React.createElement('div', { key: 'failclosed', style: { fontSize: '12px', color: '#666666', marginBottom: '4px' } },
-      'fail-closed: ' + readString(summary.failClosed, 'any unknown forbids exit 0') + ' - an unknown is never rendered as a pass.'));
+      '\u5931\u6548\u5173\u95ed: ' + readString(summary.failClosed, '\u4efb\u4f55\u672a\u77e5\u90fd\u4e0d\u5141\u8bb8\u9000\u51fa 0')));
     blocks.push(React.createElement('div', { key: 'provenance', style: { fontSize: '11px', color: '#777777', marginBottom: '10px', fontFamily: 'monospace' } },
-      'source=' + readString(payload.source, 'unknown') +
-      '  script=' + readString(payload.script, '(not reported)') +
-      '  generated=' + readString(summary.generatedAtLocal, '(unknown)')));
+      '\u6765\u6e90=' + readString(payload.source, '\u672a\u77e5') +
+      '  \u811a\u672c=' + readString(payload.script, '(\u672a\u62a5\u544a)') +
+      '  \u751f\u6210=' + readString(summary.generatedAtLocal, '(\u672a\u77e5)')));
 
     const ordered = checks.slice(0).sort(function (left, right) {
       const delta = severityOf(left.verdict) - severityOf(right.verdict);
@@ -200,7 +184,7 @@ function GuardPanel() {
       return String(left.id) < String(right.id) ? -1 : 1;
     });
     blocks.push(React.createElement('div', { key: 'itemsHead', style: { fontSize: '12px', color: '#666666', marginBottom: '4px' } },
-      'All judgements, worst first (' + ordered.length + '):'));
+      '\u5168\u90e8\u5224\u5b9a,\u6700\u4e25\u91cd\u5728\u524d(' + ordered.length + '):'));
     const rows = [];
     for (let index = 0; index < ordered.length; index += 1) rows.push(itemRow(ordered[index], ordered[index].id));
     blocks.push(React.createElement('ul', { key: 'items', style: { listStyle: 'none', paddingLeft: '0', margin: '0 0 12px 0' } }, rows));
@@ -211,7 +195,7 @@ function GuardPanel() {
     }
     if (manual.length > 0) {
       blocks.push(React.createElement('div', { key: 'manualhead', style: { fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' } },
-        'Steps only a human can take (never automated here):'));
+        '\u53ea\u80fd\u7531\u4eba\u505a\u7684\u4e8b(\u6b64\u5904\u4ece\u4e0d\u52a8\u624b):'));
       const manualRows = [];
       for (let index = 0; index < manual.length; index += 1) {
         manualRows.push(React.createElement('li', { key: 'm' + manual[index].id, style: { fontSize: '12px', marginBottom: '3px' } },
@@ -222,7 +206,7 @@ function GuardPanel() {
   }
 
   blocks.push(React.createElement('div', { key: 'credhead', style: { fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' } },
-    'Credential discipline and the no-change promise'));
+    '\u51ed\u636e\u7eaa\u5f8b\u4e0e\u4e0d\u6539\u52a8\u627f\u8bfa'));
   const notices = [];
   for (let index = 0; index < CREDENTIAL_NOTICES.length; index += 1) {
     notices.push(React.createElement('li', { key: 'c' + index, style: { fontSize: '12px', marginBottom: '2px' } }, CREDENTIAL_NOTICES[index]));
@@ -232,26 +216,47 @@ function GuardPanel() {
   return React.createElement('div', { style: { padding: '4px 0 8px 0' } }, blocks);
 }
 
+function GuardCard() {
+  const openPair = React.useState(false);
+  const open = openPair[0];
+  const setOpen = openPair[1];
+  const header = React.createElement('button', {
+    type: 'button',
+    className: 'dsh-rtg-card__header',
+    'aria-expanded': open,
+    onClick: function () { setOpen(!open); }
+  },
+    React.createElement('span', { className: 'dsh-rtg-card__head-text' },
+      React.createElement('span', { className: 'dsh-rtg-card__name' }, CARD_TITLE),
+      React.createElement('span', { className: 'dsh-rtg-card__desc' }, CARD_DESC)
+    ),
+    React.createElement('span', { className: 'dsh-rtg-card__chevron' + (open ? ' dsh-rtg-card__chevron--open' : '') }, '\u25be')
+  );
+  return React.createElement('li', { className: 'dsh-rtg-card' + (open ? ' dsh-rtg-card--open' : '') },
+    header,
+    open ? React.createElement('div', { className: 'dsh-rtg-card__body' }, React.createElement(GuardPanel, null)) : null
+  );
+}
+
 function apply(ctx) {
-  // Seat 1 (t43): the standalone settings page entry.
-  ctx.slots.inject('settings.section', function () {
-    return ctx.slots.register(
-      { name: 'settings.section', id: SECTION_ID, order: 100, label: SECTION_LABEL },
-      function () { return React.createElement(GuardPanel, null); }
-    );
-  });
-  // Seat 2 (t46): the card inside Settings -> Plugins. Same panel, same read-only content; the
-  // slot is keyed by the settings namespace the host half registers, and the section supplies no
-  // owner props (the card draws its own label), so the identical component serves both seats.
+  ctx.effect(function () {
+    if (typeof document === 'undefined') return;
+    if (document.getElementById(CSS_ID) !== null) return;
+    const tag = document.createElement('style');
+    tag.id = CSS_ID;
+    tag.dataset.plugin = 'remote-tailnet-guard';
+    tag.textContent = CARD_CSS;
+    document.head.appendChild(tag);
+    return function () { tag.remove(); };
+  }, 'remote-tailnet-guard: settings card css');
   ctx.slots.inject('settings.plugin.item', function () {
     return ctx.slots.register(
       { name: 'settings.plugin.item', key: SETTINGS_NS, order: CARD_ORDER },
-      function () { return React.createElement(GuardPanel, null); }
+      function () { return React.createElement(GuardCard, null); }
     );
   });
 }
 // ==== SHARED BODY END ====
-
 export const name = 'remote-tailnet-guard';
 export const inject = ['slots'];
 export { apply };

@@ -125,11 +125,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\uninstall.ps1 -Plan
 三步与回滚见 `docs/install/plugin-package.md`；
 给 AI 读的带人话版本见 `docs/install/agent-brief.md`。
 
-- 设置页出现分区：骨架加载成功。
 - 插件清单里出现那一行：装进了 profile，禁用状态也在。
-- 出现插件卡片：host 侧代码注册了卡片所依赖的设置命名空间。
+- 出现插件卡片（「可配置插件」标签页里一张折叠卡片「跨网链路姿态」）：
+  host 侧代码注册了卡片所依赖的设置命名空间。
 - 卡片是有条件的：profile 能解析到 schema 库就出现（实测本机出现）；
-  解析不到只打 warning，分区与清单行不受影响。
+  解析不到只打 warning，清单行不受影响。
+- 本插件只以这张标准卡片出现，不新增侧边栏/设置导航条目。
 
 移除三步：把那一行改回 `disabled: true`，或删掉它，或用改动前的备份整文件还原。
 先读备份再还原，备份可能是一份空补丁。长版见 `docs/install/uninstall.md`。
@@ -142,7 +143,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\uninstall.ps1 -Plan
 | Win11 对 Win11 端到端 | 仅夹具覆盖 |
 | Public 网卡的静默后果 | 只能从规则推导 |
 | 服务端 HTTPS 证书判定 | 依赖 Node 或 OpenSSL 探测 |
-| 常驻包真机装载 | 真实 DSH 上装载一次（2026-09-25，三格全中，日志 info） |
+| 常驻包真机装载 | 真实 DSH 上装载一次（2026-09-25，两格全中，日志 info） |
 | 面板卡片渲染 | 实测渲染前提成立（命名空间注册成功、卡片座位 active） |
 
 以上条目都按未验证如实报告，绝不升级成已验证。
@@ -174,7 +175,7 @@ TCP 通不等于 TLS 与 HTTP 通。最常见是系统代理劫持了 tailnet，
 不会。它只回滚 journal 记录过、且当前值仍等于它自己产生的项。
 Tailscale 本体、其它插件、你自己的规则默认保留，它没有卸载 Tailscale 的代码路径。
 
-**Q7** 设置页里没有这个分区或卡片？
+**Q7** 设置 → 插件里没有这张卡片？
 形态 1 只活在进程内存，重启就消失，重新定义再运行即可。
 形态 2 按三步启用并重启 DSH 才生效；卡片条件见上面清单。
 失败形态见 `docs/install/plugin-package.md`。

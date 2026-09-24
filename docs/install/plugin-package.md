@@ -265,6 +265,9 @@ tsdown/tsc 工具链,所以 `plugin/lib/client.js` 是**按同一格式手写的
 | 生命周期 | 座位由 `sidebar.settings` 条目(settings-general)声明 ⇒ 设置面板挂载期间存在 | 座位由 `settings.plugins.tab` 的 `configurable` 条目声明 ⇒ **只有插件页开着时存在**;且**还要**满足上面那条"命名空间已被服务" |
 | 额外前置件 | 无(只靠 cordis 服务 `slots`) | **Host 必须注册一个设置命名空间**,client 卡片的 `key` 必须等于它 |
 
+> 说明:上表是平台两个座位的机制对比(参考资料)。本插件自 v0.3 起**只使用 `settings.plugin.item`**,
+> 不再注册 `settings.section`(早期版本注册过的独立侧边栏分区已按用户要求移除,见 §9.1)。
+
 **"脚本经典加载 + 自注册"对两个座位是否一致?** —— **完全一致**。两个座位都只是**客户端半边**向槽位注册表登记的一行;
 客户端半边只有一份(一个 bundle),它被页面按经典脚本加载、执行时自注册(§2.3),`ctx.slots.inject(...)` 等座位就绪后
 `ctx.slots.register(...)`。差别只在**注入哪个 key** 与 **owner 是否投 label**,与加载方式无关。
@@ -304,10 +307,9 @@ plugin/
   ③注册一个**空 schema** 的设置命名空间 `remote-tailnet-guard`(t46,见 §2.6)——只为让插件页的卡片能被渲染,
   没有任何可写字段,也从不写用户的设置文档。
   它不写文件、不新增监听、不读凭据、不改任何系统设置、不重启 DSH。
-- client 半边做的事只有一件(注册两个座位,同一份只读面板):`settings.section`
-  (id `remote-tailnet-guard`,label `Remote access link (read-only posture)`,order 100)
-  **加上** `settings.plugin.item`(key `remote-tailnet-guard`,order 100 —— 即插件页里的卡片);
-  两个座位取数都走上面那条 POST(动态包那一侧走的是 `host.call`)。
+- client 半边做的事只有一件(注册一张卡片,只读面板):`settings.plugin.item`
+  (key `remote-tailnet-guard`,order 100 —— 即插件页「可配置插件」tab 里的折叠卡片,**不再注册** `settings.section`);
+  卡片取数走上面那条 POST(动态包那一侧走的是 `host.call`)。
 - **只有 `require("react")` 一个外部依赖**(平台 seed),其余全部自包含;schema 库是**运行时可选解析**,不是依赖。
 
 ---
@@ -377,9 +379,8 @@ self-test: 7 cases  matched: 7  mismatched: 0
    两个文件的**共享正文逐字节相同**(sha256 比对)。
    另外:若 `node` 恰好在 PATH 上,会对三个文件各跑一次 `node --check`;不在 PATH 时打印 `[SKIP]`,
    计入 skipped 但**不影响退出码**(本机 `node` 不在 PATH,实测 3 条 SKIP)。
-4. **两个座位都在、键都对**(t46):两个 client 文件里 `settings.section` 与 `settings.plugin.item` 各注册**恰好一次**;
-   分区用 `SECTION_ID`、卡片用 `SETTINGS_NS`,两个常量都**等于包名**;host 半边声明同名命名空间,
-   且 schema 为空(`schemaFactory.object({})`)。
+4. **卡片座位在、键都对**:两个 client 文件里 `settings.plugin.item` 注册**恰好一次**、且**不注册** `settings.section`;
+   卡片 key 用 `SETTINGS_NS`(**等于包名**);host 半边声明同名命名空间,且 schema 为空(`schemaFactory.object({})`)。
 5. **host 半边不得有静态 schema import**,必须是受保护的运行时解析(`await import(specifier)` 在 try/catch 里)
    —— 这是"`link:` 装法下 import 解析不到也不会把 host 半边带下去"的静态保证。
 6. insert 行自洽且安全:唯一一行,`id` 与 `name` 都等于 package.json 的 `name`,`disabled: true`。
@@ -395,8 +396,8 @@ self-test: 7 cases  matched: 7  mismatched: 0
 > `link:` 的含义是**符号链接**:profile 直接加载这份 checkout 里的代码,因此插件启用期间不要移动或删掉仓库目录。
 >
 > **下一步做什么,写在最前面**:跑完下面三步后,**从 DSH 自带菜单重启 DSH**(设置 → 桌面 → 重启;或退出应用再打开),
-> 然后去 **设置 → 插件**,清单里 `remote-tailnet-guard` 应显示**已启用**;设置左侧导航应出现
-> `Remote access link (read-only posture)` 分区。逐条带人话、给 AI 读的版本见
+> 然后去 **设置 → 插件**,清单里 `remote-tailnet-guard` 应显示**已启用**;「可配置插件」tab 里应出现
+> 一张折叠卡片「跨网链路姿态」(点开是中文只读面板),左侧导航**不新增任何条目**。逐条带人话、给 AI 读的版本见
 > [`agent-brief.md`](agent-brief.md)。
 
 ```powershell
@@ -426,7 +427,7 @@ dsh --profile $profile --dump-config | Select-String -SimpleMatch 'remote-tailne
 # 期望:能看到 id/name 是 remote-tailnet-guard、disabled: false 的那一行
 ```
 
-重启后核对三格,判据见 §5.1。这一步把「人肉编辑 YAML」换成了**一条可粘贴的追加命令**:
+重启后核对两格,判据见 §5.1。这一步把「人肉编辑 YAML」换成了**一条可粘贴的追加命令**:
 启用行依旧落在 profile 的用户层(覆盖包自带的 `disabled: true`,升级不丢、回滚只动一个文件),
 只是由流程自动加,不用人手工改。
 
@@ -438,22 +439,21 @@ dsh --profile $profile --dump-config | Select-String -SimpleMatch 'remote-tailne
 `<profile>\cordis.patch.yml` 是**用户层、在所有 bundle 层之后应用**(§2.5),同一个 `id` 会被用户层覆盖。
 这样 `node_modules` 里的包保持原样、升级不丢,回滚也只需要动一个文件。
 
-### 5.1 启用后你会看到什么(三格判据;实测口径见 §9.1)
+### 5.1 启用后你会看到什么(两格判据;实测口径见 §9.1)
+
+装好并重启后,本插件**只以一张标准插件卡片**出现在「设置 → 插件」里,**不再新增侧边栏分区**(与别的插件一致):
 
 | 位置 | 预期看到 | 由什么实现 |
 |---|---|---|
-| 设置面板**左侧导航** | 一个独立分区 `Remote access link (read-only posture)` | `settings.section` |
 | **设置 → 插件**(`all` tab,插件清单) | 清单里出现 `remote-tailnet-guard` 这一行,状态**已启用** | 平台自带的 inventory tab,**不需要我们写任何代码**;只要行被装进 profile 就会有(`all` tab 同时列出**未启用**的行并把它们标成未启用,所以装完还没启用时它其实就已经在清单里了 —— 认准"已启用"三个字) |
-| **设置 → 插件 → 「可配置插件」tab** | **有条件的第三格**:schema 库在 profile 侧解析得到,卡片就出现;解析不到只打 warning、卡片不出现(§9.1 实测:本机解析成功、卡片座位 active) | `settings.plugin.item`,`key` = 设置命名空间 `remote-tailnet-guard` |
-
-两个我们主动注册的座位(分区 + 卡片)**取的是同一份数据、同一段组件代码**;区别只在宿主把它放在哪一页(§2.6)。
+| **设置 → 插件 → 「可配置插件」tab** | 一张折叠卡片(标题「跨网链路姿态」,点开是中文只读面板)。schema 库在 profile 侧解析得到,卡片就出现;解析不到只打 warning、卡片不出现(§9.1 实测:本机解析成功、卡片 active) | `settings.plugin.item`,`key` = 设置命名空间 `remote-tailnet-guard` |
 
 **卡片这一格的真实机制(实测澄清,取代原先"`link:` 装法必不出卡片"的推断)**:host 半边对 schema 库
 (`@deepseek-ai/schemastery` / `schemastery`)用**受保护的运行时解析**(`await import(specifier)`,try/catch),
 而 ESM 解析的起点是 **profile 目录**(loader 从 profile 解析行 specifier),不是 `link:` 目标目录 ——
 所以 profile 的 `node_modules` 里有该库(装了其它带 schemastery 的插件时通常就有)就**解析成功**、
 命名空间注册成功、卡片**可以渲染**;解析不到时**被 guard 住**(只打一条 warning),卡片不出现,
-分区与插件清单行**完全不受影响**。两种结果都是设计内行为。真实装载记录(日志 info/warning + 三格)见 §9.1。
+插件清单行**完全不受影响**。两种结果都是设计内行为。真实装载记录(日志 info/warning + 两格)见 §9.1。
 
 ---
 
@@ -575,18 +575,20 @@ dsh plugin --profile plugin-test remove remote-tailnet-guard
 两条都是 **info,没有 warning** —— 包括 §5.1 说的 namespace 注册:它**成功**了(profile 侧解析到了 schema 库),
 所以卡片这一格在本机是**渲染前提成立**的。§2.6 的 guard 没有触发。
 
-**三格观察**:
+**两格观察**:
 
 | 格 | 判据 | 实测 |
 |---|---|---|
 | ① 插件清单行 | 组合配置里该行 `disabled: false`;清单由平台 inventory 列出 | 行已装进 profile 且 `disabled: false`(`--dump-config` 原文:该行 `patched by <DSH_HOME>\profiles\<profile>\cordis.patch.yml`) |
-| ② 设置左侧导航分区 | `settings.section` 活注册 `id: remote-tailnet-guard` | **active**:`registrant: remote-tailnet-guard, id: remote-tailnet-guard, order: 100, active: true`(客户端槽位检查实测) |
-| ③ 可配置插件卡片 | `settings.plugin.item` 活注册 + host 命名空间注册 | 卡片座位 `registrant: remote-tailnet-guard, key: remote-tailnet-guard, order: 100, active: true`;host 日志确认命名空间注册成功 → **渲染的两个前提都成立** |
+| ② 可配置插件卡片 | `settings.plugin.item` 活注册 + host 命名空间注册 | 卡片座位 `registrant: remote-tailnet-guard, key: remote-tailnet-guard, order: 100, active: true`;host 日志确认命名空间注册成功 → **渲染的两个前提都成立** |
 
-**结论**:真实装载一次通过,三格全中;本机日志是 **info 不是 warning**。
+> 说明:早期版本还额外注册过一个独立侧边栏分区(`settings.section`),后按「与别的插件一致」的要求
+> 移除 —— 现在本插件只以这张标准卡片出现,不新增侧边栏条目。
+
+**结论**:真实装载一次通过,两格全中;本机日志是 **info 不是 warning**。
 之前「`link:` 装法必不出卡片」的推断被实测**推翻**:ESM 解析起点是 profile 目录,profile 里有 schema 库就出卡片。
 保留的只有一句:**卡片一格取决于 profile 能否解析 schema 库**;解析不到时 warning + 卡片不出现(guard 不变),
-分区与清单行不受影响。
+插件清单行不受影响。
 
 首次观察还暴露了一个编码缺陷(面板中文乱码):`collect.ps1 -AsJson` 的输出编码跟随进程控制台,
 宿主子进程里是 GBK 而 host 按 UTF-8 读。已修:JSON 输出改为固定写 UTF-8 字节,不改任何判定。

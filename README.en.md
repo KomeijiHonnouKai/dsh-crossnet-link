@@ -125,14 +125,15 @@ Run the read-only preflight `panel/plugin-preflight.ps1` before installing;
 three steps and rollback live in `docs/install/plugin-package.md`;
 the plain-language walkthrough for AI lives in `docs/install/agent-brief.md`.
 
-Three ways of "seeing it" mean different things:
+Two ways of "seeing it":
 
-- A section in Settings: the skeleton loaded.
 - The line in the plugin list: installed into the profile, disabled lines included.
-- The plugin card: the host half registered the settings namespace the card keys on.
+- The plugin card (a folded card "跨网链路姿态" under the Configurable tab): the host half
+  registered the settings namespace the card keys on.
 - The card is conditional: it appears when the profile can resolve the schema library
-  (measured here: it does); when it cannot, only a warning is logged,
-  and the section and the list line are unaffected.
+  (measured here: it does); when it cannot, only a warning is logged and the list line
+  is unaffected.
+- The plugin shows up only as this standard card; it adds no sidebar or settings-navigation entry.
 
 Removal in three steps: set the line back to `disabled: true`, or delete it, or restore the whole file
 from the backup you made before. Read the backup first; it may be an empty patch.
@@ -146,7 +147,7 @@ Long version: `docs/install/uninstall.md`.
 | Win11 to Win11 end to end | Fixtures only |
 | Silent failure on a Public NIC | Derived from rules only |
 | Server-side HTTPS certificate check | Needs Node or OpenSSL probes |
-| Persistent package on a real DSH | One load on a real DSH (2026-09-25, all three cells, info log) |
+| Persistent package on a real DSH | One load on a real DSH (2026-09-25, both cells, info log) |
 | Panel card rendering | Render preconditions measured true (namespace registered, card seat active) |
 
 Every row above is reported as not verified, never upgraded to verified.
@@ -181,7 +182,7 @@ Pass `-Role client` to see only what this side must satisfy.
 No. It only rolls back items recorded in its journal whose current value still equals what it produced.
 Tailscale itself, other plugins and your own rules are kept; there is no code path that uninstalls Tailscale.
 
-**Q7** No section or card in Settings?
+**Q7** No card in Settings > Plugins?
 Form 1 lives in process memory only and vanishes on restart; define and run it again.
 Form 2 needs a DSH restart after the three enable steps; the card is conditional, see the list above.
 Failure modes: `docs/install/plugin-package.md`.

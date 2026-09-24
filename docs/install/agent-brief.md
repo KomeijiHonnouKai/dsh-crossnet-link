@@ -23,7 +23,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File <仓库>\panel\plugin-prefli
 - 退出 1:只有告警(缺 `docs/install/plugin-package.md`),包仍可装;先向用户说明再继续。
 - 退出 2:停下。把脚本里 `[FAIL]` 开头的行转述给用户,不要继续装,也不要擅自"修"仓库代码。
 
-## 1. 装机流程:装 → 启用 → 重启 → 核对三格
+## 1. 装机流程:装 → 启用 → 重启 → 核对两格
 
 包在仓库里默认是**禁用(disabled)**的,这是刻意的安全默认:禁用时它不会加载,
 装上弄不坏任何东西。所以"安装"= 下面这几条命令,它们把**启用**一起做完,
@@ -53,18 +53,19 @@ dsh --profile <profile> --dump-config | Select-String -SimpleMatch 'remote-tailn
 ```
 
 然后请用户**重启 DSH**(用 DSH 自带菜单:设置 → 桌面 → 重启;或退出应用再打开)。
-这一步只有人能做。重启后按下面「三格」核对。
+这一步只有人能做。重启后按下面「两格」核对。
 
 > 小坑(实测):刚初始化的新 profile 的补丁文件内容是一行 `[]`(空数组)。追加第 3 条之前,
 > 如果文件里就这一行 `[]`,先把它删掉再追加,避免数组里多出一个空项。
 
-### 1.1 三格是什么、各自判什么
+### 1.1 装完看到什么(两格;不新增侧边栏条目)
+
+本插件**只以一张标准插件卡片**出现(与别的插件一致),**不新增侧边栏/设置导航条目**:
 
 | 格 | 位置 | 判据 |
 |---|---|---|
 | ① 插件清单 | 设置(Settings)→ 插件(Plugins),第一个标签页 | 清单里有 `remote-tailnet-guard`,状态显示**已启用(Enabled)**。装完但没启用时它也会在清单里(标"未启用"),所以这一格要认准"已启用"三个字 |
-| ② 只读面板分区 | 设置(Settings)→ 左侧导航 | 多出一个分区 `Remote access link (read-only posture)`,点开是只读姿态面板(四态判定,没有任何写入按钮) |
-| ③ 可配置插件卡片 | 设置 → 插件 → 「可配置插件」标签页 | **有条件的第三格**:卡片要 host 半边把空 schema 的设置命名空间注册成功才渲染,而这一步要能在 profile 侧解析到 schema 库(实测:profile 里已有其它插件时通常解析得到,卡片就出现;解析不到时只打一条 warning、卡片不出现,第 ①② 格完全不受影响)。**别把它当故障**:①② 出现就算装好,③ 出现与否如实告诉用户即可 |
+| ② 可配置插件卡片 | 设置 → 插件 → 「可配置插件」标签页 | 一张折叠卡片(标题「跨网链路姿态」,点开是中文只读面板)。卡片要 host 半边把空 schema 的设置命名空间注册成功才渲染,这一步要能在 profile 侧解析到 schema 库(实测:profile 里已有其它插件时通常解析得到,卡片就出现;解析不到时只打一条 warning、卡片不出现,第 ① 格不受影响)。**别把卡片缺席当故障**:① 出现就算装好,② 出现与否如实告诉用户即可 |
 
 ## 2. 装完看不到时,按顺序查这 3 条
 
@@ -72,7 +73,7 @@ dsh --profile <profile> --dump-config | Select-String -SimpleMatch 'remote-tailn
 2. **启用行没生效**:让用户跑
    `dsh --profile <profile> --dump-config | Select-String -SimpleMatch 'remote-tailnet-guard'`,
    看不到 `disabled: false` 就是第 1 节第 3 条没跑、或跑到了别的文件上。
-3. **client 半边没加载**:设置页里连分区都没有 → 让用户把 DSH 日志里
+3. **client 半边没加载**:设置 → 插件里连卡片都没有 → 让用户把 DSH 日志里
    `remote-tailnet-guard` 相关的行发给你(日志在 DSH 的日志目录,文件名形如 `dsh-YYYY-MM-DD.log`),再决定下一步。
 
 ## 3. 对话输出模板(四段;正文 ≤ 15 行,代码块另计)
@@ -89,16 +90,16 @@ dsh --profile <profile> --dump-config | Select-String -SimpleMatch 'remote-tailn
 > 这个插件服务于两台 DSH 的联动(agent 对 agent):在 A 电脑的 DSH 里驱动已登录的
 > 通道页面,直接操作 B 电脑上运行的 DSH。它负责这条链路的事前只读体检、前置件检查、
 > 只读面板与完整卸载,不负责打通;只读、只报、不改你的任何配置。
-> 装 = 设置里多一个只读面板;不装 = 什么都不会发生。
+> 装 = 设置里多一张只读体检卡片;不装 = 什么都不会发生。
 > 我带你做四步,每步一条命令,粘到 PowerShell 里回车:
 > 1. 备份配置:…(命令)→ 期望:多出一个 .bak- 文件。
 > 2. 装包:…(命令)→ 期望:安装结束、无报错。
 > 3. 启用:…(命令)→ 期望:无输出。
 > 4. 验证:…(命令)→ 期望:能看到 remote-tailnet-guard 且 disabled: false。
 > 然后需要你做一件事:从 DSH 自带菜单重启 DSH。
-> 做完你会看到:设置 → 插件 里 remote-tailnet-guard 已启用;设置左侧导航出现
-> Remote access link (read-only posture) 分区。(「可配置插件」标签页里的卡片是有条件的:
-> 解析得到 schema 库就出现,解析不到只打一条 warning、不出现,两种情况都不影响前两格。)
+> 做完你会看到:设置 → 插件 里 remote-tailnet-guard 显示已启用;「可配置插件」标签页里
+> 多出一张折叠卡片「跨网链路姿态」,点开是中文只读面板。(卡片是有条件的:
+> 解析得到 schema 库就出现,解析不到只打一条 warning、不出现,两种情况都不影响清单行。)
 > 看不到就先查三样:① 重启过了吗;② 第 4 步的验证输出里 disabled 是 false 吗;
 > ③ 日志里有没有 remote-tailnet-guard 相关的行。
 
