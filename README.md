@@ -917,7 +917,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File src/collect.ps1 -CheckOnly
 |---|---|
 | `0` | 干净:没有东西需要回滚,也没有无法归属的东西 |
 | `1` | fail-closed:有东西是 `left-alone`、`unknown` 或无法归属 —— 读报告并人工决定(一台没有 journal 的机器会回答 `attribution=unavailable`,绝不是绿灯) |
-| `2` | 拒绝:参数非法、路径在已核实目录之外,或没有 `-Apply` 就用了 `-PurgeBackup` |
+| `2` | 拒绝:参数非法、路径在已核实目录之外、没有 `-Apply` 就用了 `-PurgeBackup`,或**没有 journal 就跑了需要 journal 的动作**(本机实测:`tools/uninstall.ps1 -Plan` → `journal_required`,退出 2) |
 
 ### 21.4 哪些东西保持不动,以及承诺边界
 

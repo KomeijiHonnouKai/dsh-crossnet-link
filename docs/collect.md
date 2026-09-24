@@ -70,7 +70,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/co
 | 命令 | 退出码 | 结果 |
 | --- | --- | --- |
 | `-CheckOnly` | **2** | 26 项:pass 15 / **degraded 4** / **blocked 1** / unknown 6;`overall: blocked -> exit 2` |
-| `-CheckOnly -AsJson` | **2** | 单一 JSON 对象,`-Lang zh` **168,771 字节** / `-Lang en` **169,277 字节**(2026-09-24 23:13 复测;字节数随原始探测输出如 netstat 行数小幅波动、非恒定常量),`ConvertFrom-Json` 可解析,26 项判定(每项含 `id`/`role`/`title`/`status`/`verdict`/`verdictLabel`/`severity`/`reasonKey`/`reason`/`commands[]`/`raw`/`evidence{command,commands,exitCode,source,confidence,window,confidenceDowngrade,confidenceNote}`/`remediation`/`manualReview`/`manualQuestion`) |
+| `-CheckOnly -AsJson` | **2** | 单一 JSON 对象,`-Lang zh` **约 169 KB**(多次实测区间 **168,771–168,986 字节**)/ `-Lang en` **约 169.4 KB**(**169,277–169,492 字节**)(2026-09-24 23:13 与 23:56 两次复测;该字节数随原始探测输出如 netstat 行数小幅波动、非恒定常量,故按区间给出),`ConvertFrom-Json` 可解析,26 项判定(每项含 `id`/`role`/`title`/`status`/`verdict`/`verdictLabel`/`severity`/`reasonKey`/`reason`/`commands[]`/`raw`/`evidence{command,commands,exitCode,source,confidence,window,confidenceDowngrade,confidenceNote}`/`remediation`/`manualReview`/`manualQuestion`) |
 | `-CheckOnly -Role server` | 2 | 21 项:15/3/1/2(客户端项按角色不输出) |
 | `-CheckOnly -Role client` | **1** | 14 项:8 pass / 1 degraded / 5 unknown(无 `-Peer` + HTTPS 恒 unknown)⇒ **`verdict=degraded exit=1`**,演示了「无阻断但有 degraded + unknown」这一档 |
 | `-CheckOnly -Strictness strict` | 2 | unknown 提升为阻断 |
@@ -278,7 +278,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/co
 
 **建议:暂不拆,理由是拆分在这里会降低而不是提高可读性/可测性。**
 
-1. 体积来源不是内嵌表格,而是 26 个检测项**各自的内联判定逻辑**(每项 10–30 行:探针 → 结构解析 → 判定 → 原始值装箱)。拆成 `data/*.psd1` 只能搬走「标题/原因文案」这类数据,而那部分**已经在 `i18n/labels.*.json` 里**(t25 快照:**89 个 `reason.*` 键**,其中 11 条 `rem_*` 处置文案;外加 **12 个本地化模式**与 24 个 `title.*` 键;t4 复测:95 个 `reason.*` 键、其中 13 条 `rem_*`、12 个本地化模式、26 个 `title.*` 键),`src/` 里本来就没有大块数据表。
+1. 体积来源不是内嵌表格,而是 26 个检测项**各自的内联判定逻辑**(每项 10–30 行:探针 → 结构解析 → 判定 → 原始值装箱)。拆成 `data/*.psd1` 只能搬走「标题/原因文案」这类数据,而那部分**已经在 `i18n/labels.*.json` 里**(t25 快照:**89 个 `reason.*` 键**,其中 11 条 `rem_*` 处置文案;外加 **12 个本地化模式**与 24 个 `title.*` 键;t5 补齐两项新检查的本地化条目之后的复测:95 个 `reason.*` 键、其中 13 条 `rem_*`、12 个本地化模式、26 个 `title.*` 键),`src/` 里本来就没有大块数据表。
 2. 真正该外置的「易变数据」(本地化模式、人读文案、夹具)已经全部外置,并且是**可注入 + 双语夹具验证**的形态。
 3. 拆文件会新增「PS 5.1 下 dot-source 路径/编码/`$PSScriptRoot`」这一类新的可移植性面,与本文遵循的「显式编码、少依赖」原则相冲突。
 4. 若以后要拆,最小收益的拆法是:`src/collect.ps1`(框架+CLI) + `src/checks/*.ps1`(每组检测项一个文件,dot-source)。**不建议**拆成 `data/*.psd1`:psd1 的默认编码与解析器行为和 JSON 不同,会再引入一处编码坑。

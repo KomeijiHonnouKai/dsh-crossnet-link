@@ -197,10 +197,10 @@ Verdicts are **fail-closed**:
 
 | Verdict | Meaning |
 |---|---|
-`pass` | the property was proven on this machine |
-`degraded` | the property holds only in part, or the evidence was read through a localized/fallback path (`confidence: low` in the report) |
-`blocked` | the property is violated, or the collector could not run at all |
-`unknown` | no probe could answer. **Never** silently treated as a pass; `-Strictness strict` raises it to exit 2 |
+| `pass` | the property was proven on this machine |
+| `degraded` | the property holds only in part, or the evidence was read through a localized/fallback path (`confidence: low` in the report) |
+| `blocked` | the property is violated, or the collector could not run at all |
+| `unknown` | no probe could answer. **Never** silently treated as a pass; `-Strictness strict` raises it to exit 2 |
 
 Exit codes: `0` every judgement passed, `1` at least one degraded/unknown, `2` at least one
 blocked or the collector could not run.
@@ -1352,7 +1352,7 @@ steps, with the observation to expect at each one.
 |---|---|
 | `0` | clean: nothing left to revert and nothing unattributable |
 | `1` | fail-closed: something is `left-alone`, `unknown` or unattributable — read the report and decide by hand (a machine with no journal answers `attribution=unavailable`, never a green light) |
-| `2` | refused: an invalid argument, a path outside the verified directories, or `-PurgeBackup` without `-Apply` |
+| `2` | refused: an invalid argument, a path outside the verified directories, `-PurgeBackup` without `-Apply`, or a **journal-requiring action with no journal** (measured here: `tools/uninstall.ps1 -Plan` -> `journal_required`, exit 2) |
 
 ### 21.4 What stays untouched, and the promise boundary
 
