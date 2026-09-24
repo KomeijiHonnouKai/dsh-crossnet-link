@@ -15,17 +15,17 @@
                  curl, CIM/WMI, node, or any third-party module.
 
   COMMANDS USED WHILE BUILDING THIS REVISION (all read-only; no writes anywhere):
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -AsJson
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role server
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role client
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -ShowRaw
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Strictness strict
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -AsJson -FixturePath remote-tailnet-plugin/tests/fixtures/zh.json -NoNative
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -AsJson -FixturePath remote-tailnet-plugin/tests/fixtures/en.json -NoNative
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role both -DumpFixture remote-tailnet-plugin/tests/fixtures/zh.json
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-fixtures.ps1
-    powershell -NoProfile -Command '$f="remote-tailnet-plugin/src/collect.ps1"; $b=[IO.File]::ReadAllBytes((Resolve-Path $f)); $e=$null; [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f),[ref]$null,[ref]$e); "bom=" + ($b[0..2] -join ",") + " errors=" + @($e).Count'
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -AsJson
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -Role server
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -Role client
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -ShowRaw
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -Strictness strict
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -AsJson -FixturePath dsh-crossnet-link/tests/fixtures/zh.json -NoNative
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -AsJson -FixturePath dsh-crossnet-link/tests/fixtures/en.json -NoNative
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -Role both -DumpFixture dsh-crossnet-link/tests/fixtures/zh.json
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-fixtures.ps1
+    powershell -NoProfile -Command '$f="dsh-crossnet-link/src/collect.ps1"; $b=[IO.File]::ReadAllBytes((Resolve-Path $f)); $e=$null; [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f),[ref]$null,[ref]$e); "bom=" + ($b[0..2] -join ",") + " errors=" + @($e).Count'
     powershell -NoProfile -Command '(netstat -ano | Select-String "(0\.0\.0\.0|\[::\]):43120").Count'
   Live probes that drove the implementation decisions (see docs/collect.md sections 6.1-6.6):
     netsh advfirewall monitor show currentprofile | firewall show rule name=Tailscale-Process verbose | show allprofiles

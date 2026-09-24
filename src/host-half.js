@@ -49,13 +49,13 @@
  *   cordis_inspect_list ; cordis_inspect_query(host, Service.listService, {service:"fs"})
  *   cordis_inspect_query(host, Service.listService, {service:"subprocess"})
  *   cordis_define(host) ; cordis_run(guard-1, pkg-4, update) ; cordis_inspect_self()
- *   remote_tailnet_posture(role="both", fixture="remote-tailnet-plugin/tests/fixtures/zh.json")
- *   powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly
- *   Get-FileHash -LiteralPath remote-tailnet-plugin/src/host-half.js -Algorithm SHA256
+ *   remote_tailnet_posture(role="both", fixture="dsh-crossnet-link/tests/fixtures/zh.json")
+ *   powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly
+ *   Get-FileHash -LiteralPath dsh-crossnet-link/src/host-half.js -Algorithm SHA256
  */
-const COLLECTOR_REL = 'remote-tailnet-plugin/src/collect.ps1';
+const COLLECTOR_REL = 'dsh-crossnet-link/src/collect.ps1';
 const FIXTURE_PREFIX = 'tests/fixtures/';
-const FIXTURE_PREFIX_LONG = 'remote-tailnet-plugin/tests/fixtures/';
+const FIXTURE_PREFIX_LONG = 'dsh-crossnet-link/tests/fixtures/';
 
 function guardFixturePath(value) {
   if (typeof value !== 'string' || value.length === 0) return { ok: true, path: '' };

@@ -20,7 +20,7 @@
 ## 2. 本机复现（不用 CI）
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1 `
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-tests.ps1 `
   -SimulateCleanHost `
   -Filter 'fault-dsh-port-from-env|fault-peer-connected-isolation-clean|fault-peer-other-ports-open|fault-tailscale-cli-probe-unavailable|fault-tailscale-logged-out|fault-tailscale-pipe-denied'
 ```
@@ -72,15 +72,15 @@ CI（run 36000196743 / job 107634684291）注解里的原文 —— `fault-tails
 
 ```powershell
 # ① 模拟干净机器跑整套（应 64/64 全绿、skipped=0）
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1 -SimulateCleanHost
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-tests.ps1 -SimulateCleanHost
 
 # ② 常规整套（同一份代码，参考机器）
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-tests.ps1
 
 # ③ 夹具回归 / 门禁 / 门禁自测
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-fixtures.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/.github/scripts/repo-hygiene.ps1 -Json
-powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/.github/scripts/repo-hygiene.ps1 -SelfTest
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-fixtures.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/.github/scripts/repo-hygiene.ps1 -Json
+powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/.github/scripts/repo-hygiene.ps1 -SelfTest
 ```
 
 期望（2026-09-24 实测，t45）：
@@ -107,7 +107,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/.githu
 ## 6. 复跑本页所有结论的最小命令
 
 ```powershell
-$f='D:\DSH\remote-tailnet-plugin\tests\run-tests.ps1'
+$f='D:\DSH\dsh-crossnet-link\tests\run-tests.ps1'
 # 复现（把 _base 的 tools 块临时删掉即可回到修复前状态）
 Select-String -Path (Join-Path (Split-Path $f) 'cases\_base\server-en.json') -Pattern '"tools"'
 # 取证

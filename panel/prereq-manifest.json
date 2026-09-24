@@ -204,7 +204,7 @@
         "en": "Nothing listens on 127.0.0.1:<DSH_PORT>. Start DSH Desktop first; if it listens on a wildcard address instead, that is a security finding, not a prerequisite.",
         "zh": "127.0.0.1:<DSH_PORT> 上没有监听。请先启动 DSH Desktop;若它绑在通配地址上,那是安全问题,不是前置件缺失。"
       },
-      "install": { "automatic": false, "humanSteps": ["Start DSH Desktop; read the real posture with: powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly"] },
+      "install": { "automatic": false, "humanSteps": ["Start DSH Desktop; read the real posture with: powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly"] },
       "rollback": "nothing to roll back (the collector never starts or stops DSH)"
     },
     {
@@ -252,7 +252,7 @@
       "title": "connection.trustedHosts trusts the tailnet hostname",
       "detect": {
         "kind": "delegate",
-        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role server -AsJson",
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -Role server -AsJson",
         "note": "Delegated on purpose: judging this correctly means scanning the WHOLE loaded patch chain (app bundle layer + every profile layer) and requiring a real ts.net authority, not merely the presence of the key. An earlier revision of this manifest tested only 'the file mentions trustedHosts', which returned a FALSE PASS on the reference machine where the app layer ships `trustedHosts: []`. The collector already implements the full scan (see docs/collect.md section 4, TRUSTED_HOSTS_PATCH), so it stays the single authority instead of a second, weaker implementation."
       },
       "whenMissing": {
@@ -266,7 +266,7 @@
           "Restart DSH only from its own Restart menu (Settings > Desktop). Never kill the host process and never install a restart plugin: the host is an Electron utilityProcess child that throws without its supervisor."
         ],
         "command": "# in <DSH_HOME>\\profiles\\<name>\\cordis.patch.yml :\n# - id: web-runtime\n#   config:\n#     trustedHosts:\n#       - <MACHINE>.<TAILNET>.ts.net",
-        "verify": "powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role server",
+        "verify": "powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -Role server",
         "rollback": "delete the trustedHosts lines you added, then restart DSH from its own menu"
       }
     },
@@ -299,7 +299,7 @@
         "command": "New-NetFirewallRule -DisplayName 'DSH via Tailscale serve (tcp 443)' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 443 -RemoteAddress 100.64.0.0/10 -Program \"$env:ProgramFiles\\Tailscale\\tailscaled.exe\" -Profile Any",
         "verify": [
           "powershell -NoProfile -Command \"netsh advfirewall monitor show currentprofile\"",
-          "powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role server"
+          "powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -Role server"
         ],
         "rollback": "Remove-NetFirewallRule -DisplayName 'DSH via Tailscale serve (tcp 443)'"
       }
@@ -330,7 +330,7 @@
         "automatic": false,
         "elevation": "your UAC prompt",
         "command": "powercfg /change standby-timeout-ac 0\npowercfg /change standby-timeout-dc 0",
-        "verify": "powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role server",
+        "verify": "powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -Role server",
         "rollback": "powercfg /change standby-timeout-ac <previous minutes>\npowercfg /change standby-timeout-dc <previous minutes>   # record both before changing"
       }
     },
@@ -391,7 +391,7 @@
       "title": "MagicDNS resolves the server name",
       "detect": {
         "kind": "delegate",
-        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -AsJson -Role client -Peer <SERVER_IP> -PeerName <MACHINE>.<TAILNET>.ts.net",
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -AsJson -Role client -Peer <SERVER_IP> -PeerName <MACHINE>.<TAILNET>.ts.net",
         "note": "Name resolution needs the peer name, which only the operator knows; the collector judges it with an explicit 4 s timeout."
       },
       "whenMissing": {
@@ -427,7 +427,7 @@
         "automatic": false,
         "humanSteps": ["Change it in Windows Settings > Network & Internet > Proxy, or leave the collector's degraded finding as-is."],
         "command": "# Settings > Network & Internet > Proxy > 'Do not use the proxy server for these addresses'",
-        "verify": "powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role client",
+        "verify": "powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -Role client",
         "rollback": "remove the bypass entry you added (or re-enable the proxy)"
       }
     },

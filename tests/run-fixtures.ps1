@@ -7,8 +7,8 @@
 
   LAST UPDATED : 2026-09-24 (v0)
   COMMANDS USED (all read-only):
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-fixtures.ps1
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-fixtures.ps1 -Verbose
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-fixtures.ps1
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-fixtures.ps1 -Verbose
 
   Exit code: 0 = every case passed, 1 = at least one assertion failed.
 #>

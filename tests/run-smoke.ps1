@@ -83,13 +83,13 @@
   LAST UPDATED : 2026-09-24 (v1)
   COMMANDS USED WHILE BUILDING THIS REVISION (all read-only; no client Inspect, no ego_*,
   no unbounded network call):
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-smoke.ps1
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-smoke.ps1 -Json
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -AsJson -Role both
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly -AsJson
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-fixtures.ps1
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/.github/scripts/repo-hygiene.ps1 -Json
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-smoke.ps1
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-smoke.ps1 -Json
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -AsJson -Role both
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly -AsJson
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-tests.ps1
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-fixtures.ps1
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/.github/scripts/repo-hygiene.ps1 -Json
 #>
 [CmdletBinding()]
 param(
@@ -114,19 +114,19 @@ $script:RepoRoot = (Resolve-Path -LiteralPath (Join-Path $script:PluginRoot '..'
 
 # Documented release-set locations, printed as repo-relative paths so that a human can copy
 # them from any working directory.
-$script:CollectRel = 'remote-tailnet-plugin/src/collect.ps1'
-$script:PrereqRel = 'remote-tailnet-plugin/panel/prereq.ps1'
-$script:SuiteRel = 'remote-tailnet-plugin/tests/run-tests.ps1'
-$script:FixturesRel = 'remote-tailnet-plugin/tests/run-fixtures.ps1'
-$script:HygieneRel = 'remote-tailnet-plugin/.github/scripts/repo-hygiene.ps1'
-$script:SmokeRel = 'remote-tailnet-plugin/tests/run-smoke.ps1'
+$script:CollectRel = 'dsh-crossnet-link/src/collect.ps1'
+$script:PrereqRel = 'dsh-crossnet-link/panel/prereq.ps1'
+$script:SuiteRel = 'dsh-crossnet-link/tests/run-tests.ps1'
+$script:FixturesRel = 'dsh-crossnet-link/tests/run-fixtures.ps1'
+$script:HygieneRel = 'dsh-crossnet-link/.github/scripts/repo-hygiene.ps1'
+$script:SmokeRel = 'dsh-crossnet-link/tests/run-smoke.ps1'
 
 # Every file the child processes read is copied here first, so a concurrent editor cannot turn
 # this run red and three consecutive runs report the same verdicts. Removed before exit.
 $script:ScratchRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('rtg-smoke-' + $PID)
 $script:SnapshotRoot = Join-Path $script:ScratchRoot 'snapshot'
 # MEASURED DEFECT (fixed): Copy-Item <dir> -Destination <dir> keeps the SOURCE leaf name, so
-# hardcoding 'remote-tailnet-plugin' here made the freeze fail whenever the checkout directory
+# hardcoding the checkout directory name here made the freeze fail whenever that directory
 # was called something else (a renamed copy, a zip extract). The leaf is read from the source.
 $script:PluginLeaf = ''
 try { $script:PluginLeaf = (Get-Item -LiteralPath $script:PluginRoot -Force).Name } catch { $script:PluginLeaf = '' }

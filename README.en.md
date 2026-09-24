@@ -151,9 +151,9 @@ Long version: `docs/install/uninstall.md`.
 | Silent failure on a Public NIC | Derived from rules only |
 | Server-side HTTPS certificate check | Needs Node or OpenSSL probes |
 | Persistent package on a real DSH | One load on a real DSH (2026-09-25, both cells, info log) |
-| Panel card rendering | Render preconditions measured true (namespace registered, card seat active) |
+| Panel card rendering | Namespace+card seat measured; sidebar tab verified (2026-09-25) |
 
-Every row above is reported as not verified, never upgraded to verified.
+Unverified rows say so, never upgraded; verified rows state date and evidence form.
 
 ## 7 FAQ
 

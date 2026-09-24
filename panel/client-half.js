@@ -15,9 +15,9 @@
  *   grep -n "settings\.section" <app>\node_modules\@deepseek-ai\**\lib\*.js
  *   grep -n "React|host\.call|listBuiltins|inject: \[|slots" <app>\...\dsh-cordis-client-runner\lib\client.js
  *   cordis_define(host+client) ; cordis_inspect_self(pluginId, packageId)
- *   powershell -NoProfile -Command '(Get-ChildItem remote-tailnet-plugin -Recurse -Include *.js,*.mjs,*.cjs | Select-String -SimpleMatch "dsh-client-"+"runtime" | Measure-Object).Count'
- *   powershell -NoProfile -Command '$f="remote-tailnet-plugin/panel/client-half.js"; $b=[IO.File]::ReadAllBytes((Resolve-Path $f)); "nonAscii=" + @($b | Where-Object { $_ -gt 127 }).Count + " bom=" + ($b[0..2] -join ",")'
- *   powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1
+ *   powershell -NoProfile -Command '(Get-ChildItem dsh-crossnet-link -Recurse -Include *.js,*.mjs,*.cjs | Select-String -SimpleMatch "dsh-client-"+"runtime" | Measure-Object).Count'
+ *   powershell -NoProfile -Command '$f="dsh-crossnet-link/panel/client-half.js"; $b=[IO.File]::ReadAllBytes((Resolve-Path $f)); "nonAscii=" + @($b | Where-Object { $_ -gt 127 }).Count + " bom=" + ($b[0..2] -join ",")'
+ *   powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-tests.ps1
  */
 const SECTION_ID = 'dsh-crossnet-link';
 const SECTION_LABEL = 'Remote access link (read-only posture)';
@@ -133,7 +133,7 @@ function GuardPanel() {
 
   blocks.push(React.createElement('h3', { key: 'title', style: { margin: '0 0 4px 0' } }, SECTION_LABEL));
   blocks.push(React.createElement('div', { key: 'sub', style: { fontSize: '12px', color: '#666666', marginBottom: '10px' } },
-    'Read-only. Verdicts come from remote-tailnet-plugin/src/collect.ps1 - nothing is installed, no listener is opened, no setting is changed.'));
+    'Read-only. Verdicts come from dsh-crossnet-link/src/collect.ps1 - nothing is installed, no listener is opened, no setting is changed.'));
 
   const controls = [];
   controls.push(React.createElement('label', { key: 'rolelabel', style: { fontSize: '12px', marginRight: '6px' } }, 'perspective:'));

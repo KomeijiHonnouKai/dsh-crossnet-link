@@ -9,15 +9,15 @@
  *   cordis_inspect_query(host, Service.listService, {service:"subprocess"})
  *   grep -n "settings\.section" <app>\node_modules\@deepseek-ai\**\lib\*.js
  *   grep -n "React|host\.call|listBuiltins|inject: \[|slots" <app>\...\dsh-cordis-client-runner\lib\client.js
- *   powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly
- *   powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly
+ *   powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly
+ *   powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly
  * See docs/install/install.md for the slot/builtin evidence table and the activation checklist.
  */
 const METHOD = 'dsh-crossnet-link/panel/posture';
 const SERVICE_KEY = 'remoteTailnetGuard';
-const COLLECTOR_REL = 'remote-tailnet-plugin/src/collect.ps1';
+const COLLECTOR_REL = 'dsh-crossnet-link/src/collect.ps1';
 const FIXTURE_PREFIX = 'tests/fixtures/';
-const FIXTURE_PREFIX_LONG = 'remote-tailnet-plugin/tests/fixtures/';
+const FIXTURE_PREFIX_LONG = 'dsh-crossnet-link/tests/fixtures/';
 
 // t16 F10: the bridge's optional `fixture` argument is a path-shaped input, so it is whitelisted
 // instead of trusted: repository-relative, under tests/fixtures/, .json only, and no ".." segment.

@@ -30,8 +30,8 @@
  *     DECLARES the schema, and the card's own saves are written by that same service.
  *
  * COMMANDS USED while writing this file (read-only; no client Inspect, no long waits):
- *   powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/plugin-preflight.ps1
- *   powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1
+ *   powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/plugin-preflight.ps1
+ *   powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-tests.ps1
  */
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';

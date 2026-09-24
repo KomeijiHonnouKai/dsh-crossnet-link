@@ -15,12 +15,12 @@
 
   COMMANDS USED WHILE BUILDING THIS REVISION (the first one is read-only; the fixture ones are
   offline and write only under an explicit -StateDir):
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tools/uninstall.ps1 -CheckOnly -AsJson
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tools/uninstall.ps1 -RecordBefore -StateDir <dir>
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tools/uninstall.ps1 -RecordAfter -StateDir <dir>
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tools/uninstall.ps1 -FixturePath <fixture> -StateDir <dir> -Apply -AsJson
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly -AsJson
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tools/uninstall.ps1 -CheckOnly -AsJson
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tools/uninstall.ps1 -RecordBefore -StateDir <dir>
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tools/uninstall.ps1 -RecordAfter -StateDir <dir>
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tools/uninstall.ps1 -FixturePath <fixture> -StateDir <dir> -Apply -AsJson
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly -AsJson
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-tests.ps1
 
   WHAT IT DOES
     The plugin itself is read-only. This helper is the only component that may ever change

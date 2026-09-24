@@ -10,11 +10,11 @@
   RUNS ON      : Windows PowerShell 5.1 (powershell.exe). No pwsh 7, curl, CIM/WMI or node.
 
   COMMANDS USED WHILE BUILDING THIS REVISION (all read-only):
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly -Role client
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly -Role server -ShowInstallPlan
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly -AsJson
-    powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -Describe
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly -Role client
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly -Role server -ShowInstallPlan
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly -AsJson
+    powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -Describe
     # internal-document sweep: the four internal filenames must not appear in this file (expect 0)
     # non-intrusive check: -CheckOnly prints "Nothing was installed, elevated, signed in, written or changed by this run."
 
