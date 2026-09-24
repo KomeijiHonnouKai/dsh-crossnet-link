@@ -1,6 +1,10 @@
 # Security policy and verifiable promises
 
-- **Last updated**: 2026-09-24(v1.3; t27 re-checked every internal-document reference in this file —
+- **Last updated**: 2026-09-25(v1.4; **P9 added** — the plugin route of the packaged plugin
+  (`plugin/lib/index.js`, `POST /dsh-crossnet-link/api/posture`) **does not go through DSH's web
+  authentication**, is reachable **only over loopback**, and returns **read-only posture results only**.
+  This is stated here once, in the same words the README §8 uses, so the two files cannot disagree.
+  No P1–P8 promise was touched. v1.3: t27 re-checked every internal-document reference in this file —
   **0 hits** — and added the Link scope bullet below; no promise was touched. v1.2: t23 made **P2 relative** — the absolute file count is a moving
   target in a tree other tasks also write to — and left every other promise untouched). v1.1 was the
   t20 refresh of the measured values and source line numbers. Original draft: t16 repair-round-2,
@@ -15,7 +19,8 @@
   unchanged.
 - **Promise index**: P1 no new listener / P2 read-only by default / P3 no automated write or elevation /
   P4 no credential access / P5 no telemetry or callback / P6 no restart logic / P7 reversible
-  (`ctx.effect`) / P8 panel is display-only.
+  (`ctx.effect`) / P8 panel is display-only / P9 plugin route bypasses DSH web auth (loopback-only,
+  read-only).
 - **Commands used (all read-only)**: see §2 — each promise lists its own command; the results in the
   "measured" column come from running them in this repository on 2026-09-24.
 - **Link scope (t27, 2026-09-24)**: this file links **no internal analysis material**. Its only
@@ -186,6 +191,35 @@ Select-String -Path "$P/panel/client-half.js" -Pattern 'document\.|window\.|navi
   or page storage because it never touches those APIs.
 - Measured: **0 hits**; the only `host.call` in the file is the single posture call
   (`host.call(METHOD, { role: role })`, line 109).
+
+### P9 — The plugin route does not go through DSH's web authentication
+
+```powershell
+# the route's own answer proves it reached the handler (the plugin answers 405 to GET, "POST only")
+# and DSH's own page on the same origin answers 401 (it does require the web session):
+Invoke-WebRequest -Uri 'http://127.0.0.1:43120/dsh-crossnet-link/api/posture' -Method GET -SkipHttpErrorCheck |
+  Select-Object StatusCode, Content
+Invoke-WebRequest -Uri 'http://127.0.0.1:43120/' -Method GET -SkipHttpErrorCheck | Select-Object StatusCode
+```
+
+- **The statement (identical wording to README §8, one fact, one phrasing)**:
+  > The plugin's route does **not** go through DSH's web authentication; it is reachable **only over
+  > loopback**; it returns **read-only posture results only** — it writes nothing and returns no credentials.
+- Measured on the peer machine (2026-09-25, read-only): `GET /` → **401** (DSH's own page does require the
+  web session) while `GET /dsh-crossnet-link/api/posture` → **405** with
+  `{"code":"method-not-allowed","message":"POST only"}` — i.e. the request **reached the plugin's own
+  handler** instead of being stopped by web auth. The plugin is bound to the same loopback web server as
+  DSH (`ctx.get("webServer")`, prefix registration), so it never listens on anything wider (P1).
+- **Boundary of the same-origin check, stated honestly**: `guardOrigin` in `plugin/lib/index.js` **lets a
+  request through when the `Origin` header is absent**. So "same-origin validation" only constrains
+  browser cross-origin pages — it does **not** constrain an arbitrary local process. That is consistent
+  with §1's trust assumption ("loopback is trusted by design"), and it is **not a defect**: the route is
+  read-only, returns no credentials, and is loopback-limited.
+- **Cost, so it is not a surprise**: every request spawns one PowerShell collector child
+  (`graceMs` 120 s, stdout ≤ 8 MiB), which a local process can trigger repeatedly. Low-severity resource
+  surface, not a privilege boundary — do not treat this route as an authenticated API.
+- Scope note: this applies to the **packaged plugin** route. The dynamic-package path uses a private
+  `harness.handle` method that is not exposed over HTTP at all (P1).
 
 ---
 

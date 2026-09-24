@@ -1,6 +1,11 @@
 # 前置件清单与提醒(「OS × 角色」分支)
 
-- **最后更新时间**: 2026-09-24(v1.2;t26:①新增**非侵入性**口径(本清单所有命令都是「**可选修复:由你执行**」,影响面与回滚见 `install.md` §0);②§3.7 补**影响面**(新增窄放行可能与既有规则重叠 / 不要改成放宽 profile 默认策略);③去掉对**内部资料**的引用(发布集文件不深链内部文档),改为就地复述。v1.1(t20):§3.10 的凭据撤销回滚改成 `rollback.md` §3 的三步版 —— 清客户端 cookie / 删服务端 credentials 的 `client-connection`+`browser-session` 记录 / 「仅重启 DSH 不会让已发出的 30 天 cookie 失效」。来源仍是 `panel/prereq-manifest.json` + `panel/prereq.ps1`)
+- **最后更新时间**: 2026-09-25(v1.3;本轮补「采集器的调用上下文」口径(P-02:agent 沙箱 vs 宿主 `spawn` 对同一条命令给出相反判定,
+  并写明**权威调用方 = 插件路由 → 宿主 spawn**),§2 与 §3.2 各一处,并链到 `plugin-package.md` §7.1;
+  v1.2 = 2026-09-24 新增**非侵入性**口径(本清单所有命令都是「**可选修复:由你执行**」,影响面与回滚见 `install.md` §0)、
+  §3.7 补**影响面**(新增窄放行可能与既有规则重叠 / 不要改成放宽 profile 默认策略)、去掉对**内部资料**的引用(发布集文件不深链内部文档),
+  改为就地复述。v1.1(t20):§3.10 的凭据撤销回滚改成 `rollback.md` §3 的三步版 —— 清客户端 cookie / 删服务端 credentials 的
+  `client-connection`+`browser-session` 记录 / 「仅重启 DSH 不会让已发出的 30 天 cookie 失效」。来源仍是 `panel/prereq-manifest.json` + `panel/prereq.ps1`)
 - **本次使用的命令**(全部只读;无 `platform:"client"` 的 Inspect、无 `ego_*`、无长等待):
   1. `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly`
   2. `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prereq.ps1 -CheckOnly -Role client`
@@ -10,7 +15,10 @@
   6. `Get-FileHash -LiteralPath 'C:\Program Files\Tailscale\tailscale.exe' -Algorithm SHA256`
   7. `Get-AuthenticodeSignature -LiteralPath 'C:\Program Files\Tailscale\tailscale.exe'`
   8. 交叉核对:`powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/src/collect.ps1 -CheckOnly -Role server`
-- **克隆目录名**:本文件里所有 `dsh-crossnet-link/...` 路径都从工作区根写;克隆目录**必须**叫 `dsh-crossnet-link` —— 改了目录名,采集器就会找不到 `src/collect.ps1`(改报 `collector-missing`)。
+- **克隆目录名**:本文件里所有 `dsh-crossnet-link/...` 路径都从工作区根写;克隆目录**必须**叫 `dsh-crossnet-link` —— 改了目录名,采集器就会找不到 `src/collect.ps1`(改报 `collector-missing`)。同名目录已存在时**先改名保留、不要直接覆盖**(理由与 `link:` 会固定目标路径这一条见 [`plugin-package.md` §5「取源」(同名目录已存在怎么办)](plugin-package.md))。
+- **权限前置(先读一眼)**:本文件里的命令**全部只读、不需要任何授权**,在受限沙箱里也能跑。若某条报 `EPERM` /
+  `Access is denied`,**正确做法是请求一次授权后重跑同一条命令**,不是换一条"绕过去"的写法(细节与整张影响面表见
+  [`install.md` §4.2.1](install.md) 与 `plugin-package.md` §5.0)。
 
 > **单一来源**:清单本体是 `panel/prereq-manifest.json`(机器可读),`panel/prereq.ps1` 读取它并按角色逐项检测;
 > 本文件是同一份数据的人读渲染。改一处即可,不会出现「文档与脚本各说一套」。
@@ -80,6 +88,22 @@ client-only 机器:  powershell -NoProfile -ExecutionPolicy Bypass -File dsh-cro
 
 **代理是「两端 × 四格」,不是一条单侧提示**:本清单第 12 项只看**客户端这一端**(`ProxyEnable=1` 且没有 tailnet 直连规则 ⇒ `blocked/registry_mismatch`);**服务端那一端**由采集器判(`SERVER_PROXY_STATE` / `TAILNET_ROUTE_PRESENT`),本清单**不**为它设项。四种组合(客户端关·服务端关 / 客户端开·服务端关 / 客户端关·服务端开 / 客户端开·服务端开)、每格的判据命令、两条修法与回滚,见根 `README.md` 的 §6.1「两台设备 × 开/关代理 = 四种情况」([链接](../../README.md#61-两台设备--开关代理--四种情况));三个易踩点(WinINET 的 `ProxyOverride` 不支持 CIDR、git 的代理与系统代理是两件事、TUN 模式只能落 `unknown`)也在那一节。
 
+**采集器的「调用上下文」是把 `unknown` 读对的前提(P-02)**:被委派的那几项,判不出来时**先问"谁在调用"**。
+对端实测:同机同一条 `tailscale ip -4` —— 在 **agent 工具的受限沙箱**里是
+`open \\.\pipe\ProtectedPrefix\Administrators\Tailscale\tailscaled: Access is denied`(**exit 1**);
+经 **插件路由 → 宿主 `spawn(powershell)` → `collect.ps1`** 这条路径则是 **exit 0**(`TAILSCALE_CLI_LAYER` 报 pass)。
+两条路径的沙箱层级不同(agent 工具链受命名管道/权限限制,宿主 spawn 的子进程不受),所以**同一份 `collect.ps1` 换个调用方就会给出不同判定**。
+
+| 维度 | agent 工具的受限沙箱 | 宿主 `spawn`(权威) | 人工普通窗口 |
+|---|---|---|---|
+| 命名管道 / 提权类探测 | 可能被拒 ⇒ 该项 `unknown` | 能拿到真实判定 | 能拿到真实判定 |
+| 文件 / 端口 / 注册表读取 | 一般可用 | 可用 | 可用 |
+| 能不能当验收判据 | **不能**,只当线索 | **能**,本文件与插件报告的判据口径 | 能,但不可自动复现,只作旁证 |
+
+⇒ **做法**:验收/门禁一律以「插件路由 → 宿主 spawn」这一侧的报告为准;在 agent 沙箱里看到 `unknown`,
+报告里要写明**是哪个调用方跑出来的**,不要写成"机器状态就是这样"。完整对照表见
+[`plugin-package.md` §7.1「采集器的调用上下文」](plugin-package.md)。
+
 ---
 
 ## 3. 逐项:缺失提示语 / 安装命令 + sha256 / 校验命令 / 回滚命令
@@ -108,6 +132,10 @@ powershell -NoProfile -Command "(Get-Command tailscale.exe).Source"
 - **缺失提示**:「本会话里 tailscale CLI 连不到守护进程(命名管道被保护/拒绝访问)。请改在普通(非沙箱)窗口执行 tailscale 命令,或接受 CLI 类判定为未知。」
 - **没有安装步骤**:这是权限/沙箱边界,不是缺软件。原文(实测):`open \\.\pipe\ProtectedPrefix\Administrators\Tailscale\tailscaled: Access is denied.`
 - **回滚**:无需回滚
+- **⚠️ 这一项的判定取决于「谁调用采集器」(P-02;完整版见 `plugin-package.md` §7.1)**:同一条
+  `tailscale ip -4`,在 **agent 工具的受限沙箱** 里报 `Access is denied`(exit 1 ⇒ 只能 `unknown`),
+  经 **插件路由 → 宿主 `spawn`** 跑则是 **exit 0**(pass)。**权威调用上下文 = 插件路由 → 宿主 `spawn(powershell) → collect.ps1`**;
+  人工在普通窗口里跑可作为旁证;agent 沙箱里的 `unknown` **只能当线索,不能当证据**(它说明"这个调用方探不动",不是"没登录")。
 
 ### 3.3 `TAILSCALE_SIGNED_IN`(两端)
 

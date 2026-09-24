@@ -74,6 +74,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\uninstall.ps1 -Plan
 
 Expect: on a fresh clone it refuses with journal_required, exit 2. That is by design, not a bug.
 The full flow lives in `docs/install/uninstall.md`.
+The four commands above install nothing; see section 5 to install or remove the plugin.
+To link two machines for real, see `docs/install/link-guide.md`.
 
 ## 3 Reading the verdicts
 
@@ -109,6 +111,9 @@ Authoritative wording lives in `i18n/labels.zh.json` and `i18n/labels.en.json`;
 expected verdicts for each injected fault live in the cases under `tests/cases/`.
 
 ## 5 Install, enable and remove
+> **Installing this plugin does not link the two machines.** This repository only does
+> read-only checkups, a read-only panel and a clean uninstall. Real linking steps:
+> `docs/install/link-guide.md`.
 
 Form 1, the default: a dynamic Cordis package that lives only in process memory.
 It disappears on restart, so there is nothing to uninstall.
@@ -146,12 +151,12 @@ Long version: `docs/install/uninstall.md`.
 
 | Not verified | Current coverage |
 | --- | --- |
-| Live link with a Win11 client | Fixtures and Win10 path only |
-| Win11 to Win11 end to end | Fixtures only |
-| Silent failure on a Public NIC | Derived from rules only |
-| Server-side HTTPS certificate check | Needs Node or OpenSSL probes |
-| Persistent package on a real DSH | One load on a real DSH (2026-09-25, both cells, info log) |
-| Panel card rendering | Namespace+card seat measured; sidebar tab verified (2026-09-25) |
+| Live link with a Win11 client | Not measured (2026-09-25); fixtures + Win10 path only |
+| Win11 to Win11 end to end | Not measured (2026-09-25); fixtures only |
+| Silent failure on a Public NIC | Not measured (2026-09-25); derived from rules only |
+| Server-side HTTPS certificate check | Not measured (2026-09-25); Node/OpenSSL probes |
+| Persistent package, real DSH | Measured (2026-09-25); one load, both cells, info log |
+| Panel card rendering | Namespace, card seat, sidebar tab: measured (2026-09-25, UI) |
 
 Unverified rows say so, never upgraded; verified rows state date and evidence form.
 
@@ -201,6 +206,8 @@ If none of these match, run `tests\run-smoke.ps1` for first-hand evidence and re
 - **P6** No restart logic; never kills or relaunches the DSH host.
 - **P7** Every side effect hangs off ctx.effect and can be removed completely.
 - **P8** The panel is display-only; no write button.
+- **P9** Routes registered on the existing web server skip DSH web auth:
+  loopback only, read-only posture results only, no credentials; same-origin needs Origin.
 
 Two conclusions from the threat model, `docs/threat-model.md`:
 whoever can open that UI can operate that machine;

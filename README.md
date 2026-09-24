@@ -78,6 +78,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\uninstall.ps1 -Plan
 
 期望：新克隆上会拒绝并报 journal_required，退出 2，这是设计不是出错。
 完整流程见 `docs/install/uninstall.md`。
+以上四条命令都不安装任何东西；安装见 §5，打通两台机器见 `docs/install/link-guide.md`。
 
 ## 3　判定怎么读
 
@@ -112,6 +113,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\uninstall.ps1 -Plan
 
 ## 5　安装、启用与移除
 
+> **提醒：装完本插件不会连通两台机器。** 本仓库只做只读体检、只读面板与完整卸载，
+> 不建通道、不改网络、不转发流量；真正连起来的步骤见 `docs/install/link-guide.md`。
+
 形态 1，默认：动态 Cordis 包，只活在进程内存，重启即消失，所以无需卸载。
 入口是 `src/host-half.js`、`panel/host-half.js` 与 `panel/client-half.js`；
 步骤见 `docs/install/install.md`。
@@ -139,12 +143,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\uninstall.ps1 -Plan
 
 | 未验证项 | 覆盖现状 |
 | --- | --- |
-| Win11 客户端实时链路 | 只有夹具与 Win10 路径 |
-| Win11 对 Win11 端到端 | 仅夹具覆盖 |
-| Public 网卡的静默后果 | 只能从规则推导 |
-| 服务端 HTTPS 证书判定 | 依赖 Node 或 OpenSSL 探测 |
-| 常驻包真机装载 | 真实 DSH 上装载一次（2026-09-25，两格全中，日志 info） |
-| 插件卡片渲染 | 命名空间与卡片座位已实测；侧边栏 tab 已实测（2026-09-25 用户界面确认） |
+| Win11 客户端实时链路 | 仍未实测（2026-09-25 复核）：只有夹具与 Win10 路径 |
+| Win11 对 Win11 端到端 | 仍未实测（2026-09-25 复核）：仅夹具覆盖 |
+| Public 网卡的静默后果 | 仍未实测（2026-09-25 复核）：只能从规则推导 |
+| 服务端 HTTPS 证书判定 | 仍未实测（2026-09-25 复核）：依赖 Node 或 OpenSSL 探测 |
+| 常驻包真机装载 | 已实测（2026-09-25）：真实 DSH 装载一次，两格全中，日志 info |
+| 插件卡片渲染 | 命名空间与卡片座位、侧边栏 tab 均已实测（2026-09-25 用户界面确认） |
 
 未验证项按未验证如实报告，绝不升级成已验证；已实测的行如实标注时点与证据形式。
 
@@ -191,6 +195,8 @@ Tailscale 本体、其它插件、你自己的规则默认保留，它没有卸�
 - **P6** 无重启逻辑，不杀也不拉起 DSH host。
 - **P7** 每个副作用挂在 ctx.effect 上，可完整移除。
 - **P8** 面板是只读展示，没有写入按钮。
+- **P9** 在既有 web 服务上注册的路由不经过 DSH 的 web 认证：仅 loopback 可达，
+  只返回只读体检结果；同源校验对缺 Origin 头的本机进程无效。
 
 威胁模型两条结论，见 `docs/threat-model.md`：谁能打开那个 UI，谁就能操作那台机器；
 loopback 按设计可信，本工具不改变也不扩大它。
@@ -205,6 +211,7 @@ loopback 按设计可信，本工具不改变也不扩大它。
 - `docs/install/prerequisites.md` 前置件与代理四组合。
 - `docs/install/install.md` 形态 1 动态包步骤。
 - `docs/install/plugin-package.md` 形态 2 三步启用、验证、回滚。
+- `docs/install/link-guide.md` 怎么把两台机器的 DSH 连起来（本仓库不负责打通）。
 - `docs/install/agent-brief.md` 给 AI 读的安装流程，含对话输出模板。
 - `docs/install/uninstall.md` 卸载六步长版。
 - `docs/install/rollback.md` 每类改动的回滚。

@@ -1,6 +1,13 @@
 # 安装与激活(动态包默认 / 持久化 profile 需你授权)
 
-- **最后更新时间**: 2026-09-24(v1.2;t26)。本轮新增 **§0 非侵入性承诺与影响面**(设计底线:只读体检器,不改用户既有配置与防火墙;影响面与「可选修复:由你执行」的措辞统一),并把内部资料引用改成**就地复述**(发布集文件不深链内部文档)。v1.1(t20):**状态口径只有一条** —— 动态 Cordis 包只活在**进程内存**里、**随会话/进程结束消失**,所以本文件里所有「running / 已 define」都只是**某个快照时刻**的读数,要用就先按 §1.1 重新 `cordis_define` + `cordis_run`;并新增 **§1.4 会话归属限制**(带 client 半边的面板**必须**在普通交互会话里 define+run)。
+- **最后更新时间**: 2026-09-25(v1.3;本轮补三条:I-02 权限前置(§4.2.1「权限前置」+ 被拒时请求授权、不要绕过)、
+  I-03 `dsh --dump-config` **是写操作**(写 `<profile>\cordis.yml`,只读环境必然 `EPERM`,错误文本看着像配置坏了)、
+  I-05 「取最新备份」判据改为 `CreationTime`(`Copy-Item` 保留源文件 `LastWriteTime`,按 mtime 取最新是坏的);
+  §5 已知限制新增第 4 条:采集器判定的**调用上下文**(agent 沙箱 vs 宿主 spawn)。
+  v1.2(t26):本轮新增 **§0 非侵入性承诺与影响面**(设计底线:只读体检器,不改用户既有配置与防火墙;影响面与「可选修复:由你执行」的措辞统一),
+  并把内部资料引用改成**就地复述**(发布集文件不深链内部文档)。v1.1(t20):**状态口径只有一条** —— 动态 Cordis 包只活在**进程内存**里、**随会话/进程结束消失**,
+  所以本文件里所有「running / 已 define」都只是**某个快照时刻**的读数,要用就先按 §1.1 重新 `cordis_define` + `cordis_run`;
+  并新增 **§1.4 会话归属限制**(带 client 半边的面板**必须**在普通交互会话里 define+run)。
 - **本次使用的命令**(全部只读;无 `platform:"client"` 的 Inspect、无 `ego_*`、无长等待):
   1. `cordis_inspect_list`
   2. `cordis_inspect_query(platform="host", provider="Service", method="listService", input={service:"fs"})`
@@ -240,7 +247,7 @@ $app = Join-Path (Split-Path -Parent $exe) 'resources\app'    # ⇒ <DSH_APP> = 
 | `dsh-crossnet-link/cordis.patch.yml` | 一行 loader entry(`- id:` + `name:`) | **未创建** |
 | profile 行 | 加到活动 profile 的 patch 层 | **未执行** |
 
-### 4.2 备份(执行持久化的第 0 步,必做)
+### 4.2 备份(必做)
 
 ```powershell
 # 运行时解析 profile 目录(不要写死路径)
@@ -258,6 +265,37 @@ Copy-Item -LiteralPath $patch -Destination $backup -Force
 > 直接拿它整文件还原会**把整段预设行删掉**(`app\cordis.patch.yml` 里 `permission` 预设、`ego-browser` 的 `chromePath` 都靠这种行存在)。
 > ⇒ **还原前必须先看备份内容**,并且**读备份必须显式 `-Encoding UTF8`**(PS 5.1 默认按 ANSI 读无 BOM 的 UTF-8,中文预设名会乱码);
 > 哈希比对仍是**字节级**判据。完整命令见 §4.5 与本目录 `rollback.md` §2。
+
+### 4.2.1 两条判据(权限前置 + 「取最新备份」用什么排序)
+
+**权限前置(I-02)**:§4 的每一步都会写到**会话工作区之外** —— 全部落在 `<DSH_HOME>\profiles\<profile>\*`
+(`cordis.patch.yml`、`package.json`、`pnpm-lock.yaml`、`node_modules\`、`cordis.yml`)。DSH 会话默认沙箱是 `workspace-write`,
+**可写范围只有工作区**,所以这些写入需要**一次显式授权**(升级到能写 `<DSH_HOME>` 的沙箱模式 / 由用户点同意)。
+被拒的典型症状:`UnauthorizedAccessException` / `Access is denied` / `EPERM`。
+
+> **被拒时的正确做法(写死)**:停下来,**显式向用户 / 上层请求一次授权**(说清要写哪个文件、为什么必须写),
+> 拿到授权后**重跑同一条命令**。**不要**改成写工作区再手工搬过去(中间副本不是备份)、**不要**用
+> `takeown`/`icacls`/`-Force` 改权限、**不要**跳过 §4.2 的备份 —— 那是本节唯一影响"还能不能回滚"的一步。
+
+**「取最新备份」的排序键(I-05)**:`Sort-Object LastWriteTime | Select-Object -Last 1` 是**坏的**判据 ——
+`Copy-Item` **保留源文件的 `LastWriteTime`**,所以它衡量的始终是"源文件最后被改的时间",不是"哪一次备份最新"
+(对端实测:两次不同时刻的备份 `LastWriteTime` 完全相同)。**改用 `CreationTime` 或按备份文件名里的时间戳排序**:
+
+```powershell
+# 备份后先确认它真的落地(非终止错误会让"备份成功"是假的)
+Test-Path -LiteralPath $backup                                   # 期望 True
+(Get-Item -LiteralPath $backup).Length                           # 期望 > 0,且与源文件一致
+
+# 「取最新备份」的正确排序键(二选一)
+Get-ChildItem -LiteralPath ($patch + '.bak-*') | Sort-Object CreationTime | Select-Object -Last 3 FullName,Length,CreationTime,LastWriteTime
+Get-ChildItem -LiteralPath ($patch + '.bak-*') | Sort-Object Name         | Select-Object -Last 3 FullName,Length
+```
+
+**`dsh --dump-config` 是写操作(I-03)**:它不是"只读打印" —— 内部会
+`writeFileSync(join(<profile>, 'cordis.yml'), …)`(`@deepseek-ai/dsh` 的 `dump-config-*.js` → `profile-boot-*.js` 的 `prepareProfile`,
+`PROFILE_ROOT_FILENAME = "cordis.yml"`;profile 不存在时还会先建它)。所以**只读环境下它必然失败**,原文形如
+`failed to start packaged dsh: Error: EPERM: operation not permitted, open '…\cordis.yml'`。
+**这条报错不是"配置坏了",是权限问题** —— 按上面的权限前置请求授权后重跑,不要顺着"配置坏了"去改 YAML / 重装。
 
 ### 4.3 加行(由你执行,需显式授权)
 
@@ -347,3 +385,4 @@ Copy-Item -LiteralPath $backup -Destination $patch -Force
 1. 动态包不落盘、进程重启即消失;持久化形态需要 §4.1 的仓库层产物(t12)。
 2. **带 client 半边的动态包在 subagent 路由归属的会话里无法激活**(§1.4;实测失败原文 `session/agent-busy: session "…" is owned by subagent routing`)⇒ 在成员会话里对 `panel-2/pkg-5` **重试无意义**,正确做法是在普通交互会话里**新建**插件。
 3. 运行时激活的观察(§1.2 的位置与判据、GUI 不出现 `Failed to load plugins`)需在**普通交互会话**里按 §1.1 点一次;这一步不改变本仓库任何文件。
+4. **采集器的判定与「谁调用」有关**(P-02,2026-09-25 补):`collect.ps1` 的**权威调用上下文 = 插件路由 → 宿主 `spawn(powershell) → collect.ps1`**(宿主侧宿主日志 `logs\host\`);在 **agent 工具的受限沙箱**里调用同一份脚本可能给出**不同判定** —— 对端实测:同一条 `tailscale ip -4`,沙箱内报 `open \\.\pipe\…tailscaled: Access is denied`(exit 1,该项只能 `unknown`),经宿主 spawn 则是 **exit 0**。所以引用 `collect.ps1` 的结论时**必须写明调用上下文**;沙箱里的 `unknown` 不等于"机器缺前置件"。完整对照表见 `plugin-package.md` §7.1。

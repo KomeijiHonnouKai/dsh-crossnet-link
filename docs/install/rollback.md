@@ -1,6 +1,9 @@
 # 回滚手册(两条安装路径 + 每个前置件步骤)
 
-- **最后更新时间**: 2026-09-24(v2.1;t26:去掉对**内部资料**的引用(发布集文件不深链内部文档),该位置改为就地复述;其余不变。v2 = t16 repair-round-2 的 F1/F2/F4/F9)
+- **最后更新时间**: 2026-09-25(v2.2;本轮修「取最新备份」的判据:`Copy-Item` **保留源文件的 `LastWriteTime`**,
+  所以 `Sort-Object LastWriteTime | Select-Object -Last 1` 排的是「源文件最后被改的时间」、不是「哪次备份最新」(I-05);
+  §2 的备份/还原命令改用 **`CreationTime`** 并补上「文件真的存在 + Length 非 0」的确认(与 I-04 的假成功配套)。
+  v2.1 = t26 去掉对**内部资料**的引用,该位置改为就地复述;v2 = t16 repair-round-2 的 F1/F2/F4/F9)
 - **本次使用的命令**(全部只读;本文件不含任何会改变系统状态的命令执行记录):
   1. `& "$env:ProgramFiles\Tailscale\tailscale.exe" serve --help`(**exit=0**)—— F1 的证据台账,见 §3.1
   2. `powershell -NoProfile -Command "Copy-Item -LiteralPath <patch> -Destination <patch>.bak-<stamp> -Force"`(示例,由你执行)
@@ -70,6 +73,12 @@ t16 复核时返回 **`plugins: []`** ⇒ **进程重启后动态包已消失**(
 > ⇒ **还原前必须先看备份内容**,不要拿一个空文件盖回去。另外 PS 5.1 下读无 BOM 的 UTF-8 会乱码(中文预设名尤其明显),
 > 所以读备份**必须显式 `-Encoding UTF8`**;哈希比对仍是字节级判据,不要只靠肉眼看。
 
+> ⚠️ **「取最新备份」的判据(I-05,实测)**:`Copy-Item` **保留源文件的 `LastWriteTime`** —— 新副本的这个字段
+> 等于源文件的值,不是"复制发生的那一刻"。所以 `Sort-Object LastWriteTime | Select-Object -Last 1` 选出来的是
+> **源文件最后被改的时间**,不是你的最后一次备份;对端实测两次不同时刻的备份 `LastWriteTime` **完全相同**。
+> **改用 `CreationTime`(副本自己的创建时间)或按备份文件名里的时间戳排序**,并且**用之前先确认它真的存在、`Length` 非 0**
+> (`Copy-Item` 被拒抛的是**非终止错误**,脚本可能一边报"备份成功"一边什么都没写)。
+
 ```powershell
 # 0) 备份前:先看清原文件长什么样(以及它是否只是注释)
 $dshHome = if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $env:USERPROFILE '.dsh' }
@@ -84,6 +93,15 @@ $backup = "$patch.bak-$stamp"
 Copy-Item -LiteralPath $patch -Destination $backup -Force
 "backup=$backup"
 (Get-FileHash -LiteralPath $backup -Algorithm SHA256).Hash   # 把这个值记下来
+
+# 1b) 立刻确认备份真的落地(非终止错误会让"备份成功"是假的)
+Test-Path -LiteralPath $backup                                # 期望 True
+(Get-Item -LiteralPath $backup).Length                        # 期望 > 0 且与源文件一致
+
+# 1c) 「取最新备份」的正确排序键:CreationTime(不是 LastWriteTime)
+Get-ChildItem -LiteralPath ($patch + '.bak-*') | Sort-Object CreationTime | Select-Object -Last 3 FullName,Length,CreationTime,LastWriteTime
+# 或按文件名时间戳排序(与文件系统元数据无关):
+Get-ChildItem -LiteralPath ($patch + '.bak-*') | Sort-Object Name | Select-Object -Last 3 FullName,Length
 
 # 2) F9:还原前先核对备份内容 —— 空 patch / 空文件一律不要还原
 Get-Content -LiteralPath $backup -Encoding UTF8            # 必须显式 UTF8,否则中文预设名乱码
@@ -169,6 +187,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/prer
 ```
 
 期望:相应项的 `verdict` 回到改动前的值,且 `summary` 的计数与你的记录一致。
+
+> **注意调用方(与 `plugin-package.md` §7.1 同一条口径)**:同一份 `src/collect.ps1`,由 **agent 工具的受限沙箱**调用与由
+> **宿主 `spawn`** 调用会给出**不同判定** —— 对端实测:同一条 `tailscale ip -4`,前者报
+> `open \\.\pipe\…tailscaled: Access is denied`(exit 1,该项只能 `unknown`),后者 **exit 0**(`TAILSCALE_CLI_LAYER` pass)。
+> 所以**回滚验证的判据以「普通窗口 / 宿主 spawn」那一侧为准**;在 agent 沙箱里跑出来的 `unknown` **不能**当成
+> 「回滚没生效」。两边不一致时,先报告"哪个调用方跑出来的",再解释差异,不要互相覆盖。
 
 ---
 

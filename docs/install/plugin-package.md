@@ -3,7 +3,9 @@
 > **状态:骨架 + 只读预检 + 文档,尚未在真实 DSH 里加载验证。**
 > 本文只描述**已经落盘并可复现**的东西;凡是需要你的机器上真跑一次才能确认的观察,都写在
 > §9「未验证清单」里,不写成已验证。
-> **最后更新**:2026-09-24(任务 t43 第一阶段)。
+> **最后更新**:2026-09-25(I-02/I-03/I-05/I-06/I-09/P-02:§5 新增权限前置(§5.0)、`--dump-config` 是写操作、
+> 备份「取最新」判据改为 `CreationTime`、日志层级、`--dump-config` 误报读法;§6 回滚排序键同步;§7 新增
+> 「采集器的调用上下文」;上一版 2026-09-24 为任务 t43 第一阶段)。
 > **本次用过的命令**(只读,未执行任何安装):
 > `powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/panel/plugin-preflight.ps1`
 > ·`powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/tests/run-tests.ps1`
@@ -430,18 +432,65 @@ self-test: 7 cases  matched: 7  mismatched: 0
 
 ---
 
-## 5. 三步启用(逐条可粘贴)
+## 5. 三步启用(第 0 步是权限前置;逐条可粘贴)
+
+### 5.0 第 0 步:权限前置(先要一次授权,再动手)
+
+> **本节流程会写到会话工作区之外。** 目标全部落在 `<DSH_HOME>\profiles\<profile>\*`
+> (默认 `$env:USERPROFILE\.dsh\profiles\<profile>\*`),不在你的会话工作区里。
+> DSH 会话默认沙箱是 `workspace-write`:可写范围**只有工作区**,`<DSH_HOME>` 在工作区之外 ⇒
+> **需要一次显式授权**(升级到能写 `<DSH_HOME>` 的沙箱模式 / 由用户点同意)才能继续。
+
+| 步骤 | 会写到哪里 | 目的 | 被拒时的症状 |
+|---|---|---|---|
+| 第 1 步 备份 | `<DSH_HOME>\profiles\<profile>\cordis.patch.yml.bak-<时间戳>`(与源文件同目录) | 先落下可整文件还原的已知良好副本 | `UnauthorizedAccessException` / `Access is denied` |
+| 第 2 步 装包 | `<DSH_HOME>\profiles\<profile>\package.json`、`pnpm-lock.yaml`、`node_modules\`、`cordis.yml` | `dsh plugin --profile <profile> add 'link:<插件目录>'` | 同上;`pnpm` 报 `EPERM` |
+| 第 3 步 追加启用行 | `<DSH_HOME>\profiles\<profile>\cordis.patch.yml` | 追加三行覆盖行(见下) | `AppendAllText` 抛 `UnauthorizedAccessException` |
+| 第 3 步 之后的核对 | 同目录的 `cordis.yml`(**`--dump-config` 是写操作**,见下) | `dsh --profile <profile> --dump-config` | `EPERM: operation not permitted, open '…\cordis.yml'` |
+| §4 的只读预检 | 不写任何东西 | `plugin-preflight.ps1`(全部只读) | —— 这一条**不需要**授权,先跑它 |
+
+**被拒时的正确做法(写死,不要绕过)**:停下来,**显式向用户 / 上层请求一次授权** —— 把「要写哪个文件、为什么必须写、不写会
+失去什么」讲清楚(上表就是素材),拿到授权后**重跑同一条命令**。授权是「让这次写入被允许」,不是「换一种不需要授权的方式」。
+
+**不要为了绕过授权做这些事**(它们都改变流程语义,会让「可回滚」失效):
+
+- 不要改成写工作区内的临时路径、再手工搬到 `<DSH_HOME>` —— 中间副本不是备份,回滚时你手里没有已知良好文件;
+- 不要用 `-Force` / `takeown` / `icacls` 改权限,也不要提权跑整条流程 —— 权限面被改宽之后,本文的判据不再成立;
+- 不要因为「只差这一步」就跳过第 1 步备份 —— 那是整条流程里唯一影响「还能不能回滚」的一步;
+- 不要把 §4 的只读预检当成授权的替代品:预检**不写**任何东西,所以它永远不需要授权,也永远不能证明「能写」。
+
+> **只读环境下仍然可用**:§4 的预检、`src/collect.ps1 -CheckOnly`、`panel/prereq.ps1 -CheckOnly` 全部只读、不需要任何授权。
+> 装包只是让插件**常驻**;只想先看结论的话,读完 §4 就可以停在这里。
 
 > **先做一次第 4 节的预检,再照下面走。** 全程不需要 pnpm 手工命令,`dsh plugin` 会转发。
 > 本包**没有发布到任何 registry**(`package.json` 里 `"private": true`),所以安装一律用 `link:<插件目录>`;
 > 别试 `dsh plugin --profile <profile> add dsh-crossnet-link`(装不到)。
 > `link:` 的含义是**符号链接**:profile 直接加载这份 checkout 里的代码,因此插件启用期间不要移动或删掉仓库目录。
 >
-> **下一步做什么,写在最前面**:跑完下面三步后,**从 DSH 自带菜单重启 DSH**(设置 → 桌面 → 重启;或退出应用再打开),
+> **下一步做什么,写在最前面**:跑完第 0 步与下面三步后,**从 DSH 自带菜单重启 DSH**(设置 → 桌面 → 重启;或退出应用再打开),
 > 然后去 **设置 → 插件**,清单里 `dsh-crossnet-link` 应显示**已启用**;「可配置插件」tab 里应出现
 > 一张折叠卡片 **`dsh-crossnet-link`**(副标题是插件目的,点开是**设置表单**:本机视角 / 对端地址 / 体检口径 / 高级,
 > 底部「保存 / 放弃」),左侧导航**不新增任何条目**。逐条带人话、给 AI 读的版本见
 > [`agent-brief.md`](agent-brief.md)。
+
+#### 取源:同名目录已存在怎么办(先改名保留,**不要**直接覆盖)
+
+第 1 步之前先确认 `<REPO>\dsh-crossnet-link` 是**你要用的这一份**:
+
+| 情形 | 正确做法 |
+|---|---|
+| 该目录不存在 | 正常取源(clone 或拷贝)。**克隆目录名必须就叫 `dsh-crossnet-link`** —— 改名会让采集器找不到 `src/collect.ps1`(改报 `collector-missing`) |
+| 目录已存在,且就是本次要用的那份(工作区干净、来源可追溯) | 直接用它,不要重复取源 |
+| **目录已存在,但来源不明 / 是旧副本 / 有本地改动** | **先把旧目录改名保留**(例如 `dsh-crossnet-link.old-<时间戳>`),再取新的。**不要**直接删、**不要**直接覆盖 |
+
+**为什么不许直接覆盖**:①旧目录里可能有对端/别人的本地改动,覆盖即丢失;②对端实测遇到过"预存同名目录 `D:\DSH\dsh-crossnet-link`
+与 `_incoming\`"的场景 —— 覆盖之后你**分不清**当前跑的是哪一份;③若该目录正被 `link:` 引用,删掉它会让 profile 的链接**悬空**
+(见下一条);④改名保留是**可逆**的,覆盖不是。
+
+- **`link:` 一旦建成,目标路径永久固定**:`dsh plugin add 'link:<路径>'` 会在 profile 里建立指向**那一刻那个路径**的链接,
+  **之后移动或改名插件目录都会让它找不到代码**。所以取源与改名要**在 `add` 之前**做完;已经 `add` 过还想换目录,先 `remove` 再 `add`。
+- 与 I-09 同族的判据:**"目录在"不等于"这目录是对的"** —— 先看 `git rev-parse HEAD` / `git status`(如果这份 checkout 有版本库),
+  确认它就是你要装的那一版,再往下走。
 
 ```powershell
 $repo    = '<REPO>'
@@ -451,10 +500,21 @@ $patch   = Join-Path $dshHome "profiles\$profile\cordis.patch.yml"
 $plugin  = Join-Path $repo 'dsh-crossnet-link\plugin'
 
 # ---------- 第 1 步:整文件备份 profile patch(这一步不能省) ----------
-Copy-Item -LiteralPath $patch -Destination ($patch + '.bak-' + (Get-Date -Format 'yyyyMMdd-HHmmss')) -Force
-# 期望:无输出;再看一眼刚生成的备份
-Get-Item -LiteralPath ($patch + '.bak-' + '*') | Sort-Object LastWriteTime | Select-Object -Last 1 FullName,Length
-# 期望:列出一个 .bak-<时间戳> 文件,Length 与 patch 一致
+$bak = $patch + '.bak-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
+Copy-Item -LiteralPath $patch -Destination $bak -Force -ErrorAction Stop   # 关键:-ErrorAction Stop(Copy-Item 被拒是**非终止错误**)
+$item = Get-Item -LiteralPath $bak -ErrorAction Stop                       # 判据①:文件真的在
+"backup = $($item.FullName)"                                               # 判据②:把路径记下来,回滚只认它
+"bytes  = $($item.Length)"                                                 # 判据③:Length 非 0,且与 patch 一致
+"sha256 = " + (Get-FileHash -LiteralPath $bak -Algorithm SHA256).Hash      # 判据④:与源文件逐字节一致
+# 期望:上面三行(backup / bytes / sha256)都真的打印出来 —— ①文件存在(不是"命令无输出")②Length 非 0 且与 $patch 相同 ③sha256 与下面这行相同
+"sha256 = " + (Get-FileHash -LiteralPath $patch -Algorithm SHA256).Hash
+# ⚠️ 上面两行的 sha256 必须相同;若有**任何一行没打印 / $item 为 $null / Length=0 / 哈希不同** ⇒ 备份没成功,**停下,不要继续装**
+#   (`Copy-Item` 被拒抛的是**非终止错误**,后面的行照常打印,脚本会显示"备份成功"而文件根本不存在 —— 对端实测踩过)
+#   判据是「文件在 + Length 非 0 + SHA256 一致」,不是「命令无输出」。
+# ⚠️ 排序键必须是 CreationTime(或按文件名里的时间戳),**不能**用 LastWriteTime —— 见下面的判据说明
+Get-Item -Path ($patch + '.bak-*') | Sort-Object CreationTime | Select-Object -Last 1 FullName,Length,LastWriteTime,CreationTime
+Test-Path -Path ($patch + '.bak-*')                                        # 期望 True(取"最新备份"这两处都用 -Path:通配符要展开;
+#   用 -LiteralPath 时 `*` 会被当字面字符,实测**一个都不返回**(False/空),别把"没列出"读成"没有备份")
 
 # ---------- 第 2 步:装进 profile(会改 profile 的 package.json / pnpm-lock.yaml / node_modules) ----------
 dsh plugin --profile $profile add ('link:' + $plugin)
@@ -465,7 +525,10 @@ dsh plugin --profile $profile add ('link:' + $plugin)
 # ---------- 第 3 步:把"启用覆盖行"追加到 profile patch 末尾,然后从 DSH 自带菜单重启 ----------
 # 启用就是这三行(id 与 name 等于包名;无 BOM 追加,不动文件里已有的任何内容):
 [IO.File]::AppendAllText($patch, "`n- id: dsh-crossnet-link`n  name: dsh-crossnet-link`n  disabled: false`n", (New-Object Text.UTF8Encoding($false)))
-# 期望:无输出、不报错;验证一下
+# 期望:不是"无输出就算成功",而是**文件真的被改了**:读回文件核对追加的三行
+$tail = Get-Content -LiteralPath $patch -Encoding UTF8 -Tail 3
+$tail; if ($tail -notcontains '  disabled: false') { throw "追加失败或没写进文件:$patch —— 停下,不要靠 --dump-config 猜" }
+# 验证一下(dsh --dump-config 本身是写操作:只读沙箱下会报 EPERM,那是权限不是配置坏,见下一节)
 dsh --profile $profile --dump-config | Select-String -SimpleMatch 'dsh-crossnet-link' -Context 0,4
 # 期望:能看到 id/name 是 dsh-crossnet-link、disabled: false 的那一行
 ```
@@ -474,6 +537,23 @@ dsh --profile $profile --dump-config | Select-String -SimpleMatch 'dsh-crossnet-
 启用行依旧落在 profile 的用户层(覆盖包自带的 `disabled: true`,升级不丢、回滚只动一个文件),
 只是由流程自动加,不用人手工改。
 
+#### ⚠️ `dsh --dump-config` **是写操作**(错误文本会误导排障)
+
+上面第 3 步用 `--dump-config` 做核对,但这个名字看着像"只读打印",**它不是**:
+
+- `dsh --profile <profile> --dump-config` 内部走 `runDumpConfig` → `prepareProfile(...)` →
+  **`writeFileSync(join(profile.dir, 'cordis.yml'), PROFILE_ROOT_CONFIG)`**
+  (`<APP_DIR>\node_modules\@deepseek-ai\dsh\lib\dump-config-*.js` 调
+  `profile-boot-*.js` 的 `prepareProfile`,其中 `PROFILE_ROOT_FILENAME = "cordis.yml"`);
+  目标 profile 不存在时还会先按模板初始化它(`mkdirSync` + 写文件)。
+- 所以**只读沙箱下它必然失败**,原文形如:
+  `failed to start packaged dsh: Error: EPERM: operation not permitted, open '…\profiles\<profile>\cordis.yml'`。
+- **读法**:这条报错**不是"配置坏了"**,是**权限问题**(写 `cordis.yml` 被拒)。别去改 `cordis.patch.yml`、
+  别去重装、别怀疑 YAML 语法 —— 按 §5.0 请求授权,然后**重跑同一条命令**。
+- 想避免这一次写:核对改用**文件读取**(`Get-Content <profile>\cordis.patch.yml`)或 `dsh` 的命令行帮助;
+  真要打印组合后的配置树,就接受它会写 `cordis.yml` 这一事实。
+- 另外两个同族开关:`--dump-default-config` 不解析用户层(用于"用户层坏了"时的恢复诊断),它同样会写 `cordis.yml`。
+
 > **小坑(实测)**:刚初始化的一次性 profile 的补丁文件内容是一行 `[]`(空数组模板)。
 > 追加第 3 步之前,若文件里只有这一行 `[]`,先把它删掉再追加,避免数组里多出一个空项。
 > 日常 `desktop` profile 的补丁已有内容,直接追加即可。
@@ -481,6 +561,28 @@ dsh --profile $profile --dump-config | Select-String -SimpleMatch 'dsh-crossnet-
 **为什么启用是"加三行覆盖"而不是改包里的 `disabled`**:`plugin/cordis.patch.yml` 是**包自己的层**,
 `<profile>\cordis.patch.yml` 是**用户层、在所有 bundle 层之后应用**(§2.5),同一个 `id` 会被用户层覆盖。
 这样 `node_modules` 里的包保持原样、升级不丢,回滚也只需要动一个文件。
+
+#### 备份的「取最新」判据:`CreationTime`,**不是** `LastWriteTime`
+
+第 1 步里那条排序**不能**写成 `Sort-Object LastWriteTime | Select-Object -Last 1` —— 它衡量的是
+**源文件最后一次被改动的时间**,不是「哪一次备份最新」。原因是一条 Windows 行为事实:
+
+> **`Copy-Item` 会保留源文件的 `LastWriteTime`。** 新副本的 `LastWriteTime` = 源文件的值,
+> 而不是"复制发生的那一刻"。对端实测:两次不同时刻做的备份,`LastWriteTime` **完全相同**。
+
+**正确判据(任选一条,都按"备份动作发生的时间"排序)**:
+
+```powershell
+# A) 按创建时间(副本自己的 CreationTime = 复制那一刻)
+Get-Item -Path ($patch + '.bak-*') | Sort-Object CreationTime | Select-Object -Last 1 FullName,Length
+
+# B) 按备份文件名里的时间戳排序(推荐,与文件系统元数据无关)
+Get-Item -Path ($patch + '.bak-*') | Sort-Object { $_.Name } | Select-Object -Last 1 FullName,Length
+```
+
+> **为什么重要**:叠加"`Copy-Item` 被拒是非终止错误"这条,一次**失败的**备份在按 `LastWriteTime` 排序时
+> 也能像正常备份一样排在前面 —— 判据坏掉 + 假成功,合起来就是"回滚时才发现没有可用备份"。
+> 所以:**排序用 `CreationTime` 或文件名时间戳,并在用之前 `Test-Path` 确认它真的存在、`Length` 非 0。**
 
 ### 5.1 启用后你会看到什么(两格判据;实测口径见 §9.1)
 
@@ -515,8 +617,12 @@ $patch   = Join-Path $dshHome "profiles\$profile\cordis.patch.yml"
 #     disabled: true
 
 # ---------- 第 2 步:GUI 异常时,整文件还原 profile patch 的备份 ----------
-Get-ChildItem -LiteralPath ($patch + '.bak-*') | Sort-Object LastWriteTime | Select-Object -Last 3 FullName,Length
-Copy-Item -LiteralPath '<上面列出的那个备份文件>' -Destination $patch -Force      # 整文件还原,然后重启
+Get-ChildItem -Path ($patch + '.bak-*') | Sort-Object CreationTime | Select-Object -Last 3 FullName,Length,CreationTime,LastWriteTime
+# ↑ 用 CreationTime(或按文件名时间戳)取最新,且用 -Path(通配符要展开;-LiteralPath 一个都不返回):
+#   Copy-Item 保留源文件的 LastWriteTime,按它排是坏的(见 §5 的判据说明)
+Copy-Item -LiteralPath '<上面列出的那个备份文件>' -Destination $patch -Force -ErrorAction Stop   # 整文件还原,然后重启
+# ⚠️ 还原同样是"非终止错误"体质:加 -ErrorAction Stop,并在还原后立刻核对哈希(期望与第 1 步记下的 sha256 逐字节一致)
+Get-FileHash -LiteralPath $patch -Algorithm SHA256 | Select-Object -ExpandProperty Hash
 
 # ---------- 第 3 步:从 profile 卸载这个包 ----------
 dsh plugin --profile $profile remove dsh-crossnet-link
@@ -544,6 +650,38 @@ powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'dsh-crossn
 | 卡片在,点开后只有一行"设置服务不可用" | 这一页拿不到本插件的设置命名空间(极少数情况:非本机页面,或预检 §4 第 4/5 条没通过) | 跑 §4 预检;卡片不写设置时**不会**误报成功,保存按钮也不会亮 |
 | **GUI 卡在恢复模式 / `Failed to load plugins`** | **立刻把覆盖行改回 `disabled: true`;若改不动或页面已打不开,就整文件还原 §5 第 1 步的备份,重启** | 恢复后在 `%TEMP%` 的一次性 profile 上按 §8 复现,别在日常 profile 上修 |
 | 想彻底消失 | `dsh plugin --profile <profile> remove dsh-crossnet-link` | 再核对 §6 第 4 步 |
+| 日志里找不到 `dsh-crossnet-link` 的行 | **层级走错了**:插件的行在 **`<DSH_HOME>\logs\host\`** 子目录里,不在 `<DSH_HOME>\logs\` 根 | 打开 `<DSH_HOME>\logs\host\dsh-YYYY-MM-DD.log` 再搜一次(本机实测:同一天根目录那份约 756 B,几乎没有内容;`logs\host\` 那份 85,630 B、插件行都在里面);仍没有 ⇒ 按 §9.1 的判据先确认行是否真的被装进 profile 并重启过 |
+
+### 7.1 采集器的调用上下文(同一份 `collect.ps1`,两种调用方,判定可能不同)
+
+**先记住这一条**:`src/collect.ps1` 是**同一份脚本**,但**谁来调用它**,会让"同一条探测命令"得到**不同结果**。
+文档期望的**权威调用上下文只有一条**:插件路由 → 宿主进程 → `spawn(powershell) → collect.ps1`
+(也就是 §7 表格里那条"跑 §4 预检 / 看宿主日志"的路径,以及 §9.1 的两格判据)。**人工在普通窗口里跑的 CLI 结果可用于排障,
+但不算权威判定**;在 **agent 工具的受限沙箱会话里跑出来的结果更不算**(见下表)。
+
+| 调用上下文 | 谁在跑 `collect.ps1` | 对端实测:同一条 `tailscale ip -4` |
+|---|---|---|
+| **权威**:插件路由 → 宿主 → spawn | DSH 宿主进程 `ctx.subprocess.spawn(...)` 拉起的 PowerShell 子进程 | **exit 0**(`TAILSCALE_CLI_LAYER` 报 pass) |
+| 受限:agent 工具沙箱 | agent 的工具链在会话沙箱里直接执行命令 | **`open \\.\pipe\ProtectedPrefix\Administrators\Tailscale\tailscaled: Access is denied.`(exit 1)** ⇒ 同一项只能判 `unknown` |
+| 参考:人工普通窗口 | 用户自己开的、未受限的 PowerShell | 与权威路径一致(exit 0);**但它取证成本高、不可自动复现,只作旁证** |
+
+**为什么两个上下文会不一样**:两条路径的**沙箱层级不同** —— agent 工具链受命名管道 / 权限限制,而宿主 spawn 出的子进程不受同一层限制。
+这是**调用方之间的差异**,不是脚本坏了,也不是"机器状态变了"。(对端标记为【推断】;本仓库引用其**现象**,
+不把它当已证实的机制 —— 见 §9「未验证清单」。)
+
+| 维度 | agent 沙箱里调用 | 宿主 spawn 调用(**权威**) |
+|---|---|---|
+| 命名管道 / 提权探测(如 `tailscale ip -4`) | 可能被拒 ⇒ 该项 `unknown` | 能拿到真实判定 |
+| 文件、端口、注册表读取 | 一般可用 | 可用 |
+| 结果口径 | **不能**当验收判据 | 本文所有判据以它为口径 |
+
+**做法(写死)**:
+
+1. **报告与验收一律以权威上下文为准** —— 以插件路由跑出来的报告(或宿主日志)为判据;
+2. 在 agent 沙箱里跑出来的结论,**只能当线索、不能当证据**:比如 `TAILSCALE_CLI_LAYER = unknown`,
+   那说的是**这个调用方探不动**,不是"对端没登录 Tailscale";
+3. 两边的判定**不一致时不要互相覆盖**:先报告"哪个上下文跑出来的",再解释差异从哪来(上表);
+4. 想在沙箱里也拿到可信的 CLI 层判定:要么换到宿主 spawn 的那条路(启用插件后打路由),要么在普通窗口人工跑一次。
 
 ---
 
