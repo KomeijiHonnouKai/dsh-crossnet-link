@@ -1,17 +1,19 @@
 <#
   repo-hygiene.ps1 - release-set hygiene gate for remote-tailnet-guard (repository layer)
 
-  LAST UPDATED  : 2026-09-24 (task t39 - tools/ joined the release set, so the optional write
-                  component is scanned by default too; task t24 made panel/ a default root)
+  LAST UPDATED  : 2026-09-24 (task t44 - plugin/ (the persistent plugin package) joined the release
+                  set, so the shipped package is scanned by default too; task t39 - tools/ joined the
+                  release set, so the optional write component is scanned by default too; task t24
+                  made panel/ a default root)
   AUTHOR        : team remote-tailnet-guard-2 (member "packager", tasks t12 + t24 + t39)
   RUNS ON       : Windows PowerShell 5.1 (powershell.exe). No module, no network, no node.
 
   WHAT IT PROVES (release set = what a clone of the published repository contains:
-    src/, i18n/, tests/, panel/, tools/, docs/collect.md, docs/install/, docs/threat-model.md,
-    SECURITY.md, LICENSE, README.md, CHANGELOG.md, CONTRIBUTING.md, .gitignore,
-    .editorconfig, .github/**. The plugin's other half - the prerequisite checker, its
-    manifest and both panel halves - and the uninstaller therefore sit inside the scanned
-    surface, not beside it):
+    src/, i18n/, tests/, panel/, tools/, plugin/, docs/collect.md, docs/install/,
+    docs/threat-model.md, SECURITY.md, LICENSE, README.md, README.zh-CN.md, CHANGELOG.md,
+    CONTRIBUTING.md, .gitignore, .editorconfig, .github/**. The plugin's other half - the
+    prerequisite checker, its manifest and both panel halves - the uninstaller and the
+    persistent plugin package therefore sit inside the scanned surface, not beside it):
     1. blocked identifiers     : 0 hits for the real tailnet addresses / host names / user
                                  paths of the machines this project was developed on
     2. private / node suffixes : 0 hits for the private /24 prefixes held in the blocklist and
@@ -95,13 +97,14 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRootDefault = Split-Path -Parent (Split-Path -Parent $ScriptDir)
 
 # The release set: exactly what a published clone contains. panel/ is a member (the plugin's
-# prerequisite checker and both panel halves ship with the repository) and so is tools/ (the
-# uninstaller - the one optional write component), so both are scanned by default and must not
-# be hidden behind an -ExtraRoots argument.
+# prerequisite checker and both panel halves ship with the repository), so is tools/ (the
+# uninstaller - the one optional write component) and so is plugin/ (the persistent plugin
+# package: package.json, cordis.patch.yml, lib/ and its client twin), so all three are scanned
+# by default and must not be hidden behind an -ExtraRoots argument.
 $PublishRoots = @(
-  'src', 'i18n', 'tests', 'panel', 'tools',
+  'src', 'i18n', 'tests', 'panel', 'tools', 'plugin',
   'docs\collect.md', 'docs\install', 'docs\threat-model.md',
-  'SECURITY.md', 'LICENSE', 'README.md', 'CHANGELOG.md', 'CONTRIBUTING.md',
+  'SECURITY.md', 'LICENSE', 'README.md', 'README.zh-CN.md', 'CHANGELOG.md', 'CONTRIBUTING.md',
   '.gitignore', '.editorconfig', '.gitattributes', '.github'
 )
 

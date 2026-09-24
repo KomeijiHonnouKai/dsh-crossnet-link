@@ -73,6 +73,12 @@ param(
   [switch]$List,
   [switch]$Quiet,
   [switch]$KeepTemp,
+  # t45: simulate a HOST on which the native tool resolution finds nothing (a fresh Windows Server
+  # with no Tailscale and no DSH). Every fixture that does not pin tools.<name> has that key injected
+  # as absent, which is exactly what happens on such a host, so any case that would depend on the
+  # machine turns red here instead of in CI. With the _base fixtures pinning all four tools the run
+  # stays green, which is the machine-independence property this switch exists to check.
+  [switch]$SimulateCleanHost,
   [int]$ChildTimeoutSec = 180
 )
 
@@ -576,6 +582,30 @@ function Build-CaseFixture {
   if ($null -eq $fx) { return '' }
   $unset = Prop $Case 'unset'
   if ($unset) { foreach ($u in @($unset)) { Remove-JsonPath $fx ([string]$u) } }
+  # t45 clean-host simulation. MEASURED root cause of the CI failures: src/collect.ps1 resolves
+  # netstat/netsh/powercfg/tailscale NATIVELY (registry, Program Files, PATH, Get-Command) unless the
+  # fixture declares tools.<name>; -NoNative does NOT gate that resolution. On a fresh server nothing
+  # resolves, TAILSCALE_CLI_LAYER short-circuits to blocked/ts_not_installed before it looks at the
+  # injected CLI probes, and every case that expects a non-blocked tailscale verdict (or exitCode 1)
+  # turns red. This switch reproduces that condition locally: a tool the fixture does not pin is
+  # injected as absent, so the case fails here exactly as it fails on the runner.
+  if ($SimulateCleanHost) {
+    $pinned = @()
+    $toolNode = $fx.PSObject.Properties['tools']
+    if ($null -eq $toolNode) {
+      $fx | Add-Member -NotePropertyName 'tools' -NotePropertyValue ([pscustomobject]@{}) -Force
+      $toolNode = $fx.PSObject.Properties['tools']
+    }
+    foreach ($tn in @('netstat','netsh','powercfg','tailscale')) {
+      if ($null -eq $fx.tools.PSObject.Properties[$tn]) {
+        $fx.tools | Add-Member -NotePropertyName $tn -NotePropertyValue '' -Force
+        $pinned += $tn
+      }
+    }
+    if ($pinned.Count -gt 0) {
+      Add-Skip 'clean-host simulation' ('this fixture does not pin tools.' + ($pinned -join ', tools.') + ' - injected as absent, exactly like a host without them')
+    }
+  }
   if (-not $TmpDir) { $TmpDir = New-TempDir $script:CaseId }
   $fp = Join-Path $TmpDir 'fixture.json'
   Write-TextFile $fp ($fx | ConvertTo-Json -Depth 20)

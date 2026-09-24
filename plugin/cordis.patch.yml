@@ -1,0 +1,22 @@
+# remote-tailnet-guard bundle patch: mounts the persistent plugin into the host
+# composition of a dsh profile. `dsh plugin --profile <name> add <this package>`
+# pnpm-installs the package and reconciles it into the profile's
+# dsh.profile.bundles layer list, which is what loads THIS file as an overlay.
+#
+# The single row below is DISABLED ON PURPOSE. Until the operator has confirmed
+# that the two halves load (see docs/install/plugin-package.md), this package
+# does nothing at all:
+#   * the Loader never starts a row whose effective `disabled` is true
+#     (cordis-plugin-loader/lib/index.js:391 `if (this.disabled) return;`), and
+#   * the client-modules scan skips every disabled entry while it builds the
+#     browser module graph (dsh-client-modules/lib/index.js:778), so the client
+#     bundle is not even served to the page.
+# That is the whole safety story of phase 1: installing this bundle cannot break
+# the GUI while the row stays disabled.
+#
+# `name` MUST equal package.json `name` (the loader specifier is resolved with
+# ESM/Node resolution from the profile directory); `id` is the row identity.
+- insert:
+    - id: remote-tailnet-guard
+      name: remote-tailnet-guard
+      disabled: true

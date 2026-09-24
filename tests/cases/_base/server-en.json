@@ -1,4 +1,11 @@
 {
+  "_toolsNote": "t45: every tool the collector resolves is PINNED here on purpose. Without these keys src/collect.ps1 resolves netstat/netsh/powercfg/tailscale from the real machine (registry, Program Files, PATH) - -NoNative does not gate that - so on a fresh server with no Tailscale the tailscale layer short-circuits to blocked/ts_not_installed and six cases that expect an injected CLI verdict or exitCode 1 fail. The paths are identities, not machine facts: in fixture mode a declared probe is never executed, so only the 'is it installed' branch reads them.",
+  "tools": {
+    "netstat": "C:\\Windows\\System32\\netstat.exe",
+    "netsh": "C:\\Windows\\System32\\netsh.exe",
+    "powercfg": "C:\\Windows\\System32\\powercfg.exe",
+    "tailscale": "C:\\Program Files\\Tailscale\\tailscale.exe"
+  },
   "_comment": "Synthetic, fully offline baseline used by many tests/cases/*.json layers. It is a HAPPY server-side machine: no real machine value is embedded (see tests/cases/README.md, section 'why no real value appears here'). Tool text is English here; _base/server-zh.json carries the same state with Chinese tool text.",
   "registry": {
     "os_version": {

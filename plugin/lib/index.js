@@ -1,0 +1,356 @@
+/*
+ * remote-tailnet-guard - HOST half of the persistent DSH plugin (t43, phase 1).
+ * LAST UPDATED : 2026-09-24 (v0.1 - first persistent-plugin skeleton; the row that mounts this
+ * module ships disabled: see plugin/cordis.patch.yml and docs/install/plugin-package.md).
+ *
+ * This file is a REAL ESM module of the installed package (package.json `main`), NOT the body of a
+ * cordis_define call. It is loaded by the profile's own Loader row, not by the dynamic Package
+ * runner. Evidence table (file + line) for every claim below is in docs/install/plugin-package.md.
+ *
+ * READ-ONLY CONTRACT (nothing here is optional):
+ *   * it registers ONE read-only HTTP route on the EXISTING DSH web server (no new listener, no new
+ *     bind address, no new port) - the same mechanism dsh-ego-browser uses for its own gateway;
+ *   * the route only runs the repository's read-only collector
+ *     (`src/collect.ps1 -CheckOnly -AsJson -Role <role>`). -CheckOnly never writes, and the
+ *     collector itself installs nothing, opens no listener and reads no credential material;
+ *   * it returns leaf fields only (bounded checks + counts): raw probe output stays in the host
+ *     process and never crosses to the page;
+ *   * it installs nothing, changes no system setting, touches no profile file and never restarts DSH.
+ *
+ * COMMANDS USED while writing this file (read-only; no client Inspect, no long waits):
+ *   powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/plugin-preflight.ps1
+ *   powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1
+ */
+import { existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+export const name = 'remote-tailnet-guard';
+
+/** Route family served on the existing web server (prefix match, longest prefix wins). */
+const ROUTE_PREFIX = '/remote-tailnet-guard/api';
+/**
+ * Settings namespace owned by this plugin. It is ALSO the key of the plugins-page card: the
+ * configurable tab renders a `settings.plugin.item` card only while its key is a namespace the
+ * Host has registered (dsh-client-ui-settings-plugins/lib/client.js:1144-1145 gates on the served
+ * set, :416 renders one card per served namespace). Same string as the client half's SETTINGS_NS.
+ */
+const SETTINGS_NS = 'remote-tailnet-guard';
+/**
+ * The schema library is resolved AT RUNTIME and never through a static import. Reason (t46): this
+ * package is installed with `link:`, so it has no node_modules of its own, and a static import of a
+ * library that does not resolve would take this whole host half down with it. Both specifiers the
+ * platform itself uses are tried; when neither resolves the namespace is simply not declared - the
+ * card then does not render (fail closed) while every other part of this half keeps working.
+ */
+const SCHEMA_LIBRARY_SPECIFIERS = ['@deepseek-ai/schemastery', 'schemastery'];
+/** The collector lives in the repository checkout that contains this package, resolved relatively. */
+const COLLECTOR_REL = '../../src/collect.ps1';
+/** Accepted -Role values; anything else falls back to 'both' instead of reaching the child process. */
+const ROLES = ['client', 'server', 'both'];
+const BODY_MAX_BYTES = 16384;
+const COLLECTOR_GRACE_MS = 120000;
+const STDOUT_MAX_BYTES = 8388608;
+const STDERR_MAX_BYTES = 262144;
+
+function errorText(error) {
+  return String(error && error.message ? error.message : error);
+}
+
+/** Log through the host logger when it exists, and stay silent when it does not. */
+function logLine(ctx, level, message) {
+  const logger = ctx && ctx.logger ? ctx.logger : null;
+  if (logger === null) return;
+  if (typeof logger[level] === 'function') logger[level](message);
+}
+
+/**
+ * Resolve a schemastery-compatible schema factory, or null when none is reachable.
+ * Never throws: an unresolvable library is a documented degradation, not a load failure.
+ */
+async function resolveSchemaLibrary(ctx) {
+  for (let index = 0; index < SCHEMA_LIBRARY_SPECIFIERS.length; index += 1) {
+    const specifier = SCHEMA_LIBRARY_SPECIFIERS[index];
+    try {
+      const loaded = await import(specifier);
+      const candidate = loaded !== null && loaded.default !== undefined ? loaded.default : loaded;
+      if (candidate !== null && candidate !== undefined && typeof candidate.object === 'function') return candidate;
+    } catch (error) {
+      logLine(ctx, 'warn', 'remote-tailnet-guard: schema library "' + specifier + '" is not reachable here: ' + errorText(error));
+    }
+  }
+  return null;
+}
+
+function pickString(value, fallback) {
+  if (typeof value !== 'string') return fallback;
+  if (value.length === 0) return fallback;
+  return value;
+}
+
+/** Whitelist the role argument: a request body must never become argv text of its own choosing. */
+function pickRole(value) {
+  if (typeof value === 'string') {
+    for (let index = 0; index < ROLES.length; index += 1) {
+      if (ROLES[index] === value) return value;
+    }
+  }
+  return 'both';
+}
+
+/** Evidence confidence lives on the check in one shape and on check.evidence in the other. */
+function readConfidence(check) {
+  if (check && typeof check.confidence === 'string' && check.confidence.length > 0) return check.confidence;
+  const evidence = check && check.evidence ? check.evidence : null;
+  if (evidence && typeof evidence.confidence === 'string' && evidence.confidence.length > 0) return evidence.confidence;
+  return 'unknown';
+}
+
+function readDowngrade(check) {
+  if (check && check.confidenceDowngrade === true) return true;
+  const evidence = check && check.evidence ? check.evidence : null;
+  return evidence !== null && evidence.confidenceDowngrade === true;
+}
+
+/** One leaf-only projection of a check: no live object, no raw probe text, no credential material. */
+function boundedCheck(check) {
+  const remediation = check && check.remediation ? check.remediation : null;
+  return {
+    id: pickString(check && check.id, ''),
+    role: pickString(check && check.role, ''),
+    title: pickString(check && check.title, ''),
+    verdict: pickString(check && check.verdict, 'unknown'),
+    verdictLabel: pickString(check && check.verdictLabel, 'UNKNOWN'),
+    reasonKey: pickString(check && check.reasonKey, ''),
+    reason: pickString(check && check.reason, ''),
+    evidenceConfidence: readConfidence(check),
+    confidenceDowngrade: readDowngrade(check),
+    manualReview: (check && check.manualReview === true),
+    manualQuestion: pickString(check && check.manualQuestion, ''),
+    remediationAction: pickString(remediation && remediation.action, ''),
+    remediationRollback: pickString(remediation && remediation.rollback, ''),
+    autoApplied: false
+  };
+}
+
+function boundedChecks(list) {
+  const out = [];
+  const source = Array.isArray(list) ? list : [];
+  for (let index = 0; index < source.length; index += 1) out.push(boundedCheck(source[index]));
+  return out;
+}
+
+function boundedSummary(summary, checks) {
+  const counts = { pass: 0, degraded: 0, blocked: 0, unknown: 0 };
+  for (let index = 0; index < checks.length; index += 1) {
+    const verdict = checks[index].verdict;
+    if (Object.prototype.hasOwnProperty.call(counts, verdict)) counts[verdict] += 1;
+  }
+  return {
+    verdict: pickString(summary && summary.verdict, 'unknown'),
+    verdictLabel: pickString(summary && summary.verdictLabel, 'UNKNOWN'),
+    exitCode: summary && typeof summary.exitCode === 'number' ? summary.exitCode : 2,
+    total: checks.length,
+    pass: counts.pass,
+    degraded: counts.degraded,
+    blocked: counts.blocked,
+    unknown: counts.unknown,
+    failClosed: pickString(summary && summary.failClosed, 'any unknown forbids exit 0'),
+    generatedAtLocal: pickString(summary && summary.generatedAtLocal, '')
+  };
+}
+
+/** Write a JSON reply on the existing server; the handler owns the whole response. */
+function writeJson(res, status, payload) {
+  const text = JSON.stringify(payload);
+  if (res && typeof res.writeHead === 'function') res.writeHead(status, { 'content-type': 'application/json' });
+  if (res && typeof res.end === 'function') res.end(text);
+}
+
+/** Read a small JSON body. Bounded on purpose: a plugin route is not a file upload seat. */
+async function readJsonBody(req) {
+  const chunks = [];
+  let bytes = 0;
+  for await (const chunk of req) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    bytes += buffer.length;
+    if (bytes > BODY_MAX_BYTES) throw new Error('request body too large');
+    chunks.push(buffer);
+  }
+  const text = Buffer.concat(chunks).toString('utf8');
+  if (text === '') return {};
+  const parsed = JSON.parse(text);
+  if (parsed === null || typeof parsed !== 'object') return {};
+  return parsed;
+}
+
+/** Same-origin only: a browser page on another origin must not be able to read this report. */
+function guardOrigin(req) {
+  const origin = req && req.headers ? req.headers.origin : undefined;
+  if (typeof origin !== 'string' || origin.length === 0) return '';
+  let originHost = '';
+  try {
+    originHost = new URL(origin).host;
+  } catch (error) {
+    return 'invalid Origin header';
+  }
+  const host = req && req.headers ? req.headers.host : undefined;
+  if (typeof host !== 'string' || host.length === 0) return 'missing Host header';
+  if (originHost !== host) return 'same-origin requests only';
+  return '';
+}
+
+/**
+ * Run the repository's read-only collector once and return a bounded report.
+ * Failure is always reported as `ok:false` + a machine-readable code - never as an empty pass.
+ */
+async function runCollector(ctx, collectorPath, role) {
+  if (!existsSync(collectorPath)) {
+    return { ok: false, code: 'collector-missing', message: 'not found: ' + collectorPath };
+  }
+  const subprocess = ctx.get('subprocess');
+  if (subprocess === undefined) {
+    return { ok: false, code: 'no-subprocess', message: 'the subprocess service is unavailable in this host' };
+  }
+  let exe = '';
+  try {
+    exe = await subprocess.resolveExecutable('powershell.exe');
+  } catch (error) {
+    return { ok: false, code: 'powershell-missing', message: String(error && error.message ? error.message : error) };
+  }
+  const argv = [exe, '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', collectorPath, '-CheckOnly', '-AsJson', '-Role', role];
+  let handle = null;
+  try {
+    handle = subprocess.spawn({
+      argv: argv,
+      cwd: dirname(collectorPath),
+      stdio: {
+        stdin: 'ignore',
+        stdout: { maxBytes: STDOUT_MAX_BYTES },
+        stderr: { maxBytes: STDERR_MAX_BYTES }
+      },
+      graceMs: COLLECTOR_GRACE_MS
+    });
+  } catch (error) {
+    return { ok: false, code: 'spawn-failed', message: String(error && error.message ? error.message : error) };
+  }
+  const outcome = await handle.done;
+  let stdout = '';
+  try {
+    const collected = handle.collected && handle.collected.stdout ? handle.collected.stdout.readFrom(0) : null;
+    if (collected !== null) stdout = String(collected.text);
+  } catch (error) {
+    return { ok: false, code: 'read-failed', message: String(error && error.message ? error.message : error) };
+  }
+  let report = null;
+  try {
+    report = JSON.parse(stdout);
+  } catch (error) {
+    return {
+      ok: false,
+      code: 'json-parse-failed',
+      message: String(error && error.message ? error.message : error),
+      exitCode: outcome && typeof outcome.exitCode === 'number' ? outcome.exitCode : null
+    };
+  }
+  const checks = boundedChecks(report.checks);
+  return {
+    ok: true,
+    source: 'plugin:' + name,
+    script: collectorPath,
+    exitCode: outcome && typeof outcome.exitCode === 'number' ? outcome.exitCode : 0,
+    summary: boundedSummary(report.summary, checks),
+    checks: checks
+  };
+}
+
+/**
+ * Mount the read-only route. Everything lives inside ctx.effect, so disabling or unloading this row
+ * removes the route again (webServer.register returns the disposer, dsh-host-webserver/lib/index.js:176-183).
+ */
+export function apply(ctx) {
+  const moduleDir = dirname(fileURLToPath(import.meta.url));
+  const collectorPath = resolve(join(moduleDir, COLLECTOR_REL));
+
+  ctx.inject(['webServer'], function (wctx) {
+    wctx.effect(function () {
+      const webServer = wctx.get('webServer');
+      if (webServer === undefined || typeof webServer.register !== 'function') {
+        if (ctx.logger && typeof ctx.logger.warn === 'function') {
+          ctx.logger.warn('remote-tailnet-guard: no webServer service - the settings section will report unknown, never a pass');
+        }
+        return undefined;
+      }
+      const dispose = webServer.register({
+        kind: 'prefix',
+        path: ROUTE_PREFIX,
+        handler: async function (req, res) {
+          try {
+            if (String(req.method || '').toUpperCase() !== 'POST') {
+              writeJson(res, 405, { ok: false, code: 'method-not-allowed', message: 'POST only' });
+              return;
+            }
+            const originProblem = guardOrigin(req);
+            if (originProblem !== '') {
+              writeJson(res, 403, { ok: false, code: 'origin-not-allowed', message: originProblem });
+              return;
+            }
+            const contentType = String((req.headers && req.headers['content-type']) || '').toLowerCase();
+            if (!contentType.startsWith('application/json')) {
+              writeJson(res, 415, { ok: false, code: 'content-type-not-supported', message: 'application/json required' });
+              return;
+            }
+            const pathname = new URL(String(req.url || '/'), 'http://dsh.invalid').pathname;
+            const method = pathname.indexOf(ROUTE_PREFIX + '/') === 0 ? pathname.slice(ROUTE_PREFIX.length + 1) : '';
+            if (method !== 'posture') {
+              writeJson(res, 404, { ok: false, code: 'not-found', message: 'unknown remote-tailnet-guard API method' });
+              return;
+            }
+            const body = await readJsonBody(req);
+            const result = await runCollector(ctx, collectorPath, pickRole(body.role));
+            writeJson(res, 200, result);
+          } catch (error) {
+            writeJson(res, 500, { ok: false, code: 'internal', message: String(error && error.message ? error.message : error) });
+          }
+        }
+      });
+      if (ctx.logger && typeof ctx.logger.info === 'function') {
+        ctx.logger.info('remote-tailnet-guard: read-only posture route ready at ' + ROUTE_PREFIX + ' (collector ' + collectorPath + ')');
+      }
+      return function () {
+        try {
+          dispose();
+        } catch (error) {
+          /* already disposed */
+        }
+      };
+    }, 'remote-tailnet-guard: read-only posture route on the existing web server');
+  });
+
+  // Plugins-page card seat (t46). The card the client half registers under
+  // 'settings.plugin.item' is keyed by this namespace, and the configurable tab renders a card only
+  // for a SERVED namespace, so the namespace has to exist on this side. Two deliberate properties:
+  //   * the schema has NO fields - nothing about this plugin becomes configurable, and this half
+  //     never calls update()/replace(), so no value is ever written to the user's settings document;
+  //   * the whole step is optional and guarded: an unreachable schema library logs a warning and
+  //     skips the registration instead of failing the load.
+  ctx.effect(function () {
+    let cancelled = false;
+    ctx.inject(['settings'], function (sctx) {
+      resolveSchemaLibrary(ctx).then(function (schemaFactory) {
+        if (cancelled) return;
+        if (schemaFactory === null) {
+          logLine(ctx, 'warn', 'remote-tailnet-guard: no schema library reachable - settings namespace "' + SETTINGS_NS + '" skipped, so the plugins-page card will not render (everything else keeps working)');
+          return;
+        }
+        try {
+          sctx.settings.register(SETTINGS_NS, schemaFactory.object({}), { applies: 'live' });
+          logLine(ctx, 'info', 'remote-tailnet-guard: settings namespace "' + SETTINGS_NS + '" registered (the plugins-page card can render)');
+        } catch (error) {
+          logLine(ctx, 'warn', 'remote-tailnet-guard: settings namespace "' + SETTINGS_NS + '" was refused: ' + errorText(error));
+        }
+      });
+    });
+    return function () { cancelled = true; };
+  }, 'remote-tailnet-guard: optional settings namespace for the plugins-page card');
+}

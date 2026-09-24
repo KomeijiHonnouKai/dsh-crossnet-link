@@ -1,6 +1,6 @@
 # tests/ — 跨环境与故障注入测试套件
 
-- **最后更新时间**: 2026-09-24（v2；t23:①`SERVE_PRESENT` 改为「只看 `tailscale serve status` 的 proxy 目标端口」—— 删掉 `xfail-serve-moved-port-should-block`,新增 `fault-serve-target-port-mismatch`(正向)+ `fault-serve-status-no-target`(不可解析),`fault-serve-moved-port-8443` 改为负向对照;②扫描命中改为**按每个匹配值**分类,新增 §7.1 已批准占位符允许清单,正向对照用例增种一个占位符。本次命令:`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1`、`… -Filter scan`、`… -Filter serve`。v1 为 v0 骨架后的首个定稿;t27:①§4 的历史说明改为显式「**历史**:该用例已于 t23 重构为新用例 `fault-serve-target-port-mismatch`」并补上当前快照 `52/52/0/0`;②§8-1 去掉一处指向未发布内部资料的取证深链,改为就地说明。**t31**:①§7.2 标题不再点名内部资料(改称「设计规格」;规格文件本身由 `.gitignore` §1 登记,那才是可访问的落点);②本文件整文件行尾由 **CRLF 转 LF**(仓库约定,只改行尾不改文字)。t31 本次命令:`powershell -NoProfile -Command '<收窄判据:发布集 *.md 内指向内部资料的 markdown 链接>'`、`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1`、`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/.github/scripts/repo-hygiene.ps1 -Json`;**t38**:①`filescan-no-repo-write-paths` 的写动词断言收窄到只读面 —— 加显式 `allowFiles` 只放 `tools/uninstall.ps1`(本仓库**唯一**的可选写入组件:默认干跑、必须 `-Apply` 才写、写前必先落备份),其余 `*.ps1` 仍要求 0 命中;②新增 `kind=uninstall` 与 **10 条离线夹具用例**(见 §6 表尾与 §7.3),驱动 `tools/uninstall.ps1` 并断言退出码、`-AsJson` 报告字段、备份文件集、`MANIFEST.json` 的 sha256/字节数、幸存文件,以及「干跑后临时目录逐字节不变」。t38 本次命令:`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1`、`… -Filter '^uninstall'`、`… -Filter '^uninstall|filescan-no-repo-write-paths'`、`… run-fixtures.ps1`、`… repo-hygiene.ps1 -Json`）
+- **最后更新时间**: 2026-09-24（v2；t23:①`SERVE_PRESENT` 改为「只看 `tailscale serve status` 的 proxy 目标端口」—— 删掉 `xfail-serve-moved-port-should-block`,新增 `fault-serve-target-port-mismatch`(正向)+ `fault-serve-status-no-target`(不可解析),`fault-serve-moved-port-8443` 改为负向对照;②扫描命中改为**按每个匹配值**分类,新增 §7.1 已批准占位符允许清单,正向对照用例增种一个占位符。本次命令:`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1`、`… -Filter scan`、`… -Filter serve`。v1 为 v0 骨架后的首个定稿;t27:①§4 的历史说明改为显式「**历史**:该用例已于 t23 重构为新用例 `fault-serve-target-port-mismatch`」并补上当前快照 `52/52/0/0`;②§8-1 去掉一处指向未发布内部资料的取证深链,改为就地说明。**t31**:①§7.2 标题不再点名内部资料(改称「设计规格」;规格文件本身由 `.gitignore` §1 登记,那才是可访问的落点);②本文件整文件行尾由 **CRLF 转 LF**(仓库约定,只改行尾不改文字)。t31 本次命令:`powershell -NoProfile -Command '<收窄判据:发布集 *.md 内指向内部资料的 markdown 链接>'`、`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1`、`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/.github/scripts/repo-hygiene.ps1 -Json`;**t38**:①`filescan-no-repo-write-paths` 的写动词断言收窄到只读面 —— 加显式 `allowFiles` 只放 `tools/uninstall.ps1`(本仓库**唯一**的可选写入组件:默认干跑、必须 `-Apply` 才写、写前必先落备份),其余 `*.ps1` 仍要求 0 命中;②新增 `kind=uninstall` 与 **10 条离线夹具用例**(见 §6 表尾与 §7.3),驱动 `tools/uninstall.ps1` 并断言退出码、`-AsJson` 报告字段、备份文件集、`MANIFEST.json` 的 sha256/字节数、幸存文件,以及「干跑后临时目录逐字节不变」。t38 本次命令:`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1`、`… -Filter '^uninstall'`、`… -Filter '^uninstall|filescan-no-repo-write-paths'`、`… run-fixtures.ps1`、`… repo-hygiene.ps1 -Json`）;**t43**:①新增一条 `kind=filescan` 用例 `plugin-package-shape`(常驻插件包的形状:①`plugin/package.json` 声明的 `main`/`exports['./client']`/`bundle.patch` 目标都存在 ②两个 ESM 半边 `require(` 计数为 0、JSX 与 TypeScript 专有语法为 0 ③browser bundle 自注册为 package name 且 `require(` 只允许平台 seed `react` ④insert 行 `id`/`name` 都等于 package name 且 `disabled: true` ⑤`docs/install/plugin-package.md` 带可粘贴命令与「三步启用/四步回滚」两节),用例数 **63→64**;②新增 `panel/plugin-preflight.ps1`(常驻插件只读预检,退出码 0/1/2,不写任何文件)由该用例以 `parses`/`no-bom`/`ascii-only` 三条断言钉住;③`tests/cases/README.md` 新增 §7.5 记录该用例与它的限制。t43 本次命令:`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1`、`… -Filter plugin-package-shape`、`… -List`、`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/plugin-preflight.ps1`、`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/.github/scripts/repo-hygiene.ps1 -Json`）
 - **本套件自己的领地**: `tests/run-tests.ps1`、`tests/cases/`。`tests/fixtures/`（中英双语原始夹具）属 t16 领地，`tests/run-fixtures.ps1` 是 collect.ps1 作者自带的夹具回归；两者本套件**只读**使用。
 - **一条命令自证**（Windows PowerShell 5.1，无需安装任何模块）：
 
@@ -89,7 +89,7 @@ tests/
 - 它仍然失败 ⇒ 打印 `XFAIL`，**不算套件失败**（缺口还在，符合预期）；
 - 它开始通过 ⇒ 打印 `XPASS`，**套件失败**，提示把这行标记翻掉。
 
-这样「已知缺口」既不会阻塞绿灯，也不会在修好之后悄悄腐烂成一句过期的注释。**当前没有任何 xfail**（t41 复跑快照：`cases run = 63 / passed = 63 / failed = 0 / xfail held = 0 / xpass = 0`，退出码 0）。**历史**：最后一条 xfail 用例已于 **t23** 按新语义重构为新用例 **`fault-serve-target-port-mismatch`**（连同负向对照 `fault-serve-moved-port-8443`），它原来的名字 `xfail-serve-moved-port-should-block` **已从套件中删除**，不应再被当作现存用例引用 —— 机制保留着，供下一个真缺口用。
+这样「已知缺口」既不会阻塞绿灯，也不会在修好之后悄悄腐烂成一句过期的注释。**当前没有任何 xfail**（t43 复跑快照：`cases run = 64 / passed = 64 / failed = 0 / xfail held = 0 / xpass = 0`，退出码 0；t41 那年是 63，t43 加了一条 `plugin-package-shape`）。**历史**：最后一条 xfail 用例已于 **t23** 按新语义重构为新用例 **`fault-serve-target-port-mismatch`**（连同负向对照 `fault-serve-moved-port-8443`），它原来的名字 `xfail-serve-moved-port-should-block` **已从套件中删除**，不应再被当作现存用例引用 —— 机制保留着，供下一个真缺口用。
 
 本套件在开发过程中用这条机制抓到并推动了 3 个真实缺陷的修复，修好后按语义翻成了正常用例（历史保留在各用例的 `why` 里）：
 1. `WILDCARD_LISTENER_INVENTORY` 在 netstat 行读不出来（状态词被本地化）时**报 pass** —— 安全判定上的假通过；
@@ -159,6 +159,7 @@ tests/
 | `locale-unmatched-tool-text` | collector | netsh section headers and the whole powercfg structure replaced with unmatched spellings (no hex indices, no pattern hit) | NIC_PROFILE_ATTRIBUTION unknown/nic_unparsed with raw preserved, POWER_STANDBY_IDLE_AC_DC unknown/power_unparsed, exit != 0 |
 | `locale-zh-clean-baseline` | collector | the same state with Chinese netsh/powercfg text (_base/server-zh.json), offline | identical verdict map to locale-en-clean-baseline, exit 1 |
 | `locale-zh-netsh-text-only` | collector | -NoNative, cmdlet probe removed, Chinese netsh section headers and Chinese state word | identical verdict map to locale-en-netsh-text-only |
+| `plugin-package-shape` | filescan | the plugin package (plugin/package.json, plugin/cordis.patch.yml, plugin/lib/*.js), docs/install/plugin-package.md and the preflight script, checked for the declared-path, module-shape and disabled-row facts | package.json declares module/main/exports[./client]/bundle.patch and each target exists; require( appears only in plugin/lib/client.js (seed react); no JSX, no TypeScript syntax; the insert row has id==name==package.json name and disabled: true; the doc carries the paste-ready commands and the three-step/four-step headings |
 | `portability-chinese-space-path` | portability | src/collect.ps1 plus i18n/labels.*.json copied into a temp folder named '插件 目录 带空格', then run with the same fixture | same 19 verdicts and exit code as the in-place run; NIC pass, POWER pass, exit 1 |
 | `scan-md-json-confined-to-docs-and-fixtures` | scan | every *.md and *.json in the plugin, with the two documented roots excluded | 0 hits outside docs/ and tests/fixtures/ |
 | `scan-plugin-script-surface` | scan | the plugin's own *.ps1 / *.psm1 / *.js / *.mjs files, scanned with the six patterns from defensive-spec section 2.1 | 0 hits (no allowlist for the script surface) |
@@ -240,6 +241,23 @@ tests/
 
 规则：任何人改 `Invoke-FileScanCase` 之后，只要这条 canary 变红，就说明三类断言被静音了 —— **不要改 canary 让它变绿**。
 
+### 7.5 常驻插件包形状（t43）
+
+`plugin-package-shape` 是**离线静态**用例：它不安装任何东西、不碰用户 profile、不加载 Cordis。它证明的是「这个包在**形状上**可以被 profile 装进去」，而不是「它已经跑起来了」。
+
+它断言的事实与取证来源：
+
+| 断言 | 事实 | 取证来源（仓库内） |
+|---|---|---|
+| 声明路径存在 | `main` / `exports['.']` / `exports['./client']` / `exports['./package.json']` / `dsh.bundle.patch` 五个目标都存在 | `plugin/package.json`;参照 `<DSH_HOME>\profiles\desktop\node_modules\dsh-ego-browser\package.json:5-12,22-36` 与 `…\@nanmicoder\dsh-agent-teams\package.json:5-19,65-81` |
+| 两个 ESM 半边 | `plugin/lib/index.js`(host)与 `plugin/lib/client/index.js`(client 源码)`require(` 计数 **0** | 两份文件；形态参照 agent-teams 的 `lib/client/index.js`(2872 字节,打包前的 ESM 源码) |
+| browser bundle | `plugin/lib/client.js` 用 `window.__ModuleLoader__.load({ id: "remote-tailnet-guard", … })` 自注册,`require("…")` 只允许平台 seed(实测只有 `react`) | `plugin/lib/client.js`;平台侧依据 `<APP_DIR>\node_modules\@deepseek-ai\dsh-client-modules\lib\client.js:229-233`(注册)、`:248`(未注册即抛)、`:300-310`(require 只认 seed/已物化/图行),seed 表见 `dsh-web-frontend\dist\assets\index-*.js` |
+| 无 JSX / 无 TS 语法 | 表格里 `</[A-Za-z]`、`return (<` 与 5 类 TypeScript 专有标记全库 `*.js` **0 命中**;`React.createElement` 只出现在两个客户端半边 | 6 个 `*.js`(4 个既有 + 本任务 2 个) |
+| insert 行 | 恰好一个 `- insert:` 块、恰好一行,`id`=`name`=package name,且 **`disabled: true`** | `plugin/cordis.patch.yml`;disabled 语义见 `<APP_DIR>\node_modules\@deepseek-ai\cordis-plugin-loader\lib\index.js:359-378,389-392`,客户端图跳过 disabled 见 `dsh-client-modules\lib\index.js:775-781` |
+| 文档 | `docs/install/plugin-package.md` 同时含 `dsh plugin --profile`、`<DSH_HOME>`、`disabled: true`、`plugin-preflight.ps1` 与「三步启用」「四步回滚」两节 | 该文档 |
+
+**它不能证明什么（不改口径）**：真实加载。`plugin/` 的 host/client 半边**从未在真实 DSH 里跑过**，「设置里出现该分区」必须在用户机器上启用一次才算验证。另外 `panel/plugin-preflight.ps1` 的 `node --check` 三连在本机是 **SKIP**（`node` 不在 PATH），所以「能作为普通 JS 解析」目前只有正则级静态断言，不是解析器级证明。
+
 ## 8. 诚实的限制（不藏）
 
 1. ~~**`SERVE_PRESENT` 的「serve 换端口」只做到 fail-closed，没做到规格的 `blocked`**~~ **已在 t23 闭环,且口径先被 t22 的实验纠正过一次**:原裁定想拿「tailnet 侧存在 tailscaled 拥有的非 443 监听、且没有 443」当正向证据 —— **t22 实测推翻**了它:本机健康状态就长这个形状(`<PEER_IP>:33588` 与 `[<ULA_IP>]:56868` 都是 tailscaled 自有端点),按那条规则实现会把**任何已登录节点**误报成「serve 换了端口」(`%TEMP%` 副本对照:原实现 `unknown` vs 该补丁 `blocked`,otherPorts=33588/56868)。t23 改为**只看 `tailscale serve status` 的 proxy 目标端口**:目标 ≠ 实测 DSH 端口 ⇒ `blocked/serve_port_mismatch`(带 command + rollback);CLI 不可读、或输出里没有可解析目标 ⇒ `unknown`。原意(serve 指向别处 ⇒ 只放行 443 的窄 ACL 静默失效)**没有削弱**,由 `fault-serve-target-port-mismatch` 正向钉住,并由 `fault-serve-moved-port-8443` 作负向对照。(本条的取证 = t22 的 `%TEMP%` 副本对照 + t23 的落地,记在本套件 `fault-serve-*` 用例的 `why` 与 §10 的原始尾部输出里,**不指向任何未发布的内部资料**。)
@@ -263,10 +281,10 @@ tests/
 
 ## 10. 最近一次全绿运行
 
-- 命令：`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1`（t41 定格；t23 的 52 例 + t38 的 10 条 uninstall 用例 + t41 的 1 条 canary 用例 = **63**）
+- 命令：`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1`（t43 定格；t23 的 52 例 + t38 的 10 条 uninstall 用例 + t41 的 1 条 canary 用例 + t43 的 1 条 `plugin-package-shape` 用例 = **64**）
 - 被测 `src/collect.ps1` SHA256：`06A69B349FFFF7E348A73B5C49BA2D42F024F84440BBC77241F75CE37A21A9A5`
-- 结果：`cases run = 63 / passed = 63 / failed = 0 / xfail held = 0 / xpass = 0`，退出码 **0**（63 = t23 的 52 + t38 新增的 10 条 `kind=uninstall` 用例 + t41 新增的 1 条 `kind=canary` 防失效正控；`xfail held` 与 `xpass` 仍同时为 0）
-- 另外两条同轮全绿：`tests/run-fixtures.ps1` = `ALL PASS: 7 cases, 0 failed assertions`（退出码 0）；`.github/scripts/repo-hygiene.ps1 -Json` = `verdict: CLEAN (0 blocking finding(s))`、`blockingTotal=0`、`files=99`（退出码 0）。
+- 结果：`cases run = 64 / passed = 64 / failed = 0 / xfail held = 0 / xpass = 0`，退出码 **0**（64 = t23 的 52 + t38 新增的 10 条 `kind=uninstall` 用例 + t41 新增的 1 条 `kind=canary` 防失效正控 + t43 新增的 1 条 `kind=filescan` 常驻插件包形状用例；`xfail held` 与 `xpass` 仍同时为 0）
+- 另外两条同轮全绿：`tests/run-fixtures.ps1` = `ALL PASS: 7 cases, 0 failed assertions`（退出码 0）；`.github/scripts/repo-hygiene.ps1 -Json` = `verdict: CLEAN (0 blocking finding(s))`、`blockingTotal=0`、`files=104`（退出码 0）。**files 计数说明（t43 实测）**：本次比 §10 上一次快照（99）多出的文件里，有 **3 个是本任务新增的发布集文件** —— `panel/plugin-preflight.ps1`、`docs/install/plugin-package.md`、`tests/cases/plugin-package-shape/case.json`；另有 `README.zh-CN.md` 被同一窗口的另一个任务登记进 `$PublishRoots`。**`plugin/` 目录目前不在 `$PublishRoots` 里**，本任务**没有**擅自改发布集（发布集定义在 `.github/scripts/repo-hygiene.ps1`，属别的成员领地），留给 captain 决定是否把它纳入。
 - skip：**没有**。本套件没有 skip 机制：`-Filter`/`-Only` 只会减少运行条数并在头部如实打印 `cases run`，任何被选中的用例都会真实执行并给出 PASS/FAIL/XFAIL/XPASS 之一。
 - 尾部原始输出（不含机器标识，逐字节选：canary 的 evidence 行 + 首尾各一条用例 + 套件级门）：
 
@@ -276,7 +294,9 @@ tests/
         CANARY evidence literal-min(short): rule=literal /Get-Pattern 'netsh_/ appears at least 3 times :: EXPECTED true / ACTUAL found 1
         CANARY evidence hits-confined-to(outside): rule=all /T41CANARY/ hits inside /^allowed// :: EXPECTED 0 / ACTUAL 1
 [ 1] PASS  canary-filescan-treewide-assertions-live planted => the hit-count assertion failure with EXPECTED 0 / ACTUAL 1 plus its raw detail line (literal-zero), the min-count failure reporting 'found 1' below minCount 3 (literal-min) and the confinement failure with EXPECTED 0 / ACTUAL 1 plus its raw detail line (hits-confined-to); clean twins => 0 failures each
-# 注:t41 新增的 canary 目录名以 c 开头、排在全部 fault-* 之前,所以下面这些用例在 t41 运行里的序号整体 +1([53]→[54] … [62]→[63]);逐字原文保留 t38 的编号,末尾汇总行才是本次(t41)的真实值。
+# t43 新增的用例在本次运行里的序号是 [50](目录名 p 排在 l 之后、s 之前);下面这段 uninstall 用例的编号仍是 t38 的原文,本次运行里它们整体是 [55]..[64]。
+[50] PASS  plugin-package-shape                   package.json declares module/main/exports[./client]/bundle.patch and each target exists; require( appears only in plugin/lib/client.js (seed react); no JSX, no TypeScript syntax; the insert row has id==name==package.json name and disabled: true; the doc carries the paste-ready commands and the three-step/four-step headings
+# 注:t41 新增的 canary 目录名以 c 开头、排在全部 fault-* 之前,所以下面这些用例在 t41 运行里的序号整体 +1([53]→[54] … [62]→[63]);t43 又加了一条 p 开头的用例,它们再 +1([53]→[55] … [62]→[64])。逐字原文保留 t38 的编号,末尾汇总行才是本次(t43)的真实值。
 [53] PASS  uninstall-apply-backup-verifiable      exit 0, backup.created=true with the 4 always-present files, every MANIFEST sha256/byte count verifies, the revert stays would-do in fixture mode
 [54] PASS  uninstall-apply-firewall-capture-and-residue exit 1, backup contains firewall-rules.txt and verifies, the revert stays would-do in fixture mode, residue item recorded-firewall-rules-absent = residue
 [55] PASS  uninstall-checkonly-without-journal-not-clean exit 1, attribution=unavailable, residue unknown (not pass), cordis unknown but exempt, nothing written
@@ -296,8 +316,8 @@ tested collector sha256: 06A69B349FFFF7E348A73B5C49BA2D42F024F84440BBC77241F75CE
 G2  wildcard listener set unchanged: OK (26 listeners)
 G3  temp dirs removed (no leftovers): OK
 
-cases run     : 63
-passed        : 63
+cases run     : 64
+passed        : 64
 failed        : 0
 xfail held    : 0 (known gaps that still exist - they do not fail the suite)
 xpass         : 0 (a known gap disappeared - the suite fails until the marker is flipped)

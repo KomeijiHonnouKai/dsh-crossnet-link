@@ -1,5 +1,7 @@
 # remote-tailnet-guard
 
+**中文版 / Chinese edition: [README.zh-CN.md](README.zh-CN.md)**
+
 > LAST UPDATED  : 2026-09-24 (captain closeout - the GitHub account `KomeijiHonnouKai` was filled into
 >                 the clone URL, so §17.4's last open item is closed; the GitHub account and the
 >                 copyright holder name are the same name (`KomeijiHonnouKai`); before that, task t39 - `tools/`
@@ -12,39 +14,102 @@
 >                 `Select-String -Path README.md -Pattern 'uninstall'`
 >                 `powershell -NoProfile -Command '(Select-String -Path README.md -SimpleMatch <the repository name> | Measure-Object).Count'` - expect **1** (the clone URL below is its single source of truth; this header therefore refers to it by description, not by literal)
 
-## 中文说明(先读这一段)
+## What it is for
 
-**这是什么** —— 一个**只读**的跨网远程访问链路体检工具:检查 DSH 是否只监听 loopback、tailnet 链路与隔离性是否正常、防火墙 / 电源 / 代理姿态,以及前置件是否齐备。四态判定 `pass / degraded / blocked / unknown`,退出码 `0 / 1 / 2` 全部 **fail-closed**(不确定绝不当作通过)。它**不新增监听、不改任何配置、不读任何凭据**;所有写操作都必须显式点名目录、可回滚、可溯源。
+**In one line**: this repository is the **prerequisite-and-posture checker** for the link that lets a
+browser on machine A drive the DSH UI of machine B across two different networks. It does not build
+that link; it judges what posture the link is in right now, which prerequisites are still missing, and
+how to remove it cleanly.
 
-**三分钟上手**(下面每条都是只读的;唯一会写东西的是最后那条,而它默认**干跑**)
+**The link it inspects** (the only design it recognises - the one that was measured end to end):
 
-```powershell
-# 1) 在工作区根克隆 —— 第二个参数不能省(原因见下方 Repository 一行)
-git clone <仓库地址> remote-tailnet-plugin
-cd remote-tailnet-plugin
-# 2) 一条命令自证:离线、只读;5 条 SKIP 是设计值,判据是 fail=0
-powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-smoke.ps1
-# 3) 看本机姿态(加 -AsJson 得到机器可读报告)
-powershell -NoProfile -ExecutionPolicy Bypass -File src\collect.ps1 -CheckOnly
-# 4) 卸载:默认干跑、不写任何东西;要真回滚才加 -Apply(写前自动备份)
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\uninstall.ps1 -Plan
-```
+1. the two machines are **not on the same network** (one at the office and one at home, say);
+2. both join the **same tailnet** (Tailscale's private network);
+3. on the server machine DSH listens on **loopback only**, and `tailscale serve --bg` exposes that port
+   on the tailnet's 443;
+4. the tailnet ACL is **narrowed** to admit only client -> server `tcp:443`; every other server port
+   stays closed;
+5. the browser on the client machine opens that address **once, with a one-time token**, and receives a
+   long-lived cookie in exchange;
+6. from then on, A's browser can drive B's DSH UI directly - which is equivalent to being able to
+   operate that machine.
 
-**中文文档在哪**
+**Which link in the chain this repository is**:
 
-| 想看什么 | 看哪里 |
+| Link in the chain | Where it lives |
 | --- | --- |
-| 装什么、怎么装、每步怎么回滚 | `docs/install/prerequisites.md`、`docs/install/install.md`、`docs/install/rollback.md` |
-| **完整卸载**(保留清单 / 备份保留或清空 / 残留自查) | `docs/install/uninstall.md` |
-| 采集器 24 项判据与实现说明 | `docs/collect.md` |
-| 谁能看到什么、边界在哪 | `docs/threat-model.md` |
-| 本 README 的中文摘要 + 英文正文 | 下面的「中文摘要」一节 / 英文部分 |
+| the how-to for building the link | the `dsh-remote-tailnet` skill, **not in this repository** |
+| the **read-only verdict** on the link's current posture (four states, fail-closed exit codes) | `src/collect.ps1` here (24 checks) |
+| the **prerequisite check** (installed? signed in? does a human still have to act?) | `panel/prereq.ps1` + `panel/prereq-manifest.json` here (13 items) |
+| the **read-only panel inside the DSH settings page** | `panel/client-half.js` + `panel/host-half.js` here |
+| the **uninstaller** that removes it completely and cleanly (dry-run by default) | `tools/uninstall.ps1` here (§21) |
 
-**卸载的三条硬规则**(全文见 `docs/install/uninstall.md`)
+**The boundary, in one line**: it is **not** remote-control software, it is **not** a proxy, it
+**forwards no traffic**, and it **changes none of your settings**. It reads and reports; whether and how
+to fix anything is your call, and every suggestion ships with its rollback.
 
-1. **只回滚它自己改过的**:journal 记录过、**且当前值仍等于本工具 remediation 应产生值**的项才回滚;别人后来改过的一律只报告、不触碰。
-2. **默认保留**:Tailscale 本体、其它 DSH 插件、**你自己写的防火墙规则**、工作区文件、用户级 skill 副本 —— 全部保留;工具里没有任何卸载 Tailscale 的代码路径。
-3. **备份可留可清**:备份默认保留;要清空得显式 `-PurgeBackup`,而且只删它在 `StateDir` 下自己创建、且逐文件 sha256 校验通过的备份目录。
+## Plugin GUI: the two forms it ships in
+
+**The GUI exists** - it is one section inside the DSH settings page, titled
+`Remote access link (read-only posture)`, showing the read-only posture (the four states
+`pass / degraded / blocked / unknown`), the credential-discipline notices and the promise that nothing
+is changed. The panel is a **display only** - it carries no write button.
+
+It ships in **two forms**, both registering the same `settings.section` seat:
+
+| # | form | how it loads | lifetime |
+|---|---|---|---|
+| 1 | **dynamic Cordis package** (the default) | `cordis_define` + `cordis_run` from `panel/host-half.js` + `panel/client-half.js`; see §14 | **process memory only** - a restart makes it disappear, nothing is written to disk, so there is nothing to uninstall |
+| 2 | **persistent plugin package** (`plugin/`, published) | `plugin/package.json` (`type: module`, `main: ./lib/index.js`, `exports["./client"]` → `./lib/client.js`, a `dsh.client` block, `dsh.bundle.patch`) plus the mount row in `plugin/cordis.patch.yml`; see §15 | on disk: it survives a restart until the row is removed |
+
+Form 1's registration is in `panel/client-half.js`:
+`ctx.slots.register({ name:'settings.section', id:'remote-tailnet-guard', order:100, label:'Remote access link (read-only posture)' }, …)` inside `ctx.slots.inject('settings.section', …)`. Form 2 registers the same seat from `plugin/lib/client.js` and `plugin/lib/index.js`.
+
+**Boundary, stated plainly**: the settings section is the only seat delivered today. The **plugin-list
+card** on DSH's "Settings → Plugins" page is a different seat (`settings.plugin.item`) and it is
+**not** implemented in this revision, so enabling form 2 adds the package to the profile's bundle list
+and its section to the settings page - it does not add a card to the plugin page (§19.2).
+
+**Why form 2 is a second, opt-in step and ships `disabled: true`.** Installing it writes into **your
+own** DSH profile (`dsh plugin --profile <name> add <the package>` installs the package and reconciles
+it into the profile's bundle list) and that one row affects **every session** of that profile; a wrong
+client entry parks the whole GUI in "Failed to load plugins" recovery mode (a real trap recorded in
+this machine's `AGENTS.md`, not a theoretical risk). So the single mount row in
+`plugin/cordis.patch.yml` is **disabled by default**: while it stays disabled the loader never starts
+the row and the client-module scan skips disabled entries - both anchors are recorded in that file's
+own comment (`cordis-plugin-loader/lib/index.js:391`, `dsh-client-modules/lib/index.js:778`) - so
+installing the package **does nothing at all** until you enable it. Enable it only after the read-only
+preflight is green (`panel/plugin-preflight.ps1`, exit codes 0/1/2), and prefer a **throwaway profile**
+for the first run.
+
+**First action when it goes wrong**: put the row back to `disabled: true` (or delete those three lines)
+and restart DSH from its own menu; if the GUI is already broken, restore the whole `cordis.patch.yml`
+from the step-1 backup. That is [`docs/install/plugin-package.md`](docs/install/plugin-package.md) §6
+(four-step rollback) and §7 (the first action); §5 of the same file is the three-step enable and §4 the
+read-only preflight.
+
+**What is verified and what is not**: the package's shape, encodings, single disabled row and
+byte-identical client shared body are covered by the offline preflight and by the static case
+`tests/cases/plugin-package-shape/`; **loading it in a real DSH has not been verified** - that needs
+you to enable the row (§15, or the throwaway-profile route in `docs/install/plugin-package.md` §8).
+
+Activation, observation points, success/failure criteria and rollback: §14 (form 1, the default) and
+§15 (form 2, which needs your explicit authorisation).
+
+## How it was built, and by whom
+
+This repository was **built end to end by AI**: multi-agent collaboration inside DSH Desktop, split
+into research / engineering / testing / documentation / security review, using the model
+`deepseek-official/deepseek-v4-flash-vision-exp` (DeepSeek V4 Flash). **A human set the requirements,
+made the decisions and accepted the result.**
+
+That is also why nothing here is a self-declared claim: every acceptance result comes from a
+**reproducible command** - the gate `.github/scripts/repo-hygiene.ps1`, the offline suite
+`tests/run-tests.ps1`, the fixture suite `tests/run-fixtures.ps1` and the smoke entry
+`tests/run-smoke.ps1`. Run them instead of trusting this paragraph.
+
+The licence line is untouched: `LICENSE` is the final MIT text with the copyright line
+`Copyright (c) 2026 KomeijiHonnouKai` (see §12).
 
 Read-only posture detector for a **cross-network remote-access link**: [Tailscale](https://tailscale.com/)
 plus `tailscale serve` fronting a **loopback-only** DSH port, so a browser on one machine can
@@ -83,29 +148,27 @@ in this README is written from the **workspace root** instead — for example
 `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly`,
 which only resolves if the checkout directory is called `remote-tailnet-plugin`.
 
-**中文摘要**: 这是一个**只读**的远程访问链路体检工具(检测 DSH 是否只监听 loopback、tailnet
-链路与隔离性、防火墙/电源/代理姿态、前置件是否齐备),按四态 pass/degraded/blocked/unknown
-判定并以退出码 0/1/2 fail-closed 交付;**不新增监听、不动配置、不读任何凭据、所有写操作都要
-显式点名目录且可回滚**;卸载走 `tools/uninstall.ps1`(默认干跑、要 `-Apply` 才动、写前先备份、只回滚
-journal 记录过且未被别人改过的项,见 §21)。三种用法:插件面板、两条命令行脚本、离线测试套件。
-许可已定:**MIT**(见 `LICENSE`)。
+A **full Chinese edition** of this file - section by section, with a per-section completeness note -
+is [`README.zh-CN.md`](README.zh-CN.md).
 
 ---
 
 ## 1. What it is
 
-Three deliverables that share one detection core:
+Four deliverables that share one detection core:
 
 | Piece | Entry point | What it is |
 |---|---|---|
 | Collector / judge | `src/collect.ps1` | 24 checks, four verdicts, exit codes 0/1/2, fixture-injectable |
 | Prerequisite checker | `panel/prereq.ps1` + `panel/prereq-manifest.json` | 13 prerequisite items with role, detection method, install command to *show*, verification and rollback |
 | DSH plugin (dynamic Cordis package) | `src/host-half.js`, `panel/host-half.js`, `panel/client-half.js` | host half exposes a bounded posture read; the settings panel is display-only |
+| Persistent plugin package | `plugin/package.json`, `plugin/cordis.patch.yml`, `plugin/lib/index.js` (host half), `plugin/lib/client.js` (loader bundle), `plugin/lib/client/index.js` (ESM twin) | the same read-only settings section as an installable bundle; its single mount row ships `disabled: true`, so installing it does nothing until you enable it |
 
 Supporting material: `i18n/labels.{en,zh}.json` (all non-ASCII text), `docs/collect.md`
 (implementation notes), `docs/threat-model.md` (who can see and do what),
-`docs/install/{prerequisites,install,rollback}.md`, and the offline suite
-`tests/run-tests.ps1` (one case per directory under `tests/cases/`).
+`docs/install/{prerequisites,install,rollback}.md`, `docs/install/plugin-package.md` (enable, verify
+and roll back the persistent package), `panel/plugin-preflight.ps1` (its read-only preflight, exit
+0/1/2), and the offline suite `tests/run-tests.ps1` (one case per directory under `tests/cases/`).
 
 ## 2. What it checks
 
@@ -164,11 +227,13 @@ package from `panel/host-half.js` and `panel/client-half.js`, run it, and the pa
 the settings section. Nothing survives a process restart, so there is nothing to uninstall.
 Full steps and success/failure criteria: [`docs/install/install.md`](docs/install/install.md) §1.
 
-**Path B: persistent profile row — needs explicit approval.** Editing
-`<DSH_HOME>/profiles/<name>/cordis.patch.yml` changes a file that belongs to the user's DSH
-setup, so it is documented but never performed by this project: back up first, add one row,
-verify, then either set `disabled: true` or restore the file. Steps, line-level rollback and the
-backup procedure: `docs/install/install.md` §4 and
+**Path B: persistent plugin package — needs explicit approval.** The package now ships in `plugin/`,
+but installing it writes into your own DSH profile (`<DSH_HOME>/profiles/<name>/…`), so it is
+documented and **never performed** by this project: run the read-only preflight, back up the profile
+patch, install, verify the settings section appears, then roll back by restoring the row to
+`disabled: true` or by restoring the whole file. Three steps, four rollback steps and the throwaway
+profile: [`docs/install/plugin-package.md`](docs/install/plugin-package.md) §5 / §6 / §8; the older
+hand-written row variant: `docs/install/install.md` §4 and
 [`docs/install/rollback.md`](docs/install/rollback.md).
 
 Prerequisites (Tailscale, sign-in, the DSH port being loopback-only, the firewall rules, the
@@ -242,12 +307,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-tests.ps1 -Filter 
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-tests.ps1 -Only isolation
 ```
 
-One case per directory under `tests/cases/` (52 today) runs the real collector against injected
+One case per directory under `tests/cases/` (64 today) runs the real collector against injected
 fixtures: peer offline/refused/timeout, serve moved or absent, a changed DSH port, a cookie that
 expired (401), a missing `trustedHosts` key, non-admin probes, Tailscale absent/logged out/
 unreadable, a path with spaces and Chinese characters, locale traps (including a Chinese-tool-output
 culture set to `en-US`), write isolation and the zero-hardcoding scan - plus its own positive
-controls. Requirements: `tests/run-tests.ps1` only needs Windows PowerShell 5.1.
+controls. One case is not a collector run but a static shape check of the persistent package:
+`tests/cases/plugin-package-shape/` asserts 37 static facts (parse, encoding and the classic-script
+shape of `plugin/lib/*.js`, the `package.json` fields, the single `- insert` row and its `disabled`
+key, and that the marked SHARED BODY region is byte-identical in `plugin/lib/client.js` and
+`plugin/lib/client/index.js`). Requirements: `tests/run-tests.ps1` only needs Windows PowerShell 5.1.
 
 The suite is its own source of truth for the numbers: it prints `cases run / passed / failed /
 xfail held / xpass` in its header and its exit code is the verdict, so read those rather than a
@@ -303,14 +372,15 @@ never guesses, and the checker never downloads or runs anything.
 ```
 src/                collect.ps1 (collector), host-half.js (plugin host half)
 i18n/               labels.en.json, labels.zh.json
-panel/              prereq.ps1, prereq-manifest.json, client-half.js, host-half.js
+panel/              prereq.ps1, prereq-manifest.json, plugin-preflight.ps1 (read-only, exit 0/1/2), client-half.js, host-half.js
 tools/              uninstall.ps1 (the only optional write component: dry-run by default, §21)
+plugin/             package.json, cordis.patch.yml (the single mount row ships disabled), lib/index.js (host half), lib/client.js (loader bundle), lib/client/index.js (ESM twin) - the persistent package
 docs/collect.md     implementation notes for the collector (published)
 docs/threat-model.md  threat model (published)
-docs/install/       prerequisites.md, install.md, rollback.md (published)
-tests/              run-tests.ps1, run-fixtures.ps1, cases/, fixtures/
+docs/install/       prerequisites.md, install.md, rollback.md, uninstall.md, plugin-package.md (published)
+tests/              run-tests.ps1, run-fixtures.ps1, run-smoke.ps1, cases/, fixtures/
 .github/            workflows/ci.yml, scripts/repo-hygiene.ps1, scripts/check-workflows.py
-LICENSE  README.md  CHANGELOG.md  SECURITY.md  CONTRIBUTING.md  .gitignore  .editorconfig  .gitattributes
+LICENSE  README.md  README.zh-CN.md  CHANGELOG.md  SECURITY.md  CONTRIBUTING.md  .gitignore  .editorconfig  .gitattributes
 ```
 
 The release set is exactly those paths, and **`panel/` is part of it**: the prerequisite checker
@@ -325,6 +395,18 @@ escaped the gate by living in the wrong directory).
 component (dry-run by default, `-Apply` required, backup written first, §21) — ships with the
 repository and is a **default scan root** as well, because a clone that lacks the uninstaller cannot
 support the claim "complete, clean removal".
+
+**`README.zh-CN.md` ships with the release set as well**: it is the section-by-section Chinese edition
+of this file, it carries the same layout and release-set list, and it is registered in the hygiene
+gate's default roots, so it cannot drift out of the gate's scope.
+
+**`plugin/` is part of the release set too**: the persistent plugin package
+(`plugin/package.json`, `plugin/cordis.patch.yml`, `plugin/lib/index.js`, `plugin/lib/client.js`,
+`plugin/lib/client/index.js`) ships with the repository and is a **default scan root**; its read-only
+preflight (`panel/plugin-preflight.ps1`) and the Chinese enable/verify/rollback write-up
+(`docs/install/plugin-package.md`) are published as well. The mount row inside
+`plugin/cordis.patch.yml` ships **`disabled: true`**, so the published package is inert until an
+operator enables it (§15).
 
 **Internal analysis and review material does not ship with the repository**: the research notes,
 review reports and verification transcripts listed in section 1 of `.gitignore` are working documents
@@ -350,7 +432,8 @@ The hygiene gate is deliberately strict: **0 hits** for blocked identifiers, pri
 node suffixes, **0** credential value shapes, and **0 unclassified tokens** - a token that no allow
 rule explains is itself a blocking finding, so the allow list can never become a blindfold. It
 reports `verdict: CLEAN` over the release set, which includes all four files under `panel/`, and it
-prints the live file count in its header (85 on 2026-09-24); the CI job passes no scan-root argument
+prints the live file count in its header (85 when this line was first written; with `tools/`,
+`README.zh-CN.md` and `plugin/` among the default roots the live number is 109); the CI job passes no scan-root argument
 because the release set *is* the default scope. The classification of everything the gate does *not*
 treat as blocking is in section 10. Run the same gates locally:
 
@@ -364,7 +447,7 @@ python .github/scripts/check-workflows.py --selftest
 
 **None.** The gate reports `verdict: CLEAN` (0 blocking findings) over the release set. Two
 documentation lines used to carry a residual absolute application path from the development
-machine; both were replaced with the `<DSH_APP>` / `<APP_DIR>` placeholders by the follow-up
+machine; both were replaced with the `<DSH_APP>` / `<APP_DIR>` sanitized values by the follow-up
 documentation task (t20, 2026-09-24). The gate is the proof, and it classifies everything it
 finds instead of only counting it:
 
@@ -374,11 +457,11 @@ finds instead of only counting it:
 | private /24 prefixes and ULA node suffixes outside the documented prefix | 0 | must be 0 |
 | credential value shapes (`tskey-…`, a JWT, `key = <12+ characters>`) | 0 | must be 0 |
 | credential words as field names, "never read" declarations, fixture vocabulary | reported per file when you run it (a few hundred) | allow-listed; reported for human confirmation, never fatal on its own (the gate prints the live number and its per-file breakdown, which moves whenever a doc mentions one of the five words) |
-| product constants and sanitized placeholders | 12 distinct tokens, 119 occurrences | allow-listed **by token** from the single shared allow list at the top of `.github/scripts/repo-hygiene.ps1`; **0 unclassified tokens**, and an unclassified token would fail the gate |
+| product constants and sanitized replacement values | 12 distinct tokens, 135 occurrences (119 before `README.zh-CN.md` joined the release set) | allow-listed **by token** from the single shared allow list at the top of `.github/scripts/repo-hygiene.ps1`; **0 unclassified tokens**, and an unclassified token would fail the gate |
 | unapproved token (nothing on the allow list explains it) | 0 | must be 0 - the gate's self-test plants one and proves it alone flips the verdict to FAIL |
 | removed client-runtime package | 0 code references, 2 documentation mentions | code must be 0; the docs quote the ban and the check command on purpose |
 | encodings, binary products, internal-material exclusions, document markers | 0 | must be 0 |
-| line endings | LF everywhere; 3 CRLF files today | 2 are the captured-output fixtures under `tests/fixtures/` (CRLF on purpose); `tests/cases/README.md` is reported as a **note**, not a failure, because it belongs to another task - `repo-hygiene.ps1 -StrictLineEndings` promotes it to a blocking finding |
+| line endings | LF everywhere; 2 CRLF files today | both are the captured-output fixtures under `tests/fixtures/` (CRLF on purpose), and the gate now reports **no line-ending note at all** - the last one, `tests/cases/README.md`, was converted to LF; `repo-hygiene.ps1 -StrictLineEndings` still promotes any non-fixture CRLF file to a blocking finding |
 
 Reproduce it with:
 
@@ -445,7 +528,7 @@ its own only hit.
 > `powershell -NoProfile -ExecutionPolicy Bypass -File .github/scripts/repo-hygiene.ps1 -Json`
 > (first-hand: `verdict: CLEAN (0 blocking finding(s))`, `blockedHits=0`, `credValueHits=0`,
 > `unclassified=0`; the gate prints the live file count, so it is not quoted here); `[Net.Sockets.TcpClient]` 5 s probe (peer 443 = `timeout` at 18:25 local);
-> `Select-String` scans for the check ids, the allow-listed placeholders and the four-quadrant
+> `Select-String` scans for the check ids, the allow-listed sanitized values and the four-quadrant
 > criteria (raw outputs quoted in §18); `Get-ChildItem` / `Get-FileHash` inventory of the release
 > set. Sections 1–12 are the repository-level README (tasks t12/t24); this part adds the
 > **detection contract, the activation paths, the human to-dos and the evidence chain** without
@@ -610,13 +693,21 @@ one.** Success criteria, the `awaiting-approval`/`starting` caveat and the rollb
 
 Full evidence, the source-code anchors and the failure table: `docs/install/install.md` §1.4 and §2.
 
-## 15. Path B — persistent profile row (optional, needs your explicit approval)
+## 15. Path B — the persistent plugin package (optional, needs your explicit approval)
 
-On this path a row is added to the user's own `cordis.patch.yml`; the project documents it and
-**never performs it**. Repository-side prerequisites are in `docs/install/install.md` §4.1 (a
-`package.json` with `dsh.client` plus a real `exports["./client"]` bundle, and a one-row
-`cordis.patch.yml`) and are **not created by this revision** — until they exist, path B is a
-procedure, not a feature.
+On this path the package is installed into the user's own DSH profile; the project ships it and
+documents it, and **never performs the install for you**. The repository-side prerequisites now exist:
+[`plugin/package.json`](plugin/package.json) (`type: module`, `main: ./lib/index.js`,
+`exports["./client"]` → `./lib/client.js`, a `dsh.client` block and `dsh.bundle.patch`) and
+[`plugin/cordis.patch.yml`](plugin/cordis.patch.yml) (exactly one `- insert:` block holding exactly one
+row, `disabled: true`). `panel/plugin-preflight.ps1` checks that shape read-only before you touch
+anything, and the three-step enable, the four-step rollback and the throwaway-profile recipe are in
+[`docs/install/plugin-package.md`](docs/install/plugin-package.md) §5 / §6 / §8. The older hand-written
+one-row variant is still described in `docs/install/install.md` §4.
+
+**Not verified here**: nobody has loaded this package in a real DSH yet. Enabling the row is the
+operator's step, and the section appearing in the settings page is the success criterion to check for -
+`docs/install/plugin-package.md` §5 (enable) and §9 (what is unverified and why).
 
 ### 15.1 Prerequisites
 
@@ -640,11 +731,16 @@ Copy-Item -LiteralPath $patch -Destination $backup -Force
 ### 15.3 The row, the switch and the rollback
 
 ```yaml
-# append to <DSH_HOME>\profiles\<name>\cordis.patch.yml (keep the file's indentation)
-- id: remote-tailnet-guard-panel
-  name: remote-tailnet-plugin
-# to switch it off without deleting it: add `disabled: true` to the row (re-composed in ~1 s)
+# the row shipped in plugin/cordis.patch.yml (id and name must both equal package.json's `name`)
+- insert:
+    - id: remote-tailnet-guard
+      name: remote-tailnet-guard
+      disabled: true      # the shipped state; flip to false to enable
 ```
+
+`docs/install/plugin-package.md` §5 appends the same three lines with `disabled: false` to the profile
+patch and then restarts DSH from its own menu; §6 step 1 puts it back to `disabled: true` (or the three
+lines are deleted) and step 2 restores the whole file from the backup.
 
 Rollback, cheapest first: **(A)** set `disabled: true` on the row; **(B)** delete the row;
 **(C)** restore the whole file from the backup — **but read the backup first**, because a pre-change
@@ -691,7 +787,7 @@ the machine" column is the reason the automation stops here; none of these is an
 |---|---|---|---|
 | **17.1** | sync the skill to the **user-level** copy — **already done** (11/11 files byte-identical, per-file SHA256 verified); re-run only after further skill edits | dry run: `powershell -NoProfile -ExecutionPolicy Bypass -File D:\DSH\.dsh\tools\sync-skill.ps1 -Check` then apply: `powershell -NoProfile -ExecutionPolicy Bypass -File D:\DSH\.dsh\tools\sync-skill.ps1` | the target `%USERPROFILE%\.dsh\skills\dsh-remote-tailnet` is **outside the agent's workspace sandbox** (the workspace is the repository root); writing there needs your authorisation |
 | **17.2** | activate the plugin panel (approve once) | open the Run/approval card of the session titled **"AgentTeams automatic task assignment…"** and click the tick: **single tick = this package only, double tick = future versions of the same plugin** | an approval is a Web-UI user action, and the parked card belongs to **another session** — see the warning below |
-| **17.3** | persistent install (optional) | back up (README §15.2, one block), append the row (§15.3), then roll back with `disabled: true` or by deleting the row | it edits **your own** DSH profile file outside the workspace and needs explicit authorisation; the repository-side prerequisites do not exist yet |
+| **17.3** | persistent install (optional) | run the read-only preflight (`powershell -NoProfile -ExecutionPolicy Bypass -File panel/plugin-preflight.ps1`), back up the profile patch (README §15.2, one block), then follow `docs/install/plugin-package.md` §5 (three steps) and roll back with §6 (four steps: `disabled: true` first, whole-file restore second) | it edits **your own** DSH profile file outside the workspace and needs explicit authorisation; the package ships with its row `disabled: true` and **has never been loaded on a real DSH** (§15) |
 | **17.4** | publication decisions | the clone URL at the top of this file already carries the account (`KomeijiHonnouKai`) and the **repository name is settled** — that URL is the single source of truth; renaming stays a one-line edit per file | naming, ownership and identity are the maintainer's decisions; the **licence is already settled** (MIT, `Copyright (c) 2026 KomeijiHonnouKai`) |
 | **17.5** | re-test the live link | `powershell -NoProfile -ExecutionPolicy Bypass -File .dsh/skills/dsh-remote-tailnet/scripts/verify.ps1 -ServerIp <PEER_IP>` → expect `443 connected` / `135, 5357 timeout` / **EXIT 0**; then `… -Soak -Count 11 -IntervalSeconds 30` and state the verdict **with its window** | the 15-second check and the **11-round soak are both measured now** (see below: 3/3 in a 15-second window at 18:30, 11/11 over 305 s at 18:33–18:38) - but a link observation is per-machine and per-environment, so after a reset, a new client or a new tailnet this is the operator's run again |
 | **17.6** | **uninstall / clean up (complete and clean)** | dry run first: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/uninstall.ps1 -Plan` - it prints the list and **writes nothing**; add `-Apply` only when you want the rollback actually performed (it backs everything up **before** the first change). Full procedure: **§21** below, plus the long-form write-up in **`docs/install/uninstall.md`** (ships in the release set). | three facts decide what it will **not** touch: (1) it reverts **only items the journal recorded *and* whose current value still equals what this tool's remediation would have produced** - anything somebody changed afterwards is reported and left alone; (2) the Tailscale installation itself, other DSH plugins and **any firewall rule you wrote yourself** are **kept by default**; (3) backups are **kept by default** and only an explicit `-PurgeBackup` clears them. A clean uninstall therefore never means "silently delete everything" |
@@ -822,8 +918,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-fixtures.ps1
   post-processing branch), and `panel/prereq-manifest.json` `items` = **13**.
 - Release-set inventory: the gate's default roots cover the code directories (`src/`, `i18n/`, `tests/`,
   `panel/`, `tools/`) plus the published docs and root files; it prints the live file count, so this
-  line does not freeze one. `package.json` is **absent** (that is a path-B prerequisite, not a defect —
-  see §19).
+  line does not freeze one. `plugin/package.json` is present (that is the persistent package, §15); the
+  repository **root** carries no `package.json` (nothing in the test path needs one — see §19).
 - Skill-file state used by §17.1 (both copies compared file by file with SHA256: 11 vs 11 files,
   9 identical, and the two files this task touched — `references/verify.md`,
   `references/troubleshooting.md` — differing ⇒ exactly the gap the sync command closes).
@@ -838,7 +934,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-fixtures.ps1
 | security review came back **needs_revision** (not a pass) | t8 | review verdict + findings list |
 | the review findings were fixed, then re-reviewed | t16 (10/10), t19 (5/5), t17 re-review | per-finding disposition tables in those tasks |
 | offline suite green | t23 | **52 cases / 52 passed / 0 failed / 0 xfail held / 0 xpass / ALL PASS**, exit 0 — the first run where xfail **and** xpass are both 0 |
-| release-set hygiene | t12 (+ t24 for `panel/`, + t39 for `tools/`) | `verdict: CLEAN`, 0 blocking; t23's two scan scopes agreed as well — every raw hit outside the gate's own scope was an approved placeholder or a documented fixture, and neither summary froze a file count |
+| release-set hygiene | t12 (+ t24 for `panel/`, + t39 for `tools/`) | `verdict: CLEAN`, 0 blocking; t23's two scan scopes agreed as well — every raw hit outside the gate's own scope was an approved sanitized value or a documented fixture, and neither summary froze a file count |
 | `SERVE_PRESENT` semantics refreshed (evidence only from a readable `serve status` proxy target; unreadable ⇒ unknown) | t23 | code + case expectations; `docs/collect.md` text refresh is **t25's** |
 | `panel/` is part of the published release set; licence settled | t24 | README §8/§12, `.gitignore` unexcluded, gate default roots |
 
@@ -857,7 +953,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-fixtures.ps1
   **completed**, panel visible in the settings navigation; §14.1 and §17.2 carry the positive path
   next to the measured member-session failure). Only the failure mode on *other* machines remains
   unverified.
-- **The persistent profile row** — documented, never executed (§15).
+- **The persistent plugin package** — shipped in `plugin/` with its mount row `disabled: true`, and
+  never enabled on a real machine (§15; the unexecuted list is `docs/install/plugin-package.md` §9).
 
 ### 18.4 Connectivity: what the peer outage did and did not affect
 
@@ -883,9 +980,9 @@ means the operator runs it again (§17.5).
   gateway) so nothing in the fixture looks like a real machine.
 - **Product constants are kept on purpose**: `0.0.0.0`, `127.0.0.1`, `100.64.0.0/10`, the Tailscale
   IPv6 `/48` product prefix, the masks, and `192.0.2.20`.
-- **Sanitization placeholders** (never replace them with "real-looking" values): `100.64.0.11` for
+- **Sanitization replacement values** (never replace them with "real-looking" values): `100.64.0.11` for
   the local side, `100.64.0.12` for the peer side, `10.20.x` / `10.21.x` / `10.22.x` for the
-  private ranges, and host placeholders such as `<HOST_A>` / `<HOST_B>`.
+  private ranges, and host replacement values such as `<HOST_A>` / `<HOST_B>`.
 - **Release set vs internal material**: the research notes, review reports and verification transcripts
   are **excluded by `.gitignore`** and are not published — section 1 of that file is the list of record,
   and the hygiene gate fails if the exclusion list is incomplete. (This file deliberately does not
@@ -913,28 +1010,33 @@ means the operator runs it again (§17.5).
 |---|---|---|
 | `docs/collect.md` `SERVE_PRESENT` prose refresh | t25 | the code/verdict semantics are already t23's (see §13.1 row 17); the document text is not yet refreshed |
 | GitHub account in the clone URL — **closed** | maintainer | done: the clone URL at the top of this file carries the account (`KomeijiHonnouKai`); what remains is creating the GitHub repository and the first push (§17.4) |
-| file-count口径 in the two hygiene summaries (this file's default roots vs t23's scan scopes) | t24/t39 | the difference is the default-root scope (`panel/`, then `tools/`); both report **0** non-allow-listed hits, and neither summary freezes a count |
+| file-count口径 in the two hygiene summaries (this file's default roots vs t23's scan scopes) | t24/t39 | the difference is the default-root scope (`panel/`, then `tools/`, then `plugin/`); both report **0** non-allow-listed hits, and neither summary freezes a count |
+| plugin-list card seat on the "Settings → Plugins" page (`settings.plugin.item`) | — | **not implemented** in this revision: the settings section is the only seat the package registers (see the GUI section); adding the card is a separate piece of work |
 
 **Closed since the first draft of this table:** the stale case counts that used to appear in §1/§5
 here, in `CONTRIBUTING.md` and in `CHANGELOG.md` were refreshed (t24 for `CONTRIBUTING.md`, t28 for
 the other three places). Nothing in the publish set quotes a frozen pass count any more - the suite
 prints its own header and its case count is simply the number of directories under `tests/cases/`
-(52 on 2026-09-24, 0 `xfail` held). Run the command in §20 and read the header rather than this line.
+(64 on 2026-09-24, 0 `xfail` held). Run the command in §20 and read the header rather than this line.
 
 ## 20. Delivery checklist and the three commands a stranger needs
 
 | item | path | state |
 |---|---|---|
-| offline regression entry | `tests/run-tests.ps1` (52 cases) | present |
+| offline regression entry | `tests/run-tests.ps1` (64 cases) | present |
 | offline fixture entry (deterministic, no probes) | `tests/run-fixtures.ps1` (7 cases) | present, `ALL PASS / 0 failed / exit 0` |
+| offline smoke entry (one command, one exit code) | `tests/run-smoke.ps1` | present; exit `0` all green, `1` degraded (a SKIP but no FAIL), `2` broken |
 | collector | `src/collect.ps1` (24 checks) | present |
 | prerequisite checker + manifest | `panel/prereq.ps1`, `panel/prereq-manifest.json` (13 items) | present |
 | plugin halves | `src/host-half.js`, `panel/host-half.js`, `panel/client-half.js` | present |
+| persistent plugin package | `plugin/package.json`, `plugin/cordis.patch.yml`, `plugin/lib/index.js`, `plugin/lib/client.js`, `plugin/lib/client/index.js` | present, published; the mount row is `disabled: true`, so it is inert until enabled (§15) |
+| persistent-package preflight (read-only, 0/1/2) | `panel/plugin-preflight.ps1` | present; measured `checks: 51  passed: 51  failed: 0  skipped: 3`, exit 0 |
+| persistent-package write-up (enable/verify/rollback) | `docs/install/plugin-package.md` | present, published |
 | CI | `.github/workflows/ci.yml` + `.github/scripts/repo-hygiene.ps1` + `.github/scripts/check-workflows.py` | present |
-| `LICENSE` / `README.md` / `SECURITY.md` / `CHANGELOG.md` / `CONTRIBUTING.md` | repository root | present |
+| `LICENSE` / `README.md` / `README.zh-CN.md` / `SECURITY.md` / `CHANGELOG.md` / `CONTRIBUTING.md` | repository root | present |
 | `.gitignore` / `.editorconfig` | repository root | present |
 | uninstaller (the one optional write component) | `tools/uninstall.ps1` | present; dry-run by default, `-Apply` required, backup before the first change (§21) |
-| `package.json` | — | **absent on purpose** (persistent-install prerequisite, §15; nothing in the test path needs it) |
+| root `package.json` | — | **absent on purpose** (nothing in the test path needs one; the persistent package carries its own `plugin/package.json`) |
 
 Clone → self-proof, three commands:
 
@@ -942,7 +1044,7 @@ Clone → self-proof, three commands:
 # 1) deterministic, offline, no machine probes at all - expect: ALL PASS: 7 cases, 0 failed assertions
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-fixtures.ps1
 
-# 2) the full offline suite - expect: 52 cases, 52 passed, 0 failed, 0 xfail held, 0 xpass (exit 0)
+# 2) the full offline suite - expect: 64 cases, 64 passed, 0 failed, 0 xfail held, 0 xpass (exit 0)
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-tests.ps1
 
 # 3) the release-set gate - expect: verdict: CLEAN (0 blocking finding(s)), unclassified=0 (exit 0)

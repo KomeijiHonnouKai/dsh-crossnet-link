@@ -1,0 +1,44 @@
+{
+  "name": "remote-tailnet-guard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Persistent DSH plugin face of remote-tailnet-guard: a read-only 'Remote access link (read-only posture)' section inside the DSH settings page, fed by the repository's read-only collector (src/collect.ps1 -CheckOnly -AsJson). Opens no listener, writes nothing, reads no credential material. The loader row ships disabled: see plugin/cordis.patch.yml.",
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/",
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "engines": {
+      "dsh": ">=0.1.2-rc.1"
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-slots"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-client-ui-slots": ">=0.1.2-rc.1",
+    "react": "^18.2.0"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-client-ui-slots": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "license": "MIT"
+}
