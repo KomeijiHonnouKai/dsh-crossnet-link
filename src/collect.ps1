@@ -2213,7 +2213,8 @@ if ($OutFile) {
 }
 
 if ($AsJson) {
-  Write-Output $json
+  $jsonOut = [System.Text.Encoding]::UTF8.GetBytes($json)
+  [Console]::OpenStandardOutput().Write($jsonOut, 0, $jsonOut.Length)
 } else {
   Write-Output '== remote-tailnet-guard collector (read-only) =='
   Write-Output ('host=' + $env:COMPUTERNAME + ' ps=' + $psv + ' role=' + $Role + ' strictness=' + $Strictness + ' lang=' + $script:LangUsed)

@@ -587,3 +587,6 @@ dsh plugin --profile plugin-test remove remote-tailnet-guard
 之前「`link:` 装法必不出卡片」的推断被实测**推翻**:ESM 解析起点是 profile 目录,profile 里有 schema 库就出卡片。
 保留的只有一句:**卡片一格取决于 profile 能否解析 schema 库**;解析不到时 warning + 卡片不出现(guard 不变),
 分区与清单行不受影响。
+
+首次观察还暴露了一个编码缺陷(面板中文乱码):`collect.ps1 -AsJson` 的输出编码跟随进程控制台,
+宿主子进程里是 GBK 而 host 按 UTF-8 读。已修:JSON 输出改为固定写 UTF-8 字节,不改任何判定。

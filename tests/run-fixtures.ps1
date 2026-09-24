@@ -28,6 +28,11 @@ $FixtureDir = (Resolve-Path -LiteralPath $FixtureDir).Path
 
 $psExe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 
+# The collector emits its machine-readable -AsJson report as UTF-8 (the host half reads
+# it as UTF-8 too). Force this harness to decode captured child stdout the same way, so a
+# GBK console (e.g. when run under a CreateNoWindow parent) cannot mojibake the JSON.
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+
 function Invoke-Collector {
   param([string[]]$ArgList)
   $arr = @('-NoProfile','-ExecutionPolicy','Bypass','-File',$Collector,'-CheckOnly','-AsJson') + $ArgList
