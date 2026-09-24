@@ -1,6 +1,10 @@
 # Changelog
 
-LAST UPDATED  : 2026-09-24 (task t4 - documentation calibration: the shipped docs now state the measured
+LAST UPDATED  : 2026-09-25 (readability round: both READMEs rewritten for a first-time reader; the
+                evidence ledger and the decision log moved into `docs/evidence.md` and
+                `docs/decisions.md`; `tests/readme-style-check.ps1` added as a layout gate; the hygiene
+                gate's default roots extended to those two documents. Previously 2026-09-24 - task t4 -
+                documentation calibration: the shipped docs now state the measured
                 counts; task t39 recorded the uninstaller and `tools/` joining the published release set;
                 t28 relativeised the last stale case count and t24 settled the MIT licence and the
                 repository name)
@@ -18,6 +22,27 @@ copyright line `Copyright (c) 2026 KomeijiHonnouKai`. The choice is settled, so 
 should be read as a provisional grant.
 
 ## [Unreleased]
+
+### 2026-09-25 - documentation readability round
+
+- **`README.md` was rewritten for a first-time reader.** It shrank from 970 lines to 220 (the
+  project target was 220 or fewer) and now passes `tests/readme-style-check.ps1` with exit code 0:
+  numbered section headings, full-width punctuation in the Chinese prose, one idea per paragraph,
+  no internal task numbers and no frozen gate counts.
+- **`README.en.md` was rewritten as a structural mirror of the Chinese file.** The two files now
+  carry the same ten numbered `##` sections in the same order and differ only in language; the
+  English file is not subject to the full-width punctuation rule.
+- **`docs/evidence.md` and `docs/decisions.md` are new published documents.** The evidence ledger
+  (measured / quoted / unverified, the three never mixed) and the decision and open-item log moved
+  out of the README, because a ledger written for maintainers is not first-run documentation.
+- **`tests/readme-style-check.ps1` is a new layout gate for the README.** It measures line count,
+  display width, parenthesis density, bold density, the table budget, section references, task tags
+  and heading numbering, and follows the project's exit-code convention: 0 clean, 1 advisory only,
+  2 blocking. The README points at it, so a contributor can run the same gate before a change.
+- **The hygiene gate's default roots grew by those two documents.**
+  `.github/scripts/repo-hygiene.ps1` lists `docs\evidence.md` and `docs\decisions.md` in
+  `$PublishRoots`, so a clone contains them and the release-set scan covers them instead of sitting
+  beside them.
 
 ### Added
 

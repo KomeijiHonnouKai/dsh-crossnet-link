@@ -14,9 +14,10 @@
 # 1. INTERNAL MATERIAL - deliberately NOT part of the released repository
 # ---------------------------------------------------------------------------
 # The release set is exactly:
-#   src/  i18n/  tests/  panel/  tools/  docs/collect.md  docs/install/
-#   docs/threat-model.md  SECURITY.md  LICENSE  README.md  CHANGELOG.md
-#   CONTRIBUTING.md  .gitignore  .editorconfig  .github/**
+#   src/  i18n/  tests/  panel/  tools/  plugin/  docs/collect.md  docs/install/
+#   docs/threat-model.md  docs/evidence.md  docs/decisions.md  SECURITY.md  LICENSE
+#   README.md  README.en.md  CHANGELOG.md  CONTRIBUTING.md  .gitignore
+#   .editorconfig  .gitattributes  .github/**
 # Everything else under docs/ is internal analysis and review material: it contains
 # machine specifics gathered while the checks were designed, so it is excluded on purpose.
 # README.md states the same thing for readers ("Internal analysis and review material does

@@ -393,6 +393,11 @@ self-test: 7 cases  matched: 7  mismatched: 0
 > 本包**没有发布到任何 registry**(`package.json` 里 `"private": true`),所以安装一律用 `link:<插件目录>`;
 > 别试 `dsh plugin --profile <profile> add remote-tailnet-guard`(装不到)。
 > `link:` 的含义是**符号链接**:profile 直接加载这份 checkout 里的代码,因此插件启用期间不要移动或删掉仓库目录。
+>
+> **下一步做什么,写在最前面**:跑完下面三步后,**从 DSH 自带菜单重启 DSH**(设置 → 桌面 → 重启;或退出应用再打开),
+> 然后去 **设置 → 插件**,清单里 `remote-tailnet-guard` 应显示**已启用**;设置左侧导航应出现
+> `Remote access link (read-only posture)` 分区。逐条带人话、给 AI 读的版本见
+> [`agent-brief.md`](agent-brief.md)。
 
 ```powershell
 $repo    = '<REPO>'
@@ -403,41 +408,52 @@ $plugin  = Join-Path $repo 'remote-tailnet-plugin\plugin'
 
 # ---------- 第 1 步:整文件备份 profile patch(这一步不能省) ----------
 Copy-Item -LiteralPath $patch -Destination ($patch + '.bak-' + (Get-Date -Format 'yyyyMMdd-HHmmss')) -Force
+# 期望:无输出;再看一眼刚生成的备份
 Get-Item -LiteralPath ($patch + '.bak-' + '*') | Sort-Object LastWriteTime | Select-Object -Last 1 FullName,Length
+# 期望:列出一个 .bak-<时间戳> 文件,Length 与 patch 一致
 
 # ---------- 第 2 步:装进 profile(会改 profile 的 package.json / pnpm-lock.yaml / node_modules) ----------
 dsh plugin --profile $profile add ('link:' + $plugin)
 # 装完自检:bundles 列表里应出现 remote-tailnet-guard
 (Get-Content -LiteralPath (Join-Path $dshHome "profiles\$profile\package.json") -Raw | ConvertFrom-Json).dsh.profile.bundles
+# 期望:输出里有一项 remote-tailnet-guard
 
-# ---------- 第 3 步:在 profile patch 末尾追加"启用覆盖行",然后从 DSH 自带菜单重启 ----------
-# 把下面三行追加到 $patch 末尾(缩进与原文件一致,顶层数组的下一项):
-#   - id: remote-tailnet-guard
-#     name: remote-tailnet-guard
-#     disabled: false
-dsh --profile $profile --dump-config | Select-String -SimpleMatch 'remote-tailnet-guard'   # 应能看到该行且已启用
+# ---------- 第 3 步:把"启用覆盖行"追加到 profile patch 末尾,然后从 DSH 自带菜单重启 ----------
+# 启用就是这三行(id 与 name 等于包名;无 BOM 追加,不动文件里已有的任何内容):
+[IO.File]::AppendAllText($patch, "`n- id: remote-tailnet-guard`n  name: remote-tailnet-guard`n  disabled: false`n", (New-Object Text.UTF8Encoding($false)))
+# 期望:无输出、不报错;验证一下
+dsh --profile $profile --dump-config | Select-String -SimpleMatch 'remote-tailnet-guard' -Context 0,4
+# 期望:能看到 id/name 是 remote-tailnet-guard、disabled: false 的那一行
 ```
 
-重启后进 **设置 → 左侧导航**:应出现 `Remote access link (read-only posture)` 分区。
-点开即应显示一次采集结果(pass/degraded/blocked/unknown 与逐条判定)。
+重启后核对三格,判据见 §5.1。这一步把「人肉编辑 YAML」换成了**一条可粘贴的追加命令**:
+启用行依旧落在 profile 的用户层(覆盖包自带的 `disabled: true`,升级不丢、回滚只动一个文件),
+只是由流程自动加,不用人手工改。
+
+> **小坑(实测)**:刚初始化的一次性 profile 的补丁文件内容是一行 `[]`(空数组模板)。
+> 追加第 3 步之前,若文件里只有这一行 `[]`,先把它删掉再追加,避免数组里多出一个空项。
+> 日常 `desktop` profile 的补丁已有内容,直接追加即可。
 
 **为什么启用是"加三行覆盖"而不是改包里的 `disabled`**:`plugin/cordis.patch.yml` 是**包自己的层**,
 `<profile>\cordis.patch.yml` 是**用户层、在所有 bundle 层之后应用**(§2.5),同一个 `id` 会被用户层覆盖。
 这样 `node_modules` 里的包保持原样、升级不丢,回滚也只需要动一个文件。
 
-### 5.1 启用后你会看到什么(预期,尚未验证)
+### 5.1 启用后你会看到什么(三格判据;实测口径见 §9.1)
 
 | 位置 | 预期看到 | 由什么实现 |
 |---|---|---|
-| 设置面板**左侧导航** | 一个独立分区 `Remote access link (read-only posture)` | `settings.section`(t43) |
-| **设置 → 插件**(`all` tab,插件清单) | 清单里出现 `remote-tailnet-guard` 这一行及其启用状态 | 平台自带的 inventory tab,**不需要我们写任何代码**;只要行被装进 profile 就会有(`all` tab 同时列出**未启用**的行并把它们标成未启用,所以装完还没启用时它其实就已经在清单里了) |
-| **设置 → 插件 → 「可配置插件」tab** | 一张卡片:同样的只读面板(标题 `Remote access link (read-only posture)`,perspective 选择、refresh、逐条判定、凭据与不改动声明) | `settings.plugin.item`(t46),`key` = 设置命名空间 `remote-tailnet-guard` |
+| 设置面板**左侧导航** | 一个独立分区 `Remote access link (read-only posture)` | `settings.section` |
+| **设置 → 插件**(`all` tab,插件清单) | 清单里出现 `remote-tailnet-guard` 这一行,状态**已启用** | 平台自带的 inventory tab,**不需要我们写任何代码**;只要行被装进 profile 就会有(`all` tab 同时列出**未启用**的行并把它们标成未启用,所以装完还没启用时它其实就已经在清单里了 —— 认准"已启用"三个字) |
+| **设置 → 插件 → 「可配置插件」tab** | **有条件的第三格**:schema 库在 profile 侧解析得到,卡片就出现;解析不到只打 warning、卡片不出现(§9.1 实测:本机解析成功、卡片座位 active) | `settings.plugin.item`,`key` = 设置命名空间 `remote-tailnet-guard` |
 
 两个我们主动注册的座位(分区 + 卡片)**取的是同一份数据、同一段组件代码**;区别只在宿主把它放在哪一页(§2.6)。
-**这三个"会看到"都是预期,不是已验证的观察**:第一阶段没有任何运行证据,必须由你在 §8 的一次性 profile 上启用一次后复核;
-尤其注意卡片这一格:它还多依赖"host 半边成功注册了那个空 schema 命名空间"这一条件(§2.6 的最后一段),
-如果那一步没成功,卡片**不会出现**(分区与清单行仍然正常),面板也不会因此报错。
-失败时的观察点:`logs` 里 `remote-tailnet-guard: settings namespace ...` 是 info 还是 warning。
+
+**卡片这一格的真实机制(实测澄清,取代原先"`link:` 装法必不出卡片"的推断)**:host 半边对 schema 库
+(`@deepseek-ai/schemastery` / `schemastery`)用**受保护的运行时解析**(`await import(specifier)`,try/catch),
+而 ESM 解析的起点是 **profile 目录**(loader 从 profile 解析行 specifier),不是 `link:` 目标目录 ——
+所以 profile 的 `node_modules` 里有该库(装了其它带 schemastery 的插件时通常就有)就**解析成功**、
+命名空间注册成功、卡片**可以渲染**;解析不到时**被 guard 住**(只打一条 warning),卡片不出现,
+分区与插件清单行**完全不受影响**。两种结果都是设计内行为。真实装载记录(日志 info/warning + 三格)见 §9.1。
 
 ---
 
@@ -519,8 +535,9 @@ dsh plugin --profile plugin-test remove remote-tailnet-guard
 
 ## 9. 未验证清单(边界,不粉饰)
 
-1. **真实加载未验证**。本阶段交付的是"可加载的骨架 + 只读预检 + 文档 + 静态测试";
-   「设置里出现这个分区、面板可交互」**必须在你的机器上按 §5/§8 跑一次才算数**。本文不声称已验证。
+1. **真实加载记录只有一次,在真实 DSH 上(2026-09-25)**。§9.1 是本仓库的第一份真实装载观察:
+   「设置里出现分区、插件清单行已启用、卡片格的条件与实测」按 §9.1 的日志原文与座位证据核实;
+   它仍然不替代「每台机器、每种环境各跑一次」—— 在你的机器上按 §5/§8 跑一次才算你这台机器算数。
 2. **host 路由的运行时行为未验证**:同源校验、body 上限、`webServer.register` 的 prefix 选择,
    都只做了静态证据(§2.4)与本仓库的静态断言(§4),没有真机运行记录。
 3. **client bundle 的手写性**:本仓库没有 tsdown/tsc 工具链,`plugin/lib/client.js` 是按真实 bundle
@@ -531,11 +548,42 @@ dsh plugin --profile plugin-test remove remote-tailnet-guard
 5. **多 profile / 多版本组合**:本文只覆盖"一个 profile、本机这一版 DSH"的口径;Win10/Win11 四种组合
    的适配属于另一条任务线,不在本阶段结论内。
 6. **`<APP_DIR>` 下的行号**来自本机这一版安装镜像;DSH 升级后行号可能平移,文件名与结构才是判据。
-7. **插件页卡片(t46)同样未验证,而且多一个前置件**:卡片能否渲染取决于两点同时成立 ——
+7. **插件页卡片:实测澄清 —— schema 库按 profile 侧解析,解析得到卡片就出现**。卡片能否渲染取决于两点同时成立 ——
    ①host 半边成功注册了空 schema 的命名空间 `remote-tailnet-guard`;②client 半边把 `settings.plugin.item`
-   以同名字符串为 `key` 注册上。第①点在 `link:` 装法下依赖 **schema 库能否被运行时解析**
-   (`@deepseek-ai/schemastery` / `schemastery`),本机没有跑过一次真实解析,所以这一格是**未验证**的;
-   解析不到时的行为是**已知且刻意的**(打 warning、不注册、卡片不出现、其余功能照常)。
-   判断口诀:分区出现 = 骨架加载成功;清单里出现该行 = 行真的被装进 profile;卡片出现 = 上面两点都成立。
+   以同名字符串为 `key` 注册上。第①点依赖 **schema 库能否被运行时解析**
+   (`@deepseek-ai/schemastery` / `schemastery`),而解析的起点是 **profile 目录**(loader 从 profile 解析行
+   specifier),**不是** `link:` 目标目录:本机桌面 profile 的 `node_modules` 里有该库(其它插件带入),
+   实测**解析成功、命名空间注册成功、卡片座位 active**(§9.1)。在一个没有该库的 profile 上,解析会失败,
+   行为是**已知且刻意的**(打 warning、不注册、卡片不出现、其余功能照常),已被 guard 住。
+   判断口诀:分区出现 = 骨架加载成功;清单里出现该行 = 行真的被装进 profile;卡片出现 = 上面两点都成立
+   (其中第①点取决于 profile 能否解析 schema 库)。真实装载时的日志观察见 §9.1。
 8. **退出码契约的自证范围**:`-SelfTest` 覆盖的是**静态**故障(入口缺失 / 行 id / 行 disabled / 共享正文漂移 /
    卡片座位消失 / 文档缺失)与基线;真实加载期的失败(路由注册失败、采集器超时、命名空间被占用)不在它的覆盖里。
+
+### 9.1 第一次真实装载观察(2026-09-25,真实 DSH,日常 profile)
+
+**做法**:按 §5 三条命令在**真实 profile** 上安装(备份 → `dsh plugin add link:` → 追加启用覆盖行),
+然后从 DSH 自带菜单重启 DSH。
+
+**装载日志**(重启后;`[I]` = info,`[W]` = warning):
+
+```text
+[I] [remote-tailnet-guard] remote-tailnet-guard: read-only posture route ready at /remote-tailnet-guard/api (collector <REPO>\src\collect.ps1)
+[I] [remote-tailnet-guard] remote-tailnet-guard: settings namespace "remote-tailnet-guard" registered (the plugins-page card can render)
+```
+
+两条都是 **info,没有 warning** —— 包括 §5.1 说的 namespace 注册:它**成功**了(profile 侧解析到了 schema 库),
+所以卡片这一格在本机是**渲染前提成立**的。§2.6 的 guard 没有触发。
+
+**三格观察**:
+
+| 格 | 判据 | 实测 |
+|---|---|---|
+| ① 插件清单行 | 组合配置里该行 `disabled: false`;清单由平台 inventory 列出 | 行已装进 profile 且 `disabled: false`(`--dump-config` 原文:该行 `patched by <DSH_HOME>\profiles\<profile>\cordis.patch.yml`) |
+| ② 设置左侧导航分区 | `settings.section` 活注册 `id: remote-tailnet-guard` | **active**:`registrant: remote-tailnet-guard, id: remote-tailnet-guard, order: 100, active: true`(客户端槽位检查实测) |
+| ③ 可配置插件卡片 | `settings.plugin.item` 活注册 + host 命名空间注册 | 卡片座位 `registrant: remote-tailnet-guard, key: remote-tailnet-guard, order: 100, active: true`;host 日志确认命名空间注册成功 → **渲染的两个前提都成立** |
+
+**结论**:真实装载一次通过,三格全中;本机日志是 **info 不是 warning**。
+之前「`link:` 装法必不出卡片」的推断被实测**推翻**:ESM 解析起点是 profile 目录,profile 里有 schema 库就出卡片。
+保留的只有一句:**卡片一格取决于 profile 能否解析 schema 库**;解析不到时 warning + 卡片不出现(guard 不变),
+分区与清单行不受影响。

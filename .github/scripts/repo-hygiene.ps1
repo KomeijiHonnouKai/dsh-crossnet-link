@@ -10,10 +10,11 @@
 
   WHAT IT PROVES (release set = what a clone of the published repository contains:
     src/, i18n/, tests/, panel/, tools/, plugin/, docs/collect.md, docs/install/,
-    docs/threat-model.md, SECURITY.md, LICENSE, README.md, README.en.md, CHANGELOG.md,
-    CONTRIBUTING.md, .gitignore, .editorconfig, .github/**. The plugin's other half - the
-    prerequisite checker, its manifest and both panel halves - the uninstaller and the
-    persistent plugin package therefore sit inside the scanned surface, not beside it):
+    docs/threat-model.md, docs/evidence.md, docs/decisions.md, SECURITY.md, LICENSE, README.md,
+    README.en.md, CHANGELOG.md, CONTRIBUTING.md, .gitignore, .editorconfig, .github/**.
+    The plugin's other half - the prerequisite checker, its manifest and both panel halves -
+    the uninstaller and the persistent plugin package therefore sit inside the scanned
+    surface, not beside it):
     1. blocked identifiers     : 0 hits for the real tailnet addresses / host names / user
                                  paths of the machines this project was developed on
     2. private / node suffixes : 0 hits for the private /24 prefixes held in the blocklist and
@@ -104,6 +105,7 @@ $RepoRootDefault = Split-Path -Parent (Split-Path -Parent $ScriptDir)
 $PublishRoots = @(
   'src', 'i18n', 'tests', 'panel', 'tools', 'plugin',
   'docs\collect.md', 'docs\install', 'docs\threat-model.md',
+  'docs\evidence.md', 'docs\decisions.md',
   'SECURITY.md', 'LICENSE', 'README.md', 'README.en.md', 'CHANGELOG.md', 'CONTRIBUTING.md',
   '.gitignore', '.editorconfig', '.gitattributes', '.github'
 )
