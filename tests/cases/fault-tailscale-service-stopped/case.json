@@ -1,0 +1,18 @@
+{
+  "id": "fault-tailscale-service-stopped",
+  "title": "the Tailscale service exists but is stopped -> blocked",
+  "titleZh": "Tailscale 服务存在但已停止 -> blocked",
+  "kind": "collector",
+  "why": "The service is the link itself: stopped means nothing works and the fix (start the service) is unambiguous, so blocked is the right verdict rather than unknown.",
+  "inject": "Get-Service Tailscale returns status Stopped",
+  "expectSummary": "TAILSCALE_SERVICE blocked/ts_service_stopped, exit 2",
+  "base": "_base/server-en.json",
+  "layer": { "services": { "Tailscale": { "status": "Stopped", "startType": "Automatic" } } },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCode": 2,
+    "verdicts": { "TAILSCALE_SERVICE": "blocked" },
+    "reasons": { "TAILSCALE_SERVICE": "ts_service_stopped" },
+    "raw": { "TAILSCALE_SERVICE": { "status": "Stopped" } }
+  }
+}

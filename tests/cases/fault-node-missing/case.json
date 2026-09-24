@@ -1,0 +1,21 @@
+{
+  "id": "fault-node-missing",
+  "title": "node is not installed: the HTTPS verdict stays unknown, it does not guess",
+  "titleZh": "没有 node:HTTPS 判定保持 unknown,不猜",
+  "kind": "collector",
+  "why": "defensive-spec section 7 case 5. An HTTPS/certificate verdict needs a client that can present SNI; with no node the collector must degrade instead of reporting anything about TLS. The manual command it prints has to stay usable, i.e. it carries placeholders and real flags (rejectUnauthorized) rather than a half-worded sentence.",
+  "inject": "PATH redirected to a temp directory that holds no executables, so the node lookup fails",
+  "expectSummary": "HTTPS_CLIENT_ONLY unknown/https_client_only with nodeAvailable=false, manualReview=true, exit != 0",
+  "base": "_base/server-en.json",
+  "env": { "PATH": "<TMP>\\empty-bin" },
+  "args": ["-Role", "client", "-Peer", "203.0.113.5"],
+  "expect": {
+    "exitCodeNot": 0,
+    "verdicts": { "HTTPS_CLIENT_ONLY": "unknown" },
+    "reasons": { "HTTPS_CLIENT_ONLY": "https_client_only" },
+    "notVerdicts": { "HTTPS_CLIENT_ONLY": ["pass", "degraded", "blocked"] },
+    "manualReview": ["HTTPS_CLIENT_ONLY"],
+    "raw": { "HTTPS_CLIENT_ONLY": { "nodeAvailable": false } },
+    "stdoutMatch": ["rejectUnauthorized", "peerMagicDnsName"]
+  }
+}

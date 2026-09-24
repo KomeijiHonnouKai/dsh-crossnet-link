@@ -1,0 +1,18 @@
+{
+  "id": "fault-edge-registry-unavailable",
+  "title": "the firewall-rule registry store is unreadable: both rule judgements say unknown",
+  "titleZh": "防火墙规则注册表读不到:两处规则判定都报 unknown",
+  "kind": "collector",
+  "why": "The stored registry value is the authoritative source for Edge traversal. When it cannot be read there is nothing to compare against, and the localized netsh echo alone must not be promoted into a verdict - echoed text and stored value also disagree during the Windows Firewall rule-refresh window.",
+  "inject": "the firewall_rules registry probe removed; the netsh rule echo is still available",
+  "expectSummary": "EDGE_DB unknown/edge_registry_unavailable and TAILSCALE_IN_RULES unknown/fw_registry_unavailable, exit != 0",
+  "base": "_base/server-en.json",
+  "unset": ["registry.firewall_rules"],
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCodeNot": 0,
+    "verdicts": { "TAILSCALE_PROCESS_EDGE_DB": "unknown", "TAILSCALE_IN_RULES": "unknown" },
+    "reasons": { "TAILSCALE_PROCESS_EDGE_DB": "edge_registry_unavailable", "TAILSCALE_IN_RULES": "fw_registry_unavailable" },
+    "notVerdicts": { "TAILSCALE_PROCESS_EDGE_DB": ["pass", "blocked", "degraded"], "TAILSCALE_IN_RULES": ["pass", "blocked", "degraded"] }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "fault-trustedhosts-multi-profile",
+  "title": "two DSH profiles and no -Profile: refuse to guess which patch chain is loaded",
+  "titleZh": "两个 DSH profile 且没给 -Profile:拒绝猜哪条 patch 链在生效",
+  "kind": "collector",
+  "why": "defensive-spec section 7 case 9: silently reading the first profile is how a wrong answer looks exactly like a right one. A temporary DSH_HOME carrying two profiles is built for this case, so the collector's own profile discovery is exercised for real (not fixture-injected).",
+  "inject": "a temp DSH_HOME with profiles Alpha and Beta, no -Profile argument",
+  "expectSummary": "TRUSTED_HOSTS_PATCH unknown/th_multi_profile, exit != 0",
+  "base": "_base/server-en.json",
+  "tmp": { "home": { "profiles": ["Alpha", "Beta"] } },
+  "args": ["-Role", "server", "-Port", "49999", "-DshHome", "<TMP>\\home"],
+  "expect": {
+    "exitCodeNot": 0,
+    "verdicts": { "TRUSTED_HOSTS_PATCH": "unknown" },
+    "reasons": { "TRUSTED_HOSTS_PATCH": "th_multi_profile" },
+    "notVerdicts": { "TRUSTED_HOSTS_PATCH": ["pass", "blocked"] },
+    "config": { "profilesFound": { "value": "Alpha,Beta" } }
+  }
+}

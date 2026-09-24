@@ -1,0 +1,18 @@
+{
+  "id": "fault-trustedhosts-profile-selected",
+  "title": "the same two profiles with -Profile Alpha: the answer comes back",
+  "titleZh": "同样两个 profile,加上 -Profile Alpha:答案回来了",
+  "kind": "collector",
+  "why": "The pair of this case and fault-trustedhosts-multi-profile is what proves -Profile actually resolves the ambiguity instead of being decoration. It also pins that the app-level and package-level patch layers stay in the chain while only the profile layer is narrowed (narrowing everything once turned a real blocked finding into unknown).",
+  "inject": "the same temp DSH_HOME with profiles Alpha and Beta, this time with -Profile Alpha",
+  "expectSummary": "TRUSTED_HOSTS_PATCH pass/th_ok, config profile=Alpha, exit 1",
+  "base": "_base/server-en.json",
+  "tmp": { "home": { "profiles": ["Alpha", "Beta"] } },
+  "args": ["-Role", "server", "-Port", "49999", "-DshHome", "<TMP>\\home", "-Profile", "Alpha"],
+  "expect": {
+    "exitCode": 1,
+    "verdicts": { "TRUSTED_HOSTS_PATCH": "pass" },
+    "reasons": { "TRUSTED_HOSTS_PATCH": "th_ok" },
+    "config": { "profile": { "value": "Alpha" } }
+  }
+}

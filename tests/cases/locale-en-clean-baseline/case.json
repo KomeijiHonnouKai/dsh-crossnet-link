@@ -1,0 +1,43 @@
+{
+  "id": "locale-en-clean-baseline",
+  "title": "clean server + English tool text",
+  "titleZh": "干净服务端 + 英文工具输出",
+  "kind": "collector",
+  "why": "Pins the aggregate result of the whole collector on a healthy machine, so any later regression shows up as a changed count. It also locks in a deliberate property: POWER_S0_CAPABILITY can never be 'pass' (a pass there is forced to confidence=low and therefore reported as degraded), so exit 0 is unreachable on purpose. Fail-closed means the collector never claims 'all clear'.",
+  "inject": "nothing: the clean server baseline (_base/server-en.json) replayed fully offline (-NoNative)",
+  "expectSummary": "pass=18 degraded=1 blocked=0 unknown=0, exit 1",
+  "base": "_base/server-en.json",
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCode": 1,
+    "summary": { "total": 19, "pass": 18, "degraded": 1, "blocked": 0, "unknown": 0 },
+    "verdicts": {
+      "DSH_LOOPBACK_ONLY": "pass",
+      "WILDCARD_LISTENER_INVENTORY": "pass",
+      "TAILSCALE_PROCESS_EDGE_DB": "pass",
+      "TAILSCALE_IN_RULES": "pass",
+      "NIC_PROFILE_ATTRIBUTION": "pass",
+      "FIREWALL_PROFILES": "pass",
+      "POWER_STANDBY_IDLE_AC_DC": "pass",
+      "POWER_S0_CAPABILITY": "degraded",
+      "DSH_NETWORK_EXPOSURE": "pass",
+      "TRUSTED_HOSTS_PATCH": "pass",
+      "SERVE_PRESENT": "pass",
+      "CREDENTIAL_DISCIPLINE": "pass",
+      "NO_NEW_WILDCARD_LISTENER": "pass"
+    },
+    "reasons": {
+      "DSH_LOOPBACK_ONLY": "dsh_loopback_ok",
+      "TAILSCALE_IN_RULES": "ts_in_ok",
+      "NIC_PROFILE_ATTRIBUTION": "nic_ok",
+      "TRUSTED_HOSTS_PATCH": "th_ok",
+      "SERVE_PRESENT": "serve_ok",
+      "POWER_STANDBY_IDLE_AC_DC": "power_ok",
+      "POWER_S0_CAPABILITY": "s0_ok"
+    },
+    "confidence": { "NIC_PROFILE_ATTRIBUTION": "high" },
+    "confidenceDowngrade": { "POWER_S0_CAPABILITY": true },
+    "info": { "collector.readOnly": true, "collectorFaultsCount": 0 },
+    "stderrEmpty": true
+  }
+}

@@ -1,0 +1,80 @@
+# remote-tailnet-guard - shared editor defaults
+#
+# LAST UPDATED  : 2026-09-24 (task t12, v0)
+# COMMANDS USED : powershell -NoProfile -Command 'Get-ChildItem remote-tailnet-plugin
+#                 -Recurse -File -Include *.ps1,*.md,*.json,*.js | % { $b=
+#                 [IO.File]::ReadAllBytes($_.FullName); $nonascii=0; foreach($x in $b)
+#                 { if($x -gt 127){$nonascii++} }; "$($_.Name) BOM=$($b[0] -eq 0xEF)
+#                 nonascii=$nonascii" }'
+#                 (measured 2026-09-24: every *.ps1 in this repository is pure ASCII and
+#                  BOM-less; every *.md is UTF-8 without a BOM)
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# ---------------------------------------------------------------------------
+# Markdown: UTF-8 WITHOUT a BOM
+# ---------------------------------------------------------------------------
+# Docs carry Chinese text; a BOM would show up in diffs and in the first heading of
+# rendered output, so it must stay absent.
+[*.md]
+charset = utf-8
+# two trailing spaces are a Markdown hard line break - do not strip them
+trim_trailing_whitespace = false
+end_of_line = lf
+
+# ---------------------------------------------------------------------------
+# PowerShell: encoding + line endings (enforced by CI)
+# ---------------------------------------------------------------------------
+# RULE 1 (what the repository ships today): a script that is ASCII-only is saved as
+#   UTF-8 WITHOUT a BOM, so it is portable to any system code page.
+# RULE 2: a script that MUST contain non-ASCII text (Chinese comments or messages)
+#   is saved as UTF-8 WITH a BOM. Windows PowerShell 5.1 decodes a BOM-less script
+#   using the system ANSI code page, where a UTF-8 sequence can swallow the next
+#   quote byte and produce a wall of fake syntax errors.
+# .editorconfig cannot branch on file content, so the mechanical default below is
+# RULE 1; the CI job "encoding gate" checks both branches for every *.ps1/*.md:
+#   non-ASCII present => BOM required, pure ASCII => BOM refused.
+# Line endings: every file in this repository is LF except the two captured-output fixtures
+#   listed below (measured 2026-09-24 over all 74 text files), so a contributor's editor must
+#   not rewrite them.
+[*.ps1]
+charset = utf-8
+end_of_line = lf
+indent_size = 2
+
+[*.psm1]
+charset = utf-8
+end_of_line = lf
+indent_size = 2
+
+# ---------------------------------------------------------------------------
+# Documented exception: the captured console-output fixtures
+# ---------------------------------------------------------------------------
+# These two files record what a Windows tool actually printed, including its CRLF line
+# endings; rewriting them would change the evidence they exist to carry. Nothing else in
+# tests/ is allowed to be CRLF.
+[tests/fixtures/*.json]
+end_of_line = crlf
+
+[*.{yml,yaml}]
+indent_size = 2
+end_of_line = lf
+
+[*.json]
+indent_size = 2
+end_of_line = lf
+
+[.gitignore]
+end_of_line = lf
+
+[LICENSE]
+charset = utf-8
+end_of_line = lf

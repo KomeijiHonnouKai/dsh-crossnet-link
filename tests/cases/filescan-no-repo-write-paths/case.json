@@ -1,0 +1,20 @@
+{
+  "id": "filescan-no-repo-write-paths",
+  "title": "static proof: the read-only surface has no write verb, and the one optional write component is named explicitly",
+  "kind": "filescan",
+  "why": "The runtime tree gate can only observe changes; on a machine where somebody else is editing the checkout it cannot tell who wrote what. This case proves the stronger, static property instead: run-tests.ps1 creates directories and writes files only through helpers that resolve under $script:TempBase ($env:TEMP\\rtg-tests-<pid>), so no code path in the suite can write into the repository. It also guards the ASCII-only and parse rules for the entry point itself. Since t36 the repository has exactly ONE optional write component - tools/uninstall.ps1 - so the write-verb assertion carries an explicit allowFiles list holding that single path: every other *.ps1 must stay at zero hits, and the allowed file must not grow silently. That component is dry-run by default (nothing is written without -Apply) and it always writes and verifies its backup directory before the first change; the uninstall-* cases in this suite exercise exactly that chain. TWO deliberate scope limits, both recorded rather than papered over (t41): (1) the delete verb is NOT part of this pattern. It is used legitimately for %TEMP% scratch cleanup in this suite, in tests/run-smoke.ps1 and in .github/scripts/repo-hygiene.ps1, so banning it outright would force those files onto allowFiles and the rule would stop meaning anything; the match is case-sensitive on purpose, so the 'move an item' alternative can no longer widen the rule to the delete verb by accident. (2) The stronger guarantee - 'the path argument of every write verb resolves under %TEMP%' - is a PATH criterion, not a hit-count criterion, and is a KNOWN LIMITATION (see tests/cases/README.md section 8). This case is the canary-tested one: canary-filescan-treewide-assertions-live plants a violation of exactly this assertion type and fails if the assertion is ever muted.",
+  "inject": "the suite's own source text plus every *.ps1 in the repository, scanned for the listed write verbs; tools/uninstall.ps1 is the only allow-listed path; the delete verb is out of scope on purpose (see why)",
+  "expectSummary": "run-tests.ps1: parses, ASCII-only, no BOM; every listed write verb outside the allow-listed tools/uninstall.ps1 has 0 hits (delete-verb coverage is a recorded limitation, not a silent gap)",
+  "filescan": {
+    "asserts": [
+      { "type": "parses", "file": "tests/run-tests.ps1" },
+      { "type": "no-bom", "file": "tests/run-tests.ps1" },
+      { "type": "ascii-only", "file": "tests/run-tests.ps1" },
+      { "type": "parses", "file": "src/collect.ps1" },
+      { "type": "no-bom", "file": "src/collect.ps1" },
+      { "type": "ascii-only", "file": "src/collect.ps1" },
+      { "type": "contains", "file": "tests/run-tests.ps1", "pattern": "TempBase" },
+      { "type": "literal-zero", "extensions": ["*.ps1"], "pattern": "Set-Content|Out-File|Add-Content|Export-Csv|Move-Item|Rename-Item|New-ItemProperty|Set-ItemProperty|Remove-ItemProperty|New-ItemProperty", "allowFiles": ["tools\\uninstall.ps1"] }
+    ]
+  }
+}

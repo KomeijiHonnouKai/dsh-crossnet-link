@@ -1,0 +1,105 @@
+{
+  "_comment": "Same machine state as _base/server-en.json, but every tool output is the Chinese (zh-CN) spelling. Used to prove the judgements do not depend on the tool language: netsh section headers, netsh state words, powercfg field names and the sleep-state catalogue are all localized here. Hex indices, GUIDs and the netstat state column are unchanged (the OS itself does not translate those).",
+  "registry": {
+    "os_version": {
+      "ProductName": "Windows 10 Pro",
+      "DisplayVersion": "22H2",
+      "CurrentBuild": "19045",
+      "UBR": 6036,
+      "EditionID": "Professional",
+      "InstallationType": "Client"
+    },
+    "fw_domain": { "EnableFirewall": 1 },
+    "fw_standard": { "EnableFirewall": 1 },
+    "fw_public": { "EnableFirewall": 1 },
+    "firewall_rules": {
+      "Tailscale-Process": "Name=Tailscale-Process|Edge=TRUE|Dir=Out|Action=Allow|Active=TRUE|Protocol=Any|Profile=Domain,Private",
+      "Tailscale-In-v4": "|Dir=In|Action=Allow|Active=TRUE|Protocol=TCP|Profile=Domain|Profile=Private|LA4=100.64.0.0/10|Name=Tailscale-In|",
+      "Tailscale-In-v6": "|Dir=In|Action=Allow|Active=TRUE|Protocol=TCP|Profile=Domain|Profile=Private|LA6=fd7a:115c:a1e0::/48|Name=Tailscale-In|"
+    }
+  },
+  "native": {
+    "ip_addresses": {
+      "exitCode": 0,
+      "stdout": "接口 \"Tailscale\" 的配置\r\n    DHCP 已启用: 否\r\n    IP 地址: <TAILNET_IPV4>\r\n    子网前缀: 100.64.0.0/10 (掩码 255.192.0.0)\r\n"
+    },
+    "netstat": {
+      "exitCode": 0,
+      "stdout": "  TCP    127.0.0.1:49999        0.0.0.0:0              LISTENING       1072\r\n  TCP    [fd7a:115c:a1e0::1000:1]:443  [::]:0            LISTENING       18864\r\n  TCP    127.0.0.1:5354         0.0.0.0:0              LISTENING       6076\r\n"
+    },
+    "netstat_post": {
+      "exitCode": 0,
+      "stdout": "  TCP    127.0.0.1:49999        0.0.0.0:0              LISTENING       1072\r\n  TCP    [fd7a:115c:a1e0::1000:1]:443  [::]:0            LISTENING       18864\r\n  TCP    127.0.0.1:5354         0.0.0.0:0              LISTENING       6076\r\n"
+    },
+    "tailscale_version": { "exitCode": 0, "stdout": "1.102.4\r\n  tailexamplehash\r\n" },
+    "tailscale_ip4": { "exitCode": 0, "stdout": "<TAILNET_IPV4>\r\n" },
+    "tailscale_servestatus": {
+      "exitCode": 0,
+      "stdout": "https://dsh-host.tailnet-demo.ts.net (tailnet only)\r\n|-- / proxy http://127.0.0.1:49999\r\n"
+    },
+    "netsh_rule_process_verbose": {
+      "exitCode": 0,
+      "stdout": "规则名称:                             Tailscale-Process\r\n----------------------------------------------------------------------\r\n已启用:                               是\r\n方向:                                 出站\r\n配置文件:                             Domain,Private\r\n边缘遍历:                             是\r\n"
+    },
+    "netsh_currentprofile": {
+      "exitCode": 0,
+      "stdout": "\r\n域配置文件: \r\n----------------------------------------------------------------------\r\n确定。\r\n\r\n专用配置文件: \r\n----------------------------------------------------------------------\r\nTailscale\r\n\r\n确定。\r\n\r\n公用配置文件: \r\n----------------------------------------------------------------------\r\n确定。\r\n\r\n"
+    },
+    "netsh_show_allprofiles": {
+      "exitCode": 0,
+      "stdout": "\r\n域配置文件 设置: \r\n----------------------------------------------------------------------\r\n状态                                  启用\r\n防火墙策略                          BlockInbound,AllowOutbound\r\n\r\n专用配置文件 设置: \r\n----------------------------------------------------------------------\r\n状态                                  启用\r\n防火墙策略                          BlockInbound,AllowOutbound\r\n\r\n公用配置文件 设置: \r\n----------------------------------------------------------------------\r\n状态                                  启用\r\n防火墙策略                          BlockInbound,AllowOutbound\r\n\r\n确定。\r\n\r\n"
+    },
+    "powercfg_query_standby": {
+      "exitCode": 0,
+      "stdout": "电源方案 GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (平衡)\r\n  GUID 别名: SCHEME_BALANCED\r\n  子组 GUID: 238c9fa8-0aad-41ed-83f4-97be242c8f20  (睡眠)\r\n    GUID 别名: SUB_SLEEP\r\n    电源设置 GUID: 29f6c1db-86da-48c5-9fdb-f2b67b1f44da  (在此时间后睡眠)\r\n      GUID 别名: STANDBYIDLE\r\n      最小可能的设置: 0x00000000\r\n      最大可能的设置: 0xffffffff\r\n      可能的设置增量: 0x00000001\r\n      可能的设置单位: 秒\r\n    当前交流电源设置索引: 0x00000000\r\n    当前直流电源设置索引: 0x00000000\r\n\r\n"
+    },
+    "powercfg_query_hibernate": {
+      "exitCode": 0,
+      "stdout": "电源方案 GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (平衡)\r\n  GUID 别名: SCHEME_BALANCED\r\n  子组 GUID: 238c9fa8-0aad-41ed-83f4-97be242c8f20  (睡眠)\r\n    GUID 别名: SUB_SLEEP\r\n    电源设置 GUID: 9d7815a6-7ee4-497e-8888-515a05f02364  (在此时间后休眠)\r\n      GUID 别名: HIBERNATEIDLE\r\n      最小可能的设置: 0x00000000\r\n      最大可能的设置: 0xffffffff\r\n      可能的设置增量: 0x00000001\r\n      可能的设置单位: 秒\r\n    当前交流电源设置索引: 0x00000000\r\n    当前直流电源设置索引: 0x00000000\r\n\r\n"
+    },
+    "powercfg_a": {
+      "exitCode": 0,
+      "stdout": "此系统上有以下睡眠状态:\r\n    待机 (S3)\r\n    休眠\r\n\r\n此系统上没有以下睡眠状态:\r\n    待机 (S1)\r\n\t系统固件不支持此待机状态。\r\n\r\n    待机(S0 低电量待机)\r\n\t系统固件不支持此待机状态。\r\n\r\n"
+    }
+  },
+  "cmdlets": {
+    "net_connection_profile": [
+      { "interfaceAlias": "Tailscale", "networkCategory": "Private" }
+    ]
+  },
+  "services": {
+    "Tailscale": { "status": "Running", "startType": "Automatic" }
+  },
+  "processes": {
+    "1072": "DSH Desktop",
+    "18864": "tailscaled",
+    "6076": "mDNSResponder",
+    "4": "System"
+  },
+  "files": {
+    "settings_yaml": "networkExposure: loopback\nmode: host\n"
+  },
+  "network": {
+    "tcp/203.0.113.5/443": { "result": "connected", "ms": 24 },
+    "tcp/203.0.113.5/135": { "result": "refused", "ms": 3 },
+    "tcp/203.0.113.5/5357": { "result": "refused", "ms": 2 },
+    "tcp/203.0.113.5/49999": { "result": "refused", "ms": 3 },
+    "dns/peer.example.test": { "result": "ok", "addresses": ["203.0.113.5"] }
+  },
+  "fileLists": {
+    "patch_files": [
+      {
+        "path": "<APP_DIR>\\node_modules\\@deepseek-ai\\dsh-base\\cordis.patch.yml",
+        "text": "- insert:\n    - id: timer\n      name: '@deepseek-ai/cordis-plugin-timer'\n"
+      },
+      {
+        "path": "<DSH_HOME>\\profiles\\node_modules\\dsh-plugin-desktop\\cordis.patch.yml",
+        "text": "- id: web-runtime\n  config:\n    trustedHosts: []\n"
+      },
+      {
+        "path": "<DSH_HOME>\\profiles\\Alpha\\cordis.patch.yml",
+        "text": "- id: web-runtime\n  config:\n    trustedHosts:\n      - dsh-host.tailnet-demo.ts.net\n"
+      }
+    ]
+  }
+}

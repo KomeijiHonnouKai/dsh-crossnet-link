@@ -1,0 +1,17 @@
+{
+  "id": "fault-describe-surface",
+  "title": "-Describe prints the configuration surface, the exit-code contract and the unsupported list",
+  "titleZh": "-Describe 打印配置面、退出码契约与明确不支持清单",
+  "kind": "collector",
+  "checkOnly": false,
+  "why": "defensive-spec section 1.3(d) and section 9.2: every override has to be discoverable and the things this plugin refuses to do have to be stated where a user will look. -Describe must also be probe-free: it exits 0 without a single judgement, which is what makes it safe to run first on an unknown machine.",
+  "inject": "the -Describe switch",
+  "expectSummary": "exit 0 with the resolution order, the exit-code contract and the NOT-supported list; no report is produced",
+  "base": "_base/server-en.json",
+  "args": ["-Describe"],
+  "expect": {
+    "exitCode": 0,
+    "stdoutMatch": ["resolution order", "NOT supported", "fixture injection", "exit code contract", "readOnly", "registry install dir", "-ToolPath"],
+    "stdoutNotMatch": ["remote-tailnet-guard/collect/1"]
+  }
+}

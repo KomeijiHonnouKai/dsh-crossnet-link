@@ -1,0 +1,19 @@
+{
+  "id": "fault-tailscale-cli-probe-unavailable",
+  "title": "the tailscale CLI probe cannot run at all -> unknown, never a pass",
+  "titleZh": "tailscale CLI 探针根本跑不起来 -> unknown,绝不 pass",
+  "kind": "collector",
+  "why": "The layer above the process launch: with -NoNative and no fixture entry the ip -4 probe has no available result, so the collector has nothing to judge and must say unknown/ts_probe_failed. This is the state that would come from a genuinely absent binary as well, and it is deliberately NOT the same reason key as a denied pipe or a logged-out node - each needs a different human action. This is deliberately a DIFFERENT case from fault-tailscale-not-installed: there the binary exists nowhere the collector looks (blocked, with a remedy) and here the probe produced no usable result at all (unknown, nothing to fix). A test that merged the two would let one of the reasons silently take over the other.",
+  "inject": "-NoNative with the tailscale ip -4 probe removed from the fixture",
+  "expectSummary": "TAILSCALE_CLI_LAYER unknown/ts_probe_failed, exit != 0",
+  "base": "_base/server-en.json",
+  "unset": ["native.tailscale_ip4"],
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCodeNot": 0,
+    "verdicts": { "TAILSCALE_CLI_LAYER": "unknown" },
+    "reasons": { "TAILSCALE_CLI_LAYER": "ts_probe_failed" },
+    "reasonNot": { "TAILSCALE_CLI_LAYER": ["ts_cli_ok", "ts_pipe_denied", "ts_not_logged_in", "ts_not_installed"] },
+    "raw": { "TAILSCALE_CLI_LAYER": { "ip4.available": false } }
+  }
+}

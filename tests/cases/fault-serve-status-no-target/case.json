@@ -1,0 +1,24 @@
+{
+  "id": "fault-serve-status-no-target",
+  "title": "a readable serve status that names no proxy target: unknown, never pass and never blocked",
+  "titleZh": "serve status 可读但没有可解析的 proxy 目标:unknown,既不 pass 也不 blocked",
+  "kind": "collector",
+  "why": "t23: a readable CLI answer without a proxy target carries no evidence about where serve points, and the listener shape is explicitly not evidence (see fault-serve-target-port-mismatch). The clean baseline does carry a tailscaled 443 row in netstat, yet the verdict must stay unknown - the collector refuses to turn an unparsable answer into either a pass or a fault. This is exactly the shape a mistranslated or newer CLI wording would produce, which is when guessing has to stop.",
+  "inject": "tailscale serve status exits 0 with 'No serve config' (no proxy target line) on the otherwise clean server baseline",
+  "expectSummary": "SERVE_PRESENT unknown/serve_unknown, manualReview=true, never pass/degraded/blocked, exit != 0",
+  "base": "_base/server-en.json",
+  "layer": {
+    "native": {
+      "tailscale_servestatus": { "exitCode": 0, "stdout": "No serve config\r\n" }
+    }
+  },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCodeNot": 0,
+    "verdicts": { "SERVE_PRESENT": "unknown" },
+    "reasons": { "SERVE_PRESENT": "serve_unknown" },
+    "notVerdicts": { "SERVE_PRESENT": ["pass", "degraded", "blocked"] },
+    "manualReview": ["SERVE_PRESENT"],
+    "raw": { "SERVE_PRESENT": { "serveStatusReadable": true, "dshPortMeasured": "49999" } }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "fault-settings-lan-exposure",
+  "title": "settings.yaml asks for LAN exposure: reported, never a pass",
+  "titleZh": "settings.yaml 要求 LAN 暴露:必须报出来,绝不能 pass",
+  "kind": "collector",
+  "why": "networkExposure=lan is outside the design (the link must not need any LAN surface) and the setting selects a wider HTTPS edge intent. The collector must surface it as a non-pass finding with a restorable remediation, and it must never be reported as a plain pass just because the desktop web server happens to be hard-wired to loopback.",
+  "inject": "settings.yaml carrying networkExposure: lan",
+  "expectSummary": "DSH_NETWORK_EXPOSURE blocked/exposure_lan with a rollback, never pass, exit 2",
+  "base": "_base/server-en.json",
+  "layer": { "files": { "settings_yaml": "networkExposure: lan\nmode: host\n" } },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCode": 2,
+    "verdicts": { "DSH_NETWORK_EXPOSURE": "blocked" },
+    "reasons": { "DSH_NETWORK_EXPOSURE": "exposure_lan" },
+    "notVerdicts": { "DSH_NETWORK_EXPOSURE": ["pass"] },
+    "remediation": { "DSH_NETWORK_EXPOSURE": { "applied": false, "needsNonEmptyRollback": true } },
+    "raw": { "DSH_NETWORK_EXPOSURE": { "networkExposure": "lan" } }
+  }
+}

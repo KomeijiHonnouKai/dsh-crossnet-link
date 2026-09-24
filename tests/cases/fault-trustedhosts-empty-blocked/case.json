@@ -1,0 +1,22 @@
+{
+  "id": "fault-trustedhosts-empty-blocked",
+  "title": "trustedHosts: [] in the loaded patch -> blocked (the remote UI opens, every /api call is 403)",
+  "titleZh": "已加载 patch 里 trustedHosts: [] -> blocked(界面能开、/api 全 403)",
+  "kind": "collector",
+  "why": "This is the measured failure mode of the broken trust fence: the page loads, the client loops on 'reconnecting', and nothing says why. A present trustedHosts key whose values do not match the tailnet authority must be blocked, not unknown: the value was read, it is simply wrong.",
+  "inject": "the whole patch chain replaced by one file that carries trustedHosts: []",
+  "expectSummary": "TRUSTED_HOSTS_PATCH blocked/th_blocked with a rollback, exit 2",
+  "base": "_base/server-en.json",
+  "layer": {
+    "fileLists": { "patch_files": [ { "path": "<DSH_HOME>\\profiles\\node_modules\\dsh-plugin-desktop\\cordis.patch.yml", "text": "- id: web-runtime\n  config:\n    openBrowser: false\n    trustedHosts: []\n" } ] }
+  },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCode": 2,
+    "verdicts": { "TRUSTED_HOSTS_PATCH": "blocked" },
+    "reasons": { "TRUSTED_HOSTS_PATCH": "th_blocked" },
+    "notVerdicts": { "TRUSTED_HOSTS_PATCH": ["pass", "unknown", "degraded"] },
+    "remediation": { "TRUSTED_HOSTS_PATCH": { "applied": false, "needsNonEmptyCommand": true, "needsNonEmptyRollback": true } },
+    "raw": { "TRUSTED_HOSTS_PATCH": { "filesConsidered": 1 } }
+  }
+}

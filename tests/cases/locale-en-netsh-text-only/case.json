@@ -1,0 +1,20 @@
+{
+  "id": "locale-en-netsh-text-only",
+  "title": "English netsh is the only source for the NIC profile -> degraded, never pass",
+  "titleZh": "英文 netsh 是网卡 profile 的唯一来源 -> 降级,绝不报 pass",
+  "kind": "collector",
+  "why": "When the admin-only Get-NetConnectionProfile is unavailable the collector has to parse a localized netsh header. That path must be labelled as low confidence and reported as degraded - presenting a text parse as proven would be a lie (defensive-spec 4.1).",
+  "inject": "-NoNative with the cmdlet probe removed from the fixture, so only the netsh text can answer",
+  "expectSummary": "NIC_PROFILE_ATTRIBUTION degraded/nic_ok confidence=low confidenceDowngrade=true",
+  "base": "_base/server-en.json",
+  "unset": ["cmdlets.net_connection_profile"],
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCode": 1,
+    "verdicts": { "NIC_PROFILE_ATTRIBUTION": "degraded", "POWER_STANDBY_IDLE_AC_DC": "pass", "FIREWALL_PROFILES": "pass" },
+    "reasons": { "NIC_PROFILE_ATTRIBUTION": "nic_ok", "POWER_STANDBY_IDLE_AC_DC": "power_ok" },
+    "confidence": { "NIC_PROFILE_ATTRIBUTION": "low" },
+    "confidenceDowngrade": { "NIC_PROFILE_ATTRIBUTION": true },
+    "raw": { "NIC_PROFILE_ATTRIBUTION": { "matchMethod": "netsh-adapter-name", "tailscaleProfile": "Private" } }
+  }
+}

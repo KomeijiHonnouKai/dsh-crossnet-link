@@ -1,0 +1,19 @@
+{
+  "id": "fault-peer-connected-isolation-clean",
+  "title": "happy client: 443 open, every other probed port closed",
+  "titleZh": "正常客户端:443 通,其余被探端口全关",
+  "kind": "collector",
+  "why": "The positive control for the client side. It proves the suite can also produce a good verdict, so a green result is not the same as 'nothing was tested'. The isolation probes (135 / 5357 / the DSH port) must all be reachable=false: a peer that exposes its own DSH port would break the loopback-only premise of the whole design.",
+  "inject": "443 connected; 135, 5357 and the DSH port refused",
+  "expectSummary": "PEER_TCP_443 pass/peer_443_ok + PEER_ISOLATION_PROBES pass/peer_iso_ok, no blocked item",
+  "base": "_base/server-en.json",
+  "args": ["-Role", "client", "-Peer", "203.0.113.5", "-PeerName", "peer.example.test"],
+  "expect": {
+    "exitCodeNot": 2,
+    "verdicts": { "PEER_TCP_443": "pass", "PEER_ISOLATION_PROBES": "pass", "TAILSCALE_CLI_LAYER": "pass", "TAILSCALE_SERVICE": "pass" },
+    "reasons": { "PEER_TCP_443": "peer_443_ok", "PEER_ISOLATION_PROBES": "peer_iso_ok" },
+    "notVerdicts": { "PEER_TCP_443": ["blocked", "unknown"], "PEER_ISOLATION_PROBES": ["blocked", "unknown"] },
+    "absent": ["SERVE_PRESENT", "TRUSTED_HOSTS_PATCH", "NIC_PROFILE_ATTRIBUTION"],
+    "present": ["HTTPS_CLIENT_ONLY", "MAGICDNS_RESOLVE", "BROWSER_PROXY_TSNET"]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "fault-trustedhosts-key-absent",
+  "title": "no trustedHosts key anywhere -> unknown, never a silent pass",
+  "titleZh": "任何文件里都没有 trustedHosts 键 -> unknown,绝不含糊通过",
+  "kind": "collector",
+  "why": "Absent is not the same as empty and it is certainly not the same as satisfied. When the key cannot be found the collector does not know whether the deployment relies on the built-in default or on a key it failed to read, so it must say unknown and name the files it looked at.",
+  "inject": "the patch chain replaced by files that never mention trustedHosts",
+  "expectSummary": "TRUSTED_HOSTS_PATCH unknown/th_key_absent, exit != 0",
+  "base": "_base/server-en.json",
+  "layer": {
+    "fileLists": { "patch_files": [ { "path": "<APP_DIR>\\node_modules\\@deepseek-ai\\dsh-base\\cordis.patch.yml", "text": "- insert:\n    - id: timer\n      name: '@deepseek-ai/cordis-plugin-timer'\n" } ] }
+  },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCodeNot": 0,
+    "verdicts": { "TRUSTED_HOSTS_PATCH": "unknown" },
+    "reasons": { "TRUSTED_HOSTS_PATCH": "th_key_absent" },
+    "notVerdicts": { "TRUSTED_HOSTS_PATCH": ["pass", "blocked"] }
+  }
+}

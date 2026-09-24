@@ -1,0 +1,27 @@
+{
+  "id": "fault-serve-moved-port-8443",
+  "title": "the same listener shape with a CORRECT serve target stays unknown: the shape is not evidence",
+  "titleZh": "同样的监听形状但 serve 目标正确 ⇒ 仍然 unknown:监听形状本身不是证据",
+  "kind": "collector",
+  "why": "Negative control of fault-serve-target-port-mismatch, corrected in t23 by the t22 experiment. The netstat layer is IDENTICAL to the mismatch case (a tailscaled 8443 tailnet row, no 443), but the fixture's readable serve status proxies to the measured DSH port, so nothing is wrong and the verdict must stay unknown - never pass (the 443 publication is not visible) and never blocked (a tailscaled-owned non-443 listener is what EVERY connected node looks like: the reference machine showed 33588 and the fd7a:...:56868 endpoint with no serve published). The requirement pinned here is the honest half: no false pass, no false fault, and the tailnet listener inventory (port + classification + owner) stays in the report so a human can see a moved publication.",
+  "inject": "the tailnet 443 row replaced by a tailnet 8443 row owned by tailscaled, while 'tailscale serve status' is readable and its proxy target equals the measured DSH port (49999)",
+  "expectSummary": "SERVE_PRESENT unknown/serve_unknown (never pass, never blocked) and the 8443 tailnet row visible in WILDCARD_LISTENER_INVENTORY",
+  "base": "_base/server-en.json",
+  "layer": {
+    "native": {
+      "netstat": { "exitCode": 0, "stdout": "  TCP    127.0.0.1:49999        0.0.0.0:0              LISTENING       1072\r\n  TCP    [fd7a:115c:a1e0::1000:1]:8443  [::]:0          LISTENING       18864\r\n" },
+      "netstat_post": { "exitCode": 0, "stdout": "  TCP    127.0.0.1:49999        0.0.0.0:0              LISTENING       1072\r\n  TCP    [fd7a:115c:a1e0::1000:1]:8443  [::]:0          LISTENING       18864\r\n" }
+    }
+  },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCodeNot": 0,
+    "verdicts": { "SERVE_PRESENT": "unknown", "WILDCARD_LISTENER_INVENTORY": "pass" },
+    "reasons": { "SERVE_PRESENT": "serve_unknown" },
+    "notVerdicts": { "SERVE_PRESENT": ["pass", "blocked"] },
+    "raw": {
+      "WILDCARD_LISTENER_INVENTORY": { "inventory.0.port": "8443", "inventory.0.class": "tailnet-v6", "inventory.0.process": "tailscaled", "inventoryCount": 1 },
+      "SERVE_PRESENT": { "serveStatusExitCode": 0 }
+    }
+  }
+}

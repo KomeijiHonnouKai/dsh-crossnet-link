@@ -1,0 +1,31 @@
+{
+  "id": "locale-unmatched-tool-text",
+  "title": "a fourth tool language must fail closed, not guess",
+  "titleZh": "第四种工具语言必须 fail-closed,而不是猜",
+  "kind": "collector",
+  "why": "The collector cannot know every Windows tool language. When nothing matches, the only honest answer is unknown with the raw text attached for a human (defensive-spec 3.2 L5 / 4.2 rule 3). A guess here would be a security-relevant false verdict.",
+  "inject": "netsh section headers and the whole powercfg structure replaced with unmatched spellings (no hex indices, no pattern hit)",
+  "expectSummary": "NIC_PROFILE_ATTRIBUTION unknown/nic_unparsed with raw preserved, POWER_STANDBY_IDLE_AC_DC unknown/power_unparsed, exit != 0",
+  "base": "_base/server-zh.json",
+  "unset": ["cmdlets.net_connection_profile"],
+  "layer": {
+    "native": {
+      "netsh_currentprofile": {
+        "exitCode": 0,
+        "stdout": "\r\nYksityinen profiili:\r\n----------------------------------------------------------------------\r\nTailscale\r\n\r\nJulkinen profiili:\r\n----------------------------------------------------------------------\r\nValmis.\r\n\r\n"
+      },
+      "powercfg_query_standby": {
+        "exitCode": 0,
+        "stdout": "#### 1\r\n  ## $$ STANDBYIDLE\r\n  %%%%: unknown\r\n  ****: unknown\r\n"
+      }
+    }
+  },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCodeNot": 0,
+    "verdicts": { "NIC_PROFILE_ATTRIBUTION": "unknown", "POWER_STANDBY_IDLE_AC_DC": "unknown" },
+    "reasons": { "NIC_PROFILE_ATTRIBUTION": "nic_unparsed", "POWER_STANDBY_IDLE_AC_DC": "power_unparsed" },
+    "notVerdicts": { "NIC_PROFILE_ATTRIBUTION": ["pass", "degraded", "blocked"], "POWER_STANDBY_IDLE_AC_DC": ["pass", "degraded", "blocked"] },
+    "raw": { "NIC_PROFILE_ATTRIBUTION": { "structureParsed": false, "netshRawOutput.0": "Yksityinen profiili:" } }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schema": "remote-tailnet-guard/fixture/1",
+  "name": "localized-but-unmatched netsh output (German-style field names)",
+  "locale": "de-DE",
+  "note": "Deliberately partial: only the netsh probes are supplied and their field names match neither the English nor the zh-CN pattern set. With -NoNative every other probe is absent too. This fixture exists to prove the fail-closed rule: an unmatched localized text must produce 'unknown' plus raw output, never a guessed verdict.",
+  "native": {
+    "netsh_currentprofile": {
+      "exitCode": 0,
+      "stdout": "Privates Profil:\n----------------------------------------------------------------------\nTailscale\n\nOeffentliches Profil:\n----------------------------------------------------------------------\nBreitbandverbindung 2\nOk.\n",
+      "stderr": ""
+    },
+    "netsh_rule_process_verbose": {
+      "exitCode": 0,
+      "stdout": "Regelname:                            Tailscale-Process\n----------------------------------------------------------------------\nAktiviert:                            Ja\nRichtung:                             Eingehend\nProfile:                              Domain,Private,Public\nEdge-Traversal:                       Ja\nProgramm:                             C:\\Program Files\\Tailscale\\tailscaled.exe\nAktion:                               Zulassen\nOk.\n",
+      "stderr": ""
+    },
+    "netsh_show_allprofiles": {
+      "exitCode": 0,
+      "stdout": "Domaenenprofil Einstellungen:\n----------------------------------------------------------------------\nStatus                                ON\nFirewallrichtlinie                    BlockInbound,AllowOutbound\n\nPrivates Profil Einstellungen:\n----------------------------------------------------------------------\nStatus                                ON\n",
+      "stderr": ""
+    }
+  }
+}

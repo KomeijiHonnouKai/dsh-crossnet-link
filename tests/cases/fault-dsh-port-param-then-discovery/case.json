@@ -1,0 +1,18 @@
+{
+  "id": "fault-dsh-port-param-then-discovery",
+  "title": "explicit -Port wins over the environment, then falls back to measured discovery",
+  "titleZh": "显式 -Port 压过环境变量,再回落到实测发现",
+  "kind": "collector",
+  "why": "defensive-spec section 1.2 in one case: an explicit parameter is level 1, so 50001 must be recorded as the configured port with source=param. Nothing listens on 50001, so level 4 (measured discovery) must kick in and find the DSH-owned loopback listener on 49999 - the report must show the configured value, the discovered value and the judged value separately, without guessing which one is right.",
+  "inject": "DSH_WEB_URL points at 49999 while -Port 50001 is passed; only 49999 is actually listening",
+  "expectSummary": "config dshPort=50001 source=param, discoveredPort=49999, judgedPort=49999, pass",
+  "base": "_base/server-en.json",
+  "env": { "DSH_WEB_URL": "http://127.0.0.1:49999" },
+  "args": ["-Role", "server", "-Port", "50001"],
+  "expect": {
+    "config": { "dshPort": { "value": "50001", "source": "param" } },
+    "verdicts": { "DSH_LOOPBACK_ONLY": "pass" },
+    "reasons": { "DSH_LOOPBACK_ONLY": "dsh_loopback_ok" },
+    "raw": { "DSH_LOOPBACK_ONLY": { "port": "50001", "discoveredPort": "49999", "judgedPort": "49999", "ownerProcess": "DSH Desktop" } }
+  }
+}

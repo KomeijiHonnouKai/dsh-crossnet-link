@@ -1,0 +1,26 @@
+{
+  "id": "scan-positive-control-catches-each-extension",
+  "title": "the scanner actually catches what it claims: one planted violation per extension",
+  "titleZh": "扫描器真的抓得到:每个扩展名各埋一条违规",
+  "kind": "scan",
+  "why": "A scan that reports zero hits is worthless unless it is proven to be capable of reporting hits. This case plants one violation in a .ps1, one in a .md and one in a .json inside a temp directory and requires exactly three hits, one per extension. If the file enumeration, the regex table or the extension filter ever breaks, this case fails while the clean scans keep passing. Since t23 it also plants an APPROVED neutral placeholder (100.64.0.11, section 7.1 of the runner) and asserts that it is classified as approved and NOT counted as a hit - so the allowlist cannot grow into a blindfold: the three real violations still fail the case.",
+  "inject": "a temp tree with a planted peer address (.ps1), host name (.md), absolute user path (.json) and one approved placeholder (.md)",
+  "expectSummary": "exactly 3 hits, one per extension, plus 1 approved placeholder match that is not counted",
+  "scan": {
+    "root": "planted",
+    "extensions": [".ps1", ".md", ".json"],
+    "expectHits": 3,
+    "expectApprovedHits": 1,
+    "expectHitsPerExtension": {
+      ".ps1/fixed-peer-ip": 1,
+      ".md/hostname": 1,
+      ".json/abs-user-path": 1
+    },
+    "plant": [
+      { "path": "probe.ps1", "text": "# measured peer {PLANT-PEER-IP} appeared here in the help text\nWrite-Output 'ok'\n" },
+      { "path": "note.md", "text": "Host {PLANT-HOSTNAME} was measured on one day only.\n" },
+      { "path": "data.json", "text": "{\n  \"log\": \"{PLANT-USERPATH}\"\n}\n" },
+      { "path": "approved.md", "text": "Approved neutral placeholder from the t13 sanitize pass: 100.64.0.11\n" }
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "locale-zh-netsh-text-only",
+  "title": "Chinese netsh text is parsed just as well (state line included)",
+  "titleZh": "中文 netsh 文本同样能解析(含状态行)",
+  "kind": "collector",
+  "why": "Same as locale-en-netsh-text-only but with the Chinese header and the Chinese state word. Total verdict equivalence proves the Chinese patterns really are merged in, and that the firewall state is read from a structural token rather than an English literal.",
+  "inject": "-NoNative, cmdlet probe removed, Chinese netsh section headers and Chinese state word",
+  "expectSummary": "identical verdict map to locale-en-netsh-text-only",
+  "base": "_base/server-zh.json",
+  "unset": ["cmdlets.net_connection_profile"],
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCode": 1,
+    "sameVerdictsAs": "locale-en-netsh-text-only",
+    "verdicts": { "NIC_PROFILE_ATTRIBUTION": "degraded", "FIREWALL_PROFILES": "pass", "POWER_STANDBY_IDLE_AC_DC": "pass" },
+    "reasons": { "NIC_PROFILE_ATTRIBUTION": "nic_ok", "FIREWALL_PROFILES": "fw_ok" }
+  }
+}

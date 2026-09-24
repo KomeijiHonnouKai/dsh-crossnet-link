@@ -1,0 +1,20 @@
+{
+  "id": "uninstall-recordafter-without-journal-refused",
+  "title": "uninstaller refuses -RecordAfter when there is no journal to append to",
+  "kind": "uninstall",
+  "why": "tools/uninstall.ps1 is the only optional write component and its provenance chain starts at -RecordBefore. Filling in an after value without a journal would invent provenance, so the tool must refuse (exit 2, reasonKey journal_required) instead of creating a half journal. This is the fail-closed refusal the design promises: nothing is written when the state is not coherent enough to act on.",
+  "inject": "an empty fixture (no journal, no observations) plus -RecordAfter -AsJson, with an explicit -StateDir under the case temp dir",
+  "expectSummary": "exit 2, summary.verdict=refused, refusals[0].reasonKey=journal_required, and the case temp dir is untouched",
+  "uninstall": {
+    "args": ["-RecordAfter", "-AsJson"],
+    "fixture": {},
+    "expectExit": 2,
+    "assertNoTmpWrites": true,
+    "jsonEq": [
+      { "path": "summary.exitCode", "eq": 2 },
+      { "path": "summary.verdict", "eq": "refused" },
+      { "path": "refusals[0].reasonKey", "eq": "journal_required" },
+      { "path": "tool.action", "eq": "record-after" }
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "fault-tailscale-not-installed",
+  "title": "Tailscale is not resolvable from any candidate path -> blocked with an install hint",
+  "titleZh": "所有候选位置都找不到 Tailscale -> blocked,并给出安装提示",
+  "kind": "collector",
+  "why": "tailscale.exe is resolved through the registry install entry, Program Files, Program Files (x86), LOCALAPPDATA and PATH, in that order (printed by -Describe). This case uses the fixture's tools hook, which is the only honest way to express 'not installed' offline: MEASURED, environment redirection cannot do it, because Windows PowerShell 5.1 re-creates %ProgramFiles% inside the child process (a parent pointing ProgramFiles/LOCALAPPDATA/PATH at empty temp dirs still resolves the real install path). The whole point of the verdict is that a missing prerequisite is a hard stop with a stated remedy and a way back, and that the collector itself installs nothing.",
+  "inject": "fixture declares tools.tailscale as absent, so the candidate chain resolves nothing",
+  "expectSummary": "TAILSCALE_CLI_LAYER blocked/ts_not_installed with command + rollback, config tool.tailscale empty/'missing', exit 2",
+  "base": "_base/server-en.json",
+  "layer": { "tools": { "tailscale": "" } },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCode": 2,
+    "verdicts": { "TAILSCALE_CLI_LAYER": "blocked" },
+    "reasons": { "TAILSCALE_CLI_LAYER": "ts_not_installed" },
+    "notVerdicts": { "TAILSCALE_CLI_LAYER": ["pass", "unknown", "degraded"] },
+    "config": { "tool.tailscale": { "value": "", "source": "missing" } },
+    "remediation": { "TAILSCALE_CLI_LAYER": { "applied": false, "needsNonEmptyCommand": true, "needsNonEmptyRollback": true } }
+  }
+}

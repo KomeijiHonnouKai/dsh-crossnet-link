@@ -1,0 +1,15 @@
+{
+  "id": "scan-md-json-confined-to-docs-and-fixtures",
+  "title": "the same scan over *.md and *.json is confined to docs/ and tests/fixtures/",
+  "titleZh": "同样的扫描覆盖 *.md 与 *.json,命中只允许出现在 docs/ 与 tests/fixtures/",
+  "kind": "scan",
+  "why": "The acceptance for this suite requires the scan to cover *.md and *.json as well, because a value can hide in a JSON config just as easily as in a script. Measured records (docs/) and captured fixtures (tests/fixtures/) are the two documented exceptions; anything else - a manifest, a case file, a label file - must be clean.",
+  "inject": "every *.md and *.json in the plugin, with the two documented roots excluded",
+  "expectSummary": "0 hits outside docs/ and tests/fixtures/",
+  "scan": {
+    "root": "repo",
+    "extensions": [".md", ".json"],
+    "allowPatterns": ["^docs/", "^tests/fixtures/"],
+    "expectHits": 0
+  }
+}

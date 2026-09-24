@@ -1,0 +1,17 @@
+{
+  "id": "fault-tailscale-service-absent",
+  "title": "no Tailscale service at all -> blocked",
+  "titleZh": "完全没有 Tailscale 服务 -> blocked",
+  "kind": "collector",
+  "why": "Distinct from 'stopped': there is nothing to start. Keeping the two verdict keys apart is what lets the remediation text be correct.",
+  "inject": "the Tailscale service query returns 'cannot find any service'",
+  "expectSummary": "TAILSCALE_SERVICE blocked/ts_service_missing, exit 2",
+  "base": "_base/server-en.json",
+  "layer": { "services": { "Tailscale": { "_available": false, "_error": "Cannot find any service with service name 'Tailscale'." } } },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCode": 2,
+    "verdicts": { "TAILSCALE_SERVICE": "blocked" },
+    "reasons": { "TAILSCALE_SERVICE": "ts_service_missing" }
+  }
+}

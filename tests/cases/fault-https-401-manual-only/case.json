@@ -1,0 +1,18 @@
+{
+  "id": "fault-https-401-manual-only",
+  "title": "an expired cookie (401) is not auto-judged: a correct manual command instead",
+  "titleZh": "cookie 过期(401)不做自动判定:给出可用的手工命令",
+  "kind": "collector",
+  "why": "The collector makes no HTTP request at all by design (curl under schannel returns 000 even against a healthy server, and a naive request could not tell 401 from 403 anyway). Reporting a 401/403/200 verdict would therefore be fiction. What must exist instead: an explicit unknown, a manualReview flag, and one copy-pasteable Node command that distinguishes the cases. The absence of any HTTP call is the security property being kept.",
+  "inject": "a client-role run with a peer: the collector is expected to declare the HTTPS judgement as out of scope, not to fabricate one",
+  "expectSummary": "HTTPS_CLIENT_ONLY unknown/https_client_only, manualReview=true, manual Node command present",
+  "base": "_base/server-en.json",
+  "args": ["-Role", "client", "-Peer", "203.0.113.5", "-PeerName", "peer.example.test"],
+  "expect": {
+    "verdicts": { "HTTPS_CLIENT_ONLY": "unknown" },
+    "reasons": { "HTTPS_CLIENT_ONLY": "https_client_only" },
+    "manualReview": ["HTTPS_CLIENT_ONLY"],
+    "notVerdicts": { "HTTPS_CLIENT_ONLY": ["pass", "blocked", "degraded"] },
+    "stdoutMatch": ["rejectUnauthorized", "errcode|error|ERR"]
+  }
+}

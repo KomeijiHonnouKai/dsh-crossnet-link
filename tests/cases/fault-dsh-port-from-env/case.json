@@ -1,0 +1,19 @@
+{
+  "id": "fault-dsh-port-from-env",
+  "title": "DSH port changed and discovered from DSH_WEB_URL",
+  "titleZh": "DSH 端口被改,从 DSH_WEB_URL 发现",
+  "kind": "collector",
+  "why": "defensive-spec section 1.2 level 2: DSH_WEB_URL is the authoritative source DSH itself injects, so it must outrank any built-in default. The same case also proves the default is not leaking into the output: the string 43120 must not appear anywhere in the report when the port is 49999.",
+  "inject": "environment DSH_WEB_URL=http://127.0.0.1:49999 with no -Port on the command line",
+  "expectSummary": "config dshPort=49999 source=env:DSH_WEB_URL, DSH_LOOPBACK_ONLY pass, and 43120 appears nowhere",
+  "base": "_base/server-en.json",
+  "env": { "DSH_WEB_URL": "http://127.0.0.1:49999" },
+  "args": ["-Role", "server"],
+  "expect": {
+    "exitCode": 1,
+    "config": { "dshPort": { "value": "49999", "source": "env:DSH_WEB_URL" } },
+    "verdicts": { "DSH_LOOPBACK_ONLY": "pass" },
+    "raw": { "DSH_LOOPBACK_ONLY": { "port": "49999", "judgedPort": "49999" } },
+    "stdoutNotMatch": ["\"value\":\\s*\"43120\""]
+  }
+}

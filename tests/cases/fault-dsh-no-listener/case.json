@@ -1,0 +1,24 @@
+{
+  "id": "fault-dsh-no-listener",
+  "title": "DSH is not running: the port judgement says unknown, not pass",
+  "titleZh": "DSH 没在跑:端口判定报 unknown,不报 pass",
+  "kind": "collector",
+  "why": "defensive-spec section 7 case 11. With no listener on the DSH port the collector cannot measure the bind, so 'loopback only' is unproven. Reporting pass here would be the exact 'probe missing = pass' failure the spec forbids.",
+  "inject": "the DSH listening row removed from both netstat snapshots (only the 443 row survives)",
+  "expectSummary": "DSH_LOOPBACK_ONLY unknown/dsh_no_listener (never pass), exit != 0",
+  "base": "_base/server-en.json",
+  "layer": {
+    "native": {
+      "netstat": { "exitCode": 0, "stdout": "  TCP    [fd7a:115c:a1e0::1000:1]:443  [::]:0            LISTENING       18864\r\n" },
+      "netstat_post": { "exitCode": 0, "stdout": "  TCP    [fd7a:115c:a1e0::1000:1]:443  [::]:0            LISTENING       18864\r\n" }
+    }
+  },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCodeNot": 0,
+    "verdicts": { "DSH_LOOPBACK_ONLY": "unknown", "SERVE_PRESENT": "pass" },
+    "reasons": { "DSH_LOOPBACK_ONLY": "dsh_no_listener" },
+    "notVerdicts": { "DSH_LOOPBACK_ONLY": ["pass"] },
+    "raw": { "DSH_LOOPBACK_ONLY": { "port": "49999", "portSource": "param" } }
+  }
+}

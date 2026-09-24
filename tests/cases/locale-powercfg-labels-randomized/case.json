@@ -1,0 +1,28 @@
+{
+  "id": "locale-powercfg-labels-randomized",
+  "title": "powercfg: random label words, same hex indices -> still pass",
+  "titleZh": "powercfg:标签词全换成随机词、十六进制索引不变 -> 仍然 pass",
+  "kind": "collector",
+  "why": "Proves the sleep-timeout judgement is taken from the raw 0x indices (defensive-spec 3.2 L4) and not from any human-readable label. If it were label-based this case could not pass in any language.",
+  "inject": "powercfg /query output with every label replaced by random words while the AC/DC 0x lines stay intact",
+  "expectSummary": "POWER_STANDBY_IDLE_AC_DC pass/power_ok (both indices 0)",
+  "base": "_base/server-en.json",
+  "layer": {
+    "native": {
+      "powercfg_query_standby": {
+        "exitCode": 0,
+        "stdout": "#### 1\r\n  ## $$ 0\r\n  %% 238c9fa8-0aad-41ed-83f4-97be242c8f20\r\n    ## $$ SUB_SLEEP\r\n    %% 29f6c1db-86da-48c5-9fdb-f2b67b1f44da\r\n      ## $$ STANDBYIDLE\r\n      @@ 0x00000000\r\n      @@ 0xffffffff\r\n      @@: 0x00000000\r\n    ****: 0x00000000\r\n    ~~~~: 0x00000000\r\n"
+      },
+      "powercfg_query_hibernate": {
+        "exitCode": 0,
+        "stdout": "#### 1\r\n  ## $$ 0\r\n  %% 238c9fa8-0aad-41ed-83f4-97be242c8f20\r\n    ## $$ SUB_SLEEP\r\n    %% 9d7815a6-7ee4-497e-8888-515a05f02364\r\n      ## $$ HIBERNATEIDLE\r\n      @@ 0x00000000\r\n      @@ 0xffffffff\r\n      @@: 0x00000000\r\n    ****: 0x00000000\r\n    ~~~~: 0x00000000\r\n"
+      }
+    }
+  },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "verdicts": { "POWER_STANDBY_IDLE_AC_DC": "pass" },
+    "reasons": { "POWER_STANDBY_IDLE_AC_DC": "power_ok" },
+    "raw": { "POWER_STANDBY_IDLE_AC_DC": { "acSeconds": 0, "dcSeconds": 0 } }
+  }
+}

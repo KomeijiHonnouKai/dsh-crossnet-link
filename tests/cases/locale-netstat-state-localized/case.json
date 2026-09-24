@@ -1,0 +1,24 @@
+{
+  "id": "locale-netstat-state-localized",
+  "title": "localized netstat state token: both netstat judgements fail closed",
+  "titleZh": "netstat 状态列被本地化:两处 netstat 判定都 fail-closed",
+  "kind": "collector",
+  "why": "The row parser keys on the netstat state token. When the token is localized every row is dropped, and a dropped row set must never be read as 'the port is not exposed' or as 'no wildcard listener'. This case locks in BOTH guards: DSH_LOOPBACK_ONLY -> unknown/dsh_no_listener and WILDCARD_LISTENER_INVENTORY -> unknown/netstat_unavailable (the second guard was added because an earlier revision of this suite proved the inventory used to report pass on an unreadable row set).",
+  "inject": "netstat -ano output whose state column reads the localized word instead of LISTENING, including a real 0.0.0.0 listener row",
+  "expectSummary": "DSH_LOOPBACK_ONLY unknown/dsh_no_listener and WILDCARD_LISTENER_INVENTORY unknown/netstat_unavailable, exit != 0",
+  "base": "_base/server-en.json",
+  "layer": {
+    "native": {
+      "netstat": { "exitCode": 0, "stdout": "  TCP    0.0.0.0:49999          0.0.0.0:0              \u4fa6\u542c            1072\r\n  TCP    127.0.0.1:49999        0.0.0.0:0              \u4fa6\u542c            1072\r\n" },
+      "netstat_post": { "exitCode": 0, "stdout": "  TCP    0.0.0.0:49999          0.0.0.0:0              \u4fa6\u542c            1072\r\n  TCP    127.0.0.1:49999        0.0.0.0:0              \u4fa6\u542c            1072\r\n" }
+    }
+  },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCodeNot": 0,
+    "verdicts": { "DSH_LOOPBACK_ONLY": "unknown", "WILDCARD_LISTENER_INVENTORY": "unknown" },
+    "reasons": { "DSH_LOOPBACK_ONLY": "dsh_no_listener", "WILDCARD_LISTENER_INVENTORY": "netstat_unavailable" },
+    "notVerdicts": { "DSH_LOOPBACK_ONLY": ["pass"], "WILDCARD_LISTENER_INVENTORY": ["pass"] },
+    "raw": { "WILDCARD_LISTENER_INVENTORY": { "stateWordUnrecognized": true, "parsedRowCount": 0 } }
+  }
+}

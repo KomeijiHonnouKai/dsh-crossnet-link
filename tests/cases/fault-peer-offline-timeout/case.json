@@ -1,0 +1,18 @@
+{
+  "id": "fault-peer-offline-timeout",
+  "title": "peer offline: TCP 443 times out",
+  "titleZh": "对端离线:tcp 443 超时",
+  "kind": "collector",
+  "why": "The peer can be off, asleep, or behind a dropped ACL; all three look like a timeout. A timeout must be an explicit blocked verdict with the timeout value in evidence, never silence. No live peer is contacted: the probe result is injected, and the judging logic runs for real.",
+  "inject": "TCP probe result for 203.0.113.5:443 replaced by 'timeout' (5000 ms budget)",
+  "expectSummary": "PEER_TCP_443 blocked/peer_443_timeout, exit 2",
+  "base": "_base/server-en.json",
+  "layer": { "network": { "tcp/203.0.113.5/443": { "result": "timeout", "ms": 5000 } } },
+  "args": ["-Role", "client", "-Peer", "203.0.113.5", "-PeerName", "peer.example.test"],
+  "expect": {
+    "exitCode": 2,
+    "verdicts": { "PEER_TCP_443": "blocked", "PEER_ISOLATION_PROBES": "pass", "MAGICDNS_RESOLVE": "degraded" },
+    "reasons": { "PEER_TCP_443": "peer_443_timeout", "PEER_ISOLATION_PROBES": "peer_iso_ok", "MAGICDNS_RESOLVE": "dns_off_tailnet" },
+    "raw": { "PEER_TCP_443": { "probe.result": "timeout" } }
+  }
+}

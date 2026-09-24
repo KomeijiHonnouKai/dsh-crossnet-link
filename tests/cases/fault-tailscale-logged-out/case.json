@@ -1,0 +1,18 @@
+{
+  "id": "fault-tailscale-logged-out",
+  "title": "the daemon answers but the node is logged out: a distinct reason key",
+  "titleZh": "守护进程有响应但节点已登出:必须用不同的 reasonKey",
+  "kind": "collector",
+  "why": "A logged-out node needs one specific human action (sign in) and nothing else. Merging this with the pipe-denied case would destroy that hint, so the two must stay distinguishable. It must still be unknown rather than blocked: the collector cannot fix a login, and a blocked verdict without a possible fix invites improvised changes.",
+  "inject": "'tailscale ip -4' exits 1 with the logged-out text",
+  "expectSummary": "TAILSCALE_CLI_LAYER unknown/ts_not_logged_in, exit != 0",
+  "base": "_base/server-en.json",
+  "layer": { "native": { "tailscale_ip4": { "exitCode": 1, "stdout": "", "stderr": "Logged out." } } },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCodeNot": 0,
+    "verdicts": { "TAILSCALE_CLI_LAYER": "unknown" },
+    "reasons": { "TAILSCALE_CLI_LAYER": "ts_not_logged_in" },
+    "reasonNot": { "TAILSCALE_CLI_LAYER": ["ts_pipe_denied", "ts_cli_ok"] }
+  }
+}

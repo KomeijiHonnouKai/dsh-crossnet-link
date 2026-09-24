@@ -1,0 +1,59 @@
+{
+  "id": "uninstall-checkonly-writes-nothing",
+  "title": "the standalone residue scan (-CheckOnly) creates no file in the state directory",
+  "kind": "uninstall",
+  "why": "The residue scan is advertised as runnable at any time, including long after the uninstall, so it must be strictly read-only: no journal, no backup directory, not even the state directory itself may appear. The case proves it by hashing every file under the case temp dir before and after the run - the state directory is inside that tree, so 'created' is detected as well as 'modified'.",
+  "inject": "the clean fixture (one noop record plus the cordis record) with -CheckOnly -AsJson",
+  "expectSummary": "exit 0, attribution=available, and the case temp dir is byte-identical afterwards",
+  "uninstall": {
+    "args": ["-CheckOnly", "-AsJson"],
+    "fixture": {
+      "observations": {
+        "power-plan:standbyidle-ac-dc": { "status": "read", "value": "0x00000000" }
+      },
+      "journal": {
+        "schemaVersion": 1,
+        "records": [
+          {
+            "id": "power-plan:standbyidle-ac-dc",
+            "surface": "power-plan",
+            "scope": "standbyidle-ac-dc",
+            "before": "0x00000000",
+            "expected": "0x00000000",
+            "after": "0x00000000",
+            "revert": { "kind": "command", "command": "powercfg /change standby-timeout-ac 0", "note": "restore the recorded index" },
+            "verify": { "command": "powercfg /query STANDBYIDLE", "expect": "0x00000000" },
+            "userOwned": false
+          },
+          {
+            "id": "cordis-dynamic-package:guard-1",
+            "surface": "cordis-dynamic-package",
+            "scope": "guard-1",
+            "before": "absent",
+            "expected": "defined",
+            "after": "defined",
+            "revert": { "kind": "instruction", "command": "cordis_undefine(guard-1)", "note": "process memory only: this tool never executes it" },
+            "verify": { "command": "cordis_inspect_self", "expect": "no package" },
+            "userOwned": false
+          }
+        ]
+      },
+      "collector": {
+        "after": {
+          "summary": { "exitCode": 1 },
+          "checks": [ { "id": "NO_NEW_WILDCARD_LISTENER", "verdict": "pass", "reasonKey": "ok" } ]
+        }
+      },
+      "stateDir": { "exists": true, "entries": [] }
+    },
+    "expectExit": 0,
+    "assertNoTmpWrites": true,
+    "jsonEq": [
+      { "path": "summary.exitCode", "eq": 0 },
+      { "path": "summary.attribution", "eq": "available" },
+      { "path": "tool.action", "eq": "check" },
+      { "path": "tool.dryRun", "eq": true },
+      { "path": "backup.created", "eq": false }
+    ]
+  }
+}

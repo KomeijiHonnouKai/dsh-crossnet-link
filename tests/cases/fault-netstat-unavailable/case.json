@@ -1,0 +1,18 @@
+{
+  "id": "fault-netstat-unavailable",
+  "title": "netstat itself is unavailable: both netstat judgements fail closed",
+  "titleZh": "netstat 本身不可用:两处 netstat 判定都 fail-closed",
+  "kind": "collector",
+  "why": "defensive-spec 4.2 rules 1 and 3: a dead probe must produce unknown, never pass. This case covers the DSH-port judgement, the wildcard inventory and the serve judgement at once, so the same broken probe cannot produce a green security statement anywhere. The inventory half was a proven gap until the collector grew an explicit guard.",
+  "inject": "both netstat snapshots removed from the fixture while native access is disabled (-NoNative)",
+  "expectSummary": "DSH_LOOPBACK_ONLY, WILDCARD_LISTENER_INVENTORY and SERVE_PRESENT all unknown, exit != 0",
+  "base": "_base/server-en.json",
+  "unset": ["native.netstat", "native.netstat_post"],
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCodeNot": 0,
+    "verdicts": { "DSH_LOOPBACK_ONLY": "unknown", "WILDCARD_LISTENER_INVENTORY": "unknown", "SERVE_PRESENT": "unknown" },
+    "reasons": { "DSH_LOOPBACK_ONLY": "netstat_unavailable", "WILDCARD_LISTENER_INVENTORY": "netstat_unavailable", "SERVE_PRESENT": "serve_unknown" },
+    "notVerdicts": { "DSH_LOOPBACK_ONLY": ["pass"], "WILDCARD_LISTENER_INVENTORY": ["pass"] }
+  }
+}

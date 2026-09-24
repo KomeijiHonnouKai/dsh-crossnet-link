@@ -1,0 +1,69 @@
+{
+  "id": "uninstall-revert-only-attributable",
+  "title": "only a record whose current value equals the recorded after value becomes an executable revert",
+  "kind": "uninstall",
+  "why": "The positive side of the classification, and the proof that the classifier is not a constant answer. The settings record was recorded as BEFORE=lan / AFTER=loopback, and the machine now reads loopback: the change is attributable to this tool, so it is the only record allowed into the revert list (executable=true, action=would-revert in a dry run). Its neighbour is still at its before value and is therefore a noop, executable=false. Nothing is written, so the run is also a clean dry run (exit 0): no left-alone, no unknown, no residue - the only unknown is the process-memory cordis item, which is exempt.",
+  "inject": "a fixture whose dsh-settings observation (loopback) equals the recorded after value plus a power-plan record still at its before value, with -Plan -AsJson",
+  "expectSummary": "exit 0 clean, revert=1 noop=1 left_alone=0, records[0] revert/equals_recorded_after executable=true action=would-revert, records[1] noop executable=false",
+  "uninstall": {
+    "args": ["-Plan", "-AsJson"],
+    "fixture": {
+      "observations": {
+        "dsh-settings:dsh-desktop.networkExposure": { "status": "read", "value": "loopback" },
+        "power-plan:standbyidle-ac-dc": { "status": "read", "value": "0x00000000" }
+      },
+      "journal": {
+        "schemaVersion": 1,
+        "records": [
+          {
+            "id": "dsh-settings:dsh-desktop.networkExposure",
+            "surface": "dsh-settings",
+            "scope": "dsh-desktop.networkExposure",
+            "before": "lan",
+            "expected": "loopback",
+            "after": "loopback",
+            "revert": { "kind": "edit", "command": "set networkExposure back to lan", "note": "value only" },
+            "verify": { "command": "read the setting back", "expect": "lan" },
+            "userOwned": false
+          },
+          {
+            "id": "power-plan:standbyidle-ac-dc",
+            "surface": "power-plan",
+            "scope": "standbyidle-ac-dc",
+            "before": "0x00000000",
+            "expected": "0x00000000",
+            "after": "0x00000000",
+            "revert": { "kind": "command", "command": "powercfg /change standby-timeout-ac 0", "note": "restore the recorded index" },
+            "verify": { "command": "powercfg /query STANDBYIDLE", "expect": "0x00000000" },
+            "userOwned": false
+          }
+        ]
+      },
+      "collector": {
+        "after": {
+          "summary": { "exitCode": 1 },
+          "checks": [ { "id": "NO_NEW_WILDCARD_LISTENER", "verdict": "pass", "reasonKey": "ok" } ]
+        }
+      },
+      "stateDir": { "exists": true, "entries": [] }
+    },
+    "expectExit": 0,
+    "assertNoTmpWrites": true,
+    "jsonEq": [
+      { "path": "summary.exitCode", "eq": 0 },
+      { "path": "summary.verdict", "eq": "clean" },
+      { "path": "classification.revert", "eq": 1 },
+      { "path": "classification.noop", "eq": 1 },
+      { "path": "classification.left_alone", "eq": 0 },
+      { "path": "records[0].classification.status", "eq": "revert" },
+      { "path": "records[0].classification.reasonKey", "eq": "equals_recorded_after" },
+      { "path": "records[0].classification.executable", "eq": true },
+      { "path": "records[0].action", "eq": "would-revert" },
+      { "path": "records[0].classification.provenance.observedNow", "eq": "loopback" },
+      { "path": "records[0].classification.provenance.comparedAgainst", "eq": "after" },
+      { "path": "records[1].classification.status", "eq": "noop" },
+      { "path": "records[1].classification.executable", "eq": false },
+      { "path": "backup.created", "eq": false }
+    ]
+  }
+}

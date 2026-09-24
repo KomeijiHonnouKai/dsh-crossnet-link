@@ -1,0 +1,105 @@
+{
+  "_comment": "Synthetic, fully offline baseline used by many tests/cases/*.json layers. It is a HAPPY server-side machine: no real machine value is embedded (see tests/cases/README.md, section 'why no real value appears here'). Tool text is English here; _base/server-zh.json carries the same state with Chinese tool text.",
+  "registry": {
+    "os_version": {
+      "ProductName": "Windows 10 Pro",
+      "DisplayVersion": "22H2",
+      "CurrentBuild": "19045",
+      "UBR": 6036,
+      "EditionID": "Professional",
+      "InstallationType": "Client"
+    },
+    "fw_domain": { "EnableFirewall": 1 },
+    "fw_standard": { "EnableFirewall": 1 },
+    "fw_public": { "EnableFirewall": 1 },
+    "firewall_rules": {
+      "Tailscale-Process": "Name=Tailscale-Process|Edge=TRUE|Dir=Out|Action=Allow|Active=TRUE|Protocol=Any|Profile=Domain,Private",
+      "Tailscale-In-v4": "|Dir=In|Action=Allow|Active=TRUE|Protocol=TCP|Profile=Domain|Profile=Private|LA4=100.64.0.0/10|Name=Tailscale-In|",
+      "Tailscale-In-v6": "|Dir=In|Action=Allow|Active=TRUE|Protocol=TCP|Profile=Domain|Profile=Private|LA6=fd7a:115c:a1e0::/48|Name=Tailscale-In|"
+    }
+  },
+  "native": {
+    "ip_addresses": {
+      "exitCode": 0,
+      "stdout": "Configuration for interface \"Tailscale\"\r\n    DHCP enabled: No\r\n    IP Address: <TAILNET_IPV4>\r\n    Subnet Prefix: 100.64.0.0/10 (mask 255.192.0.0)\r\n"
+    },
+    "netstat": {
+      "exitCode": 0,
+      "stdout": "  TCP    127.0.0.1:49999        0.0.0.0:0              LISTENING       1072\r\n  TCP    [fd7a:115c:a1e0::1000:1]:443  [::]:0            LISTENING       18864\r\n  TCP    127.0.0.1:5354         0.0.0.0:0              LISTENING       6076\r\n"
+    },
+    "netstat_post": {
+      "exitCode": 0,
+      "stdout": "  TCP    127.0.0.1:49999        0.0.0.0:0              LISTENING       1072\r\n  TCP    [fd7a:115c:a1e0::1000:1]:443  [::]:0            LISTENING       18864\r\n  TCP    127.0.0.1:5354         0.0.0.0:0              LISTENING       6076\r\n"
+    },
+    "tailscale_version": { "exitCode": 0, "stdout": "1.102.4\r\n  tailexamplehash\r\n" },
+    "tailscale_ip4": { "exitCode": 0, "stdout": "<TAILNET_IPV4>\r\n" },
+    "tailscale_servestatus": {
+      "exitCode": 0,
+      "stdout": "https://dsh-host.tailnet-demo.ts.net (tailnet only)\r\n|-- / proxy http://127.0.0.1:49999\r\n"
+    },
+    "netsh_rule_process_verbose": {
+      "exitCode": 0,
+      "stdout": "Rule Name:                            Tailscale-Process\r\n----------------------------------------------------------------------\r\nEnabled:                              Yes\r\nDirection:                            Out\r\nProfiles:                             Domain,Private\r\nEdge traversal:                       Yes\r\n"
+    },
+    "netsh_currentprofile": {
+      "exitCode": 0,
+      "stdout": "\r\nDomain Profile:\r\n----------------------------------------------------------------------\r\nOk.\r\n\r\nPrivate Profile:\r\n----------------------------------------------------------------------\r\nTailscale\r\n\r\nOk.\r\n\r\nPublic Profile:\r\n----------------------------------------------------------------------\r\nOk.\r\n\r\n"
+    },
+    "netsh_show_allprofiles": {
+      "exitCode": 0,
+      "stdout": "\r\nDomain Profile Settings:\r\n----------------------------------------------------------------------\r\nState                                 ON\r\nFirewall Policy                       BlockInbound,AllowOutbound\r\n\r\nPrivate Profile Settings:\r\n----------------------------------------------------------------------\r\nState                                 ON\r\nFirewall Policy                       BlockInbound,AllowOutbound\r\n\r\nPublic Profile Settings:\r\n----------------------------------------------------------------------\r\nState                                 ON\r\nFirewall Policy                       BlockInbound,AllowOutbound\r\n\r\nOk.\r\n\r\n"
+    },
+    "powercfg_query_standby": {
+      "exitCode": 0,
+      "stdout": "Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)\r\n  GUID Alias: SCHEME_BALANCED\r\n  Subgroup GUID: 238c9fa8-0aad-41ed-83f4-97be242c8f20  (Sleep)\r\n    GUID Alias: SUB_SLEEP\r\n    Power Setting GUID: 29f6c1db-86da-48c5-9fdb-f2b67b1f44da  (Sleep after)\r\n      GUID Alias: STANDBYIDLE\r\n      Minimum Possible Setting: 0x00000000\r\n      Maximum Possible Setting: 0xffffffff\r\n      Possible Settings increment: 0x00000001\r\n      Possible Settings units: Seconds\r\n    Current AC Power Setting Index: 0x00000000\r\n    Current DC Power Setting Index: 0x00000000\r\n\r\n"
+    },
+    "powercfg_query_hibernate": {
+      "exitCode": 0,
+      "stdout": "Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)\r\n  GUID Alias: SCHEME_BALANCED\r\n  Subgroup GUID: 238c9fa8-0aad-41ed-83f4-97be242c8f20  (Sleep)\r\n    GUID Alias: SUB_SLEEP\r\n    Power Setting GUID: 9d7815a6-7ee4-497e-8888-515a05f02364  (Hibernate after)\r\n      GUID Alias: HIBERNATEIDLE\r\n      Minimum Possible Setting: 0x00000000\r\n      Maximum Possible Setting: 0xffffffff\r\n      Possible Settings increment: 0x00000001\r\n      Possible Settings units: Seconds\r\n    Current AC Power Setting Index: 0x00000000\r\n    Current DC Power Setting Index: 0x00000000\r\n\r\n"
+    },
+    "powercfg_a": {
+      "exitCode": 0,
+      "stdout": "The following sleep states are available on this system:\r\n    Standby (S3)\r\n    Hibernate\r\n\r\nThe following sleep states are not available on this system:\r\n    Standby (S1)\r\n        The system firmware does not support this standby state.\r\n\r\n    Standby (S0 Low Power Idle)\r\n        The system firmware does not support this standby state.\r\n\r\n"
+    }
+  },
+  "cmdlets": {
+    "net_connection_profile": [
+      { "interfaceAlias": "Tailscale", "networkCategory": "Private" }
+    ]
+  },
+  "services": {
+    "Tailscale": { "status": "Running", "startType": "Automatic" }
+  },
+  "processes": {
+    "1072": "DSH Desktop",
+    "18864": "tailscaled",
+    "6076": "mDNSResponder",
+    "4": "System"
+  },
+  "files": {
+    "settings_yaml": "networkExposure: loopback\nmode: host\n"
+  },
+  "network": {
+    "tcp/203.0.113.5/443": { "result": "connected", "ms": 24 },
+    "tcp/203.0.113.5/135": { "result": "refused", "ms": 3 },
+    "tcp/203.0.113.5/5357": { "result": "refused", "ms": 2 },
+    "tcp/203.0.113.5/49999": { "result": "refused", "ms": 3 },
+    "dns/peer.example.test": { "result": "ok", "addresses": ["203.0.113.5"] }
+  },
+  "fileLists": {
+    "patch_files": [
+      {
+        "path": "<APP_DIR>\\node_modules\\@deepseek-ai\\dsh-base\\cordis.patch.yml",
+        "text": "- insert:\n    - id: timer\n      name: '@deepseek-ai/cordis-plugin-timer'\n"
+      },
+      {
+        "path": "<DSH_HOME>\\profiles\\node_modules\\dsh-plugin-desktop\\cordis.patch.yml",
+        "text": "- id: web-runtime\n  config:\n    trustedHosts: []\n"
+      },
+      {
+        "path": "<DSH_HOME>\\profiles\\Alpha\\cordis.patch.yml",
+        "text": "- id: web-runtime\n  config:\n    trustedHosts:\n      - dsh-host.tailnet-demo.ts.net\n"
+      }
+    ]
+  }
+}

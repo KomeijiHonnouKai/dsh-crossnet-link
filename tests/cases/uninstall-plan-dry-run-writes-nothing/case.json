@@ -1,0 +1,67 @@
+{
+  "id": "uninstall-plan-dry-run-writes-nothing",
+  "title": "the default action is a dry run: -Plan writes nothing at all, and a clean journal exits 0",
+  "kind": "uninstall",
+  "why": "The uninstaller must be safe to run before the operator decides anything. This case snapshots the whole case temp dir (every file, by sha256) before and after -Plan and requires it to be byte-identical - including the state directory, which must not even be created. It also pins the clean outcome: a journal whose only live record still equals its before value, plus the process-memory cordis record, is exit 0 (a kept backup is normal, and the memory-only unknown is exempt).",
+  "inject": "a fixture with one noop record (power-plan, now == before) and one cordis-dynamic-package record, plus -Plan -AsJson",
+  "expectSummary": "exit 0, classification noop=1, unknownExempt=1, backup.created=false, and nothing in the case temp dir changed",
+  "uninstall": {
+    "args": ["-Plan", "-AsJson"],
+    "fixture": {
+      "observations": {
+        "power-plan:standbyidle-ac-dc": { "status": "read", "value": "0x00000000" }
+      },
+      "journal": {
+        "schemaVersion": 1,
+        "records": [
+          {
+            "id": "power-plan:standbyidle-ac-dc",
+            "surface": "power-plan",
+            "scope": "standbyidle-ac-dc",
+            "before": "0x00000000",
+            "expected": "0x00000000",
+            "after": "0x00000000",
+            "revert": { "kind": "command", "command": "powercfg /change standby-timeout-ac 0", "note": "restore the recorded index" },
+            "verify": { "command": "powercfg /query STANDBYIDLE", "expect": "0x00000000" },
+            "userOwned": false
+          },
+          {
+            "id": "cordis-dynamic-package:guard-1",
+            "surface": "cordis-dynamic-package",
+            "scope": "guard-1",
+            "before": "absent",
+            "expected": "defined",
+            "after": "defined",
+            "revert": { "kind": "instruction", "command": "cordis_undefine(guard-1)", "note": "process memory only: this tool never executes it" },
+            "verify": { "command": "cordis_inspect_self", "expect": "no package" },
+            "userOwned": false
+          }
+        ]
+      },
+      "collector": {
+        "after": {
+          "summary": { "exitCode": 1 },
+          "checks": [ { "id": "NO_NEW_WILDCARD_LISTENER", "verdict": "pass", "reasonKey": "ok" } ]
+        }
+      },
+      "stateDir": { "exists": true, "entries": [] }
+    },
+    "expectExit": 0,
+    "assertNoTmpWrites": true,
+    "jsonEq": [
+      { "path": "summary.exitCode", "eq": 0 },
+      { "path": "summary.verdict", "eq": "clean" },
+      { "path": "summary.unknownExempt", "eq": 1 },
+      { "path": "classification.noop", "eq": 1 },
+      { "path": "classification.revert", "eq": 0 },
+      { "path": "classification.unknownExempt", "eq": 1 },
+      { "path": "backup.created", "eq": false },
+      { "path": "records[1].classification.status", "eq": "unknown" },
+      { "path": "records[1].classification.reasonKey", "eq": "memory_only_instruction" },
+      { "path": "records[1].classification.executable", "eq": false },
+      { "path": "residue.items[7].id", "eq": "cordis-dynamic-package" },
+      { "path": "residue.items[7].status", "eq": "unknown" },
+      { "path": "residue.items[7].exemptFromExit", "eq": true }
+    ]
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "id": "uninstall-apply-firewall-capture-and-residue",
+  "title": "the firewall capture appears only when a firewall record takes part, and a still-present rule is reported as residue",
+  "kind": "uninstall",
+  "why": "Two behaviours at once, both about honesty rather than convenience. (1) The backup set is surface-dependent: firewall-rules.txt is written only because a firewall-rule record participates, so the case pins the exact file set for that shape and verifies every MANIFEST entry. (2) The fixture still observes the rule as present (that is what made the record revertable), so the residue scan must report the firewall item as residue and end exit 1 - a completely clean uninstall is not claimed while the rule is still on the machine.",
+  "inject": "the revertable firewall fixture with -Apply -AsJson: the firewall observation is present, so the revert is attributable and the residue scan still sees the rule",
+  "expectSummary": "exit 1, backup contains firewall-rules.txt and verifies, the revert stays would-do in fixture mode, residue item recorded-firewall-rules-absent = residue",
+  "uninstall": {
+    "args": ["-Apply", "-AsJson"],
+    "fixture": {
+      "observations": {
+        "firewall-rule:DSH via Tailscale serve (tcp 443)": { "status": "read", "value": "present" }
+      },
+      "journal": {
+        "schemaVersion": 1,
+        "records": [
+          {
+            "id": "firewall-rule:DSH via Tailscale serve (tcp 443)",
+            "surface": "firewall-rule",
+            "scope": "DSH via Tailscale serve (tcp 443)",
+            "before": "absent",
+            "expected": "present",
+            "after": "present",
+            "revert": { "kind": "command", "command": "Remove-NetFirewallRule -DisplayName 'DSH via Tailscale serve (tcp 443)'", "note": "remove the narrow allow this setup added" },
+            "verify": { "command": "netsh advfirewall firewall show rule name=\"DSH via Tailscale serve (tcp 443)\"", "expect": "no rule matches" },
+            "userOwned": false
+          }
+        ]
+      },
+      "collector": {
+        "before": {
+          "summary": { "exitCode": 1 },
+          "checks": [ { "id": "NO_NEW_WILDCARD_LISTENER", "verdict": "pass", "reasonKey": "ok" } ]
+        },
+        "after": {
+          "summary": { "exitCode": 1 },
+          "checks": [ { "id": "NO_NEW_WILDCARD_LISTENER", "verdict": "pass", "reasonKey": "ok" } ]
+        }
+      },
+      "stateDir": { "exists": true, "entries": [] }
+    },
+    "expectExit": 1,
+    "expectBackupFiles": ["MANIFEST.json", "firewall-rules.txt", "journal.json", "plan.json", "restore.md"],
+    "verifyBackupManifest": true,
+    "jsonEq": [
+      { "path": "summary.exitCode", "eq": 1 },
+      { "path": "summary.verdict", "eq": "attention" },
+      { "path": "backup.created", "eq": true },
+      { "path": "classification.revert", "eq": 1 },
+      { "path": "records[0].classification.status", "eq": "revert" },
+      { "path": "records[0].classification.executable", "eq": true },
+      { "path": "records[0].action", "eq": "would-do" },
+      { "path": "residue.items[2].id", "eq": "recorded-firewall-rules-absent" },
+      { "path": "residue.items[2].status", "eq": "residue" }
+    ]
+  }
+}

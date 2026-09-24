@@ -1,0 +1,13 @@
+{
+  "schema": "remote-tailnet-guard/fixture/1",
+  "name": "Edge-drift regression fixture (Tailscale-Process Edge=FALSE)",
+  "locale": null,
+  "note": "Only the firewall rule store is supplied. It is the exact shape measured on the reference machine, with one single change: the process-level rule Tailscale-Process carries Edge=FALSE (the drift case) while the two address-level Tailscale-In rules keep Edge=FALSE as they normally do. Expected: TAILSCALE_PROCESS_EDGE_DB = blocked/edge_false, and the built-in Tailscale-In rules are still reported as fine (they are never the rule to inspect). Everything else must stay 'unknown' because no other probe is present, which also proves the fail-closed rule. Sanitized round 2 2026-09-24 17:33 (t14): the remaining RFC1918 addresses were moved into neutral private ranges (10.20.0.0/16 for the LAN interface, plus the 10.21 and 10.22 host entries; the /16 membership is left readable) and the Tailscale IPv6 node suffix was replaced with the ::1000:1 (local) / ::1000:2 (peer) placeholder; the Tailscale IPv6 /48 product prefix is unchanged. Re-verify with: powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-fixtures.ps1 Re-verify with: powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-fixtures.ps1",
+  "registry": {
+    "firewall_rules": {
+      "{A3F28CE2-C510-4837-AEF0-E35F746000AC}": "v2.30|Action=Allow|Active=TRUE|Dir=In|Protocol=17|App=C:\\Program Files\\Tailscale\\tailscaled.exe|Name=Tailscale-Process|Edge=FALSE|",
+      "{8F279CC0-D010-420B-9EFC-57C8CEC6BEC4}": "v2.30|Action=Allow|Active=TRUE|Dir=In|Profile=Domain|Profile=Private|LA4=100.64.0.11|Name=Tailscale-In|",
+      "{A31CEF0E-9862-48F4-AAFA-CE469F1D21E4}": "v2.30|Action=Allow|Active=TRUE|Dir=In|Profile=Domain|Profile=Private|LA6=fd7a:115c:a1e0::1000:1|Name=Tailscale-In|"
+    }
+  }
+}

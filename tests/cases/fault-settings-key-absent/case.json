@@ -1,0 +1,18 @@
+{
+  "id": "fault-settings-key-absent",
+  "title": "settings.yaml exists but never sets networkExposure -> unknown, not pass",
+  "titleZh": "settings.yaml 存在但从未设置 networkExposure -> unknown,不是 pass",
+  "kind": "collector",
+  "why": "The measured fact is that this key is usually absent. An absent override means the deployment relies on a built-in default the collector cannot read from this file, so 'no LAN exposure' is unproven and the verdict must be unknown.",
+  "inject": "settings.yaml without a networkExposure line",
+  "expectSummary": "DSH_NETWORK_EXPOSURE unknown/exposure_key_absent, exit != 0",
+  "base": "_base/server-en.json",
+  "layer": { "files": { "settings_yaml": "mode: host\n" } },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCodeNot": 0,
+    "verdicts": { "DSH_NETWORK_EXPOSURE": "unknown" },
+    "reasons": { "DSH_NETWORK_EXPOSURE": "exposure_key_absent" },
+    "notVerdicts": { "DSH_NETWORK_EXPOSURE": ["pass"] }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "id": "locale-culture-en-us-tools-zh",
+  "title": "culture says English, the tool answers in Chinese (the measured trap)",
+  "titleZh": "区域是英文、工具却回中文(本机实测的坑)",
+  "kind": "collector",
+  "why": "MEASURED on the reference machine: (Get-Culture).Name is en-US while powercfg prints Chinese. Any implementation that picks its regular expressions from the detected culture fails here. This case forces -Lang en (English label file selected) while the tool output is Chinese: the verdict must still be reachable, i.e. the localized patterns must be merged from every label file, not selected by culture.",
+  "inject": "-Lang en selected, Chinese netsh/powercfg tool text, cmdlet probe removed",
+  "expectSummary": "NIC_PROFILE_ATTRIBUTION degraded/nic_ok and FIREWALL_PROFILES pass from CHINESE text while the English label file is active",
+  "base": "_base/server-zh.json",
+  "unset": ["cmdlets.net_connection_profile"],
+  "args": ["-Role", "server", "-Port", "49999", "-Lang", "en"],
+  "expect": {
+    "exitCode": 1,
+    "verdicts": {
+      "NIC_PROFILE_ATTRIBUTION": "degraded",
+      "FIREWALL_PROFILES": "pass",
+      "POWER_STANDBY_IDLE_AC_DC": "pass",
+      "DSH_LOOPBACK_ONLY": "pass"
+    },
+    "reasons": { "NIC_PROFILE_ATTRIBUTION": "nic_ok", "FIREWALL_PROFILES": "fw_ok" }
+  }
+}

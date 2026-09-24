@@ -1,0 +1,18 @@
+{
+  "id": "fault-magicdns-hostnotfound",
+  "title": "MagicDNS name does not resolve (the one-letter-typo state)",
+  "titleZh": "MagicDNS 名字解析不了(错一个字母的形态)",
+  "kind": "collector",
+  "why": "A misspelled tailnet name fails immediately with HostNotFound and looks nothing like a network problem. The measured lesson (baseline.md v1.2, C11) is that this must be a distinct blocked verdict keyed on the socket error code - which is why the collector walks the exception chain for SocketError instead of matching localized text.",
+  "inject": "DNS probe for peer.example.test returns socketError=HostNotFound",
+  "expectSummary": "MAGICDNS_RESOLVE blocked/dns_hostnotfound, exit 2",
+  "base": "_base/server-en.json",
+  "layer": { "network": { "dns/peer.example.test": { "result": "error", "socketError": "HostNotFound" } } },
+  "args": ["-Role", "client", "-Peer", "203.0.113.5", "-PeerName", "peer.example.test"],
+  "expect": {
+    "exitCode": 2,
+    "verdicts": { "MAGICDNS_RESOLVE": "blocked" },
+    "reasons": { "MAGICDNS_RESOLVE": "dns_hostnotfound" },
+    "raw": { "MAGICDNS_RESOLVE": { "probe.socketError": "HostNotFound" } }
+  }
+}

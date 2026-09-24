@@ -1,0 +1,24 @@
+{
+  "id": "fault-dsh-wildcard-exposed",
+  "title": "the DSH port is on 0.0.0.0: blocked, with the rollback text attached",
+  "titleZh": "DSH 端口跑到 0.0.0.0:blocked,并附回滚文本",
+  "kind": "collector",
+  "why": "defensive-spec section 7 case 13 / section 4.1. A wildcard bind on the DSH port is the single most damaging state for this design (it exposes the UI to the whole LAN), so it must be blocked by two independent checks and the remediation must carry a copy-pasteable rollback. The remediation must never have been applied by the collector.",
+  "inject": "netstat shows 0.0.0.0:49999 owned by the DSH process next to the loopback row",
+  "expectSummary": "DSH_LOOPBACK_ONLY blocked/dsh_exposed + WILDCARD_LISTENER_INVENTORY blocked/inv_dsh_exposed, exit 2",
+  "base": "_base/server-en.json",
+  "layer": {
+    "native": {
+      "netstat": { "exitCode": 0, "stdout": "  TCP    127.0.0.1:49999        0.0.0.0:0              LISTENING       1072\r\n  TCP    0.0.0.0:49999          0.0.0.0:0              LISTENING       1072\r\n  TCP    [fd7a:115c:a1e0::1000:1]:443  [::]:0            LISTENING       18864\r\n" },
+      "netstat_post": { "exitCode": 0, "stdout": "  TCP    127.0.0.1:49999        0.0.0.0:0              LISTENING       1072\r\n  TCP    0.0.0.0:49999          0.0.0.0:0              LISTENING       1072\r\n  TCP    [fd7a:115c:a1e0::1000:1]:443  [::]:0            LISTENING       18864\r\n" }
+    }
+  },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCode": 2,
+    "verdicts": { "DSH_LOOPBACK_ONLY": "blocked", "WILDCARD_LISTENER_INVENTORY": "blocked", "NO_NEW_WILDCARD_LISTENER": "pass" },
+    "reasons": { "DSH_LOOPBACK_ONLY": "dsh_exposed", "WILDCARD_LISTENER_INVENTORY": "inv_dsh_exposed" },
+    "remediation": { "DSH_LOOPBACK_ONLY": { "applied": false, "needsNonEmptyCommand": true } },
+    "raw": { "DSH_LOOPBACK_ONLY": { "nonLoopbackHits.0": "0.0.0.0:49999" } }
+  }
+}

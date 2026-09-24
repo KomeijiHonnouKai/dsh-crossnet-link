@@ -1,0 +1,458 @@
+{
+  "schema": "remote-tailnet-guard/prereq/1",
+  "updated": "2026-09-24",
+  "purpose": "Machine-readable prerequisite manifest for the cross-network remote-access link (Tailscale + serve + loopback-only DSH). panel/prereq.ps1 reads it; docs/install/prerequisites.md renders it. Nothing here is executed automatically.",
+  "roleSemantics": {
+    "server": "This machine serves the link: the other machine connects to it. Server items apply (serve, trustedHosts, narrow inbound allow, power policy, tailnet ACL).",
+    "client": "This machine only uses the link. Client items apply (Tailscale installed and signed in, MagicDNS resolves, browser proxy must not hijack the tailnet, the token is pasted by a human).",
+    "both": "Default when no role is given. It validates BOTH sets, so a client-only machine normally ends with a non-zero collector verdict because server items are genuinely unmet. Pass -Role client to see only what this machine must satisfy. A non-zero exit code is a fail-closed verdict, not a command failure."
+  },
+  "hashPolicy": {
+    "rule": "An install step may only be shown as ready when `pinnedSha256` is non-empty AND the operator has confirmed it, AND the local file hash matches AND the Authenticode signature is Valid. This file never carries a vendor hash: a hash pinned in a repository goes stale with the next release and would either block a legitimate install or hide a tampered one.",
+    "pinnedSha256": "",
+    "pinnedFor": "the Tailscale .msi you downloaded (compute it yourself; see howToPin)",
+    "confirmPhrase": "I have verified this hash against the vendor's published value",
+    "howToPin": [
+      "Download the .msi yourself from the vendor download page (never from a link in this repository).",
+      "powershell -NoProfile -Command \"(Get-FileHash -Algorithm SHA256 -LiteralPath '<MSI_PATH>').Hash\"",
+      "Compare that value with the vendor's published value, then paste it into `pinnedSha256` above.",
+      "Also check the signature: powershell -NoProfile -Command \"Get-AuthenticodeSignature -LiteralPath '<MSI_PATH>' | Select-Object Status,@{n='Signer';e={$_.SignerCertificate.Subject}}\""
+    ],
+    "ifNotPinned": "prereq.ps1 prints the install command but marks the step `blocked: hash not pinned`, and it never runs anything either way."
+  },
+  "probeUnavailable": {
+    "en": "The listener probe could not be read on this machine (netstat unavailable, or its state token was not recognized), so this item is UNKNOWN - it is not evidence that the port is closed. Re-run in an ordinary window, or pass -NetstatStatePattern for a localized netstat.",
+    "zh": "本机的监听探针读不出来(netstat 不可用,或状态词无法识别),因此本项是未知 —— 不代表端口是关的。请在普通窗口重跑,或对本地化的 netstat 用 -NetstatStatePattern 指定状态词。"
+  },
+  "uninstallLabels": {
+    "en": {
+      "title": "remote-tailnet-guard uninstall helper (dry-run by default)",
+      "dryRun": "DRY RUN: nothing was written or changed. Add -Apply to execute the reverts that are classified revert.",
+      "recordBanner": "JOURNAL RUN: this run observes and records. Its only write is the journal file inside the state directory.",
+      "applyBanner": "WRITE RUN: the backup directory is written and verified BEFORE the first change.",
+      "cordisNote": "dynamic Cordis packages cannot be removed from here - run each command below in the DSH session:",
+      "readTheExit": "exit 0 = clean (a kept backup is a normal state) / 1 = left-alone, unknown or residue / 2 = refused, nothing written"
+    },
+    "zh": {
+      "title": "remote-tailnet-guard 卸载助手(默认干跑)",
+      "dryRun": "干跑:没有写入也没有改动。加 -Apply 才会执行分类为 revert 的回滚项。",
+      "recordBanner": "台账运行:本次只做观测与记录,唯一的写动作是状态目录里的 journal 文件。",
+      "applyBanner": "写入运行:备份目录已经写完并校验通过,之后才会执行改动。",
+      "cordisNote": "动态 Cordis 包无法从这里删除 —— 请在 DSH 会话里执行下面每一条:",
+      "readTheExit": "退出码 0 = 干净(保留备份是正常态)/ 1 = 有 left-alone、unknown 或残留 / 2 = 拒绝执行,未写入任何东西"
+    }
+  },
+  "journalSchema": {
+    "schemaVersion": 1,
+    "writtenBy": "tools/uninstall.ps1 -RecordBefore and -RecordAfter",
+    "file": "<StateDir>/state-journal.json   (default StateDir: %USERPROFILE%\\.remote-tailnet-guard)",
+    "recordFields": ["id", "surface", "scope", "before", "expected", "after", "revert{kind,command,note}", "verify{command,expect}", "userOwned", "remediation", "recordedAtLocal", "recordedBy"],
+    "surfaceClosedSet": ["dsh-profile-row", "plugin-files", "firewall-rule", "tailscale-serve", "dsh-settings", "power-plan", "network-profile", "user-skill-copy", "cordis-dynamic-package"],
+    "revertKinds": {
+      "command": "executed by -Apply only when the command matches the frozen allowlist in the tool and carries no shell metacharacter",
+      "edit": "an in-process, line-level file edit performed by -Apply, only while the recorded text is unchanged",
+      "delete": "an in-process file deletion performed only with -RemoveFiles and only while the file sha256 still equals the recorded after value",
+      "instruction": "printed only, never executed: this is the dynamic Cordis package, which lives in DSH process memory"
+    },
+    "classification": {
+      "noop": "now == before: nothing of this tool is there",
+      "revert": "now == after and after != before: the only class -Apply may execute",
+      "left_alone": "now != after and now != before: somebody changed it afterwards, so it is reported with provenance and never touched",
+      "unknown": "now cannot be read, or after is absent while now != before: never guessed, and always a non-zero exit",
+      "kept_user_owned": "the record is marked userOwned, so it is reported and never touched"
+    },
+    "exitCodes": {
+      "0": "plan or execution completed, no left-alone, no residue, and the only unknown is the exempt cordis one",
+      "1": "left-alone, unknown or residue - never silent, never fixed on your behalf",
+      "2": "refused and nothing written: no usable journal, unusable state directory, path escape, -PurgeBackup without -Apply"
+    }
+  },
+  "automationBoundary": {
+    "allowed": [
+      "Print the detection result and the exact commands for a human to run.",
+      "Show the pinned sha256, the computed sha256 and the Authenticode status side by side.",
+      "Write nothing, change nothing, elevate nothing."
+    ],
+    "never": [
+      "Run an installer, or call runas / Start-Process -Verb RunAs / a scheduled task to obtain elevation. The UAC prompt belongs to the human.",
+      "Sign in to Tailscale (the browser OAuth page is a human action), or paste a URL containing a token.",
+      "Loosen a user-level or machine-level security setting as an installation prerequisite: not ExecutionPolicy, not UAC, not the firewall default, not Defender, not networkExposure.",
+      "Install or enable any DSH restart plugin, or kill/relaunch the DSH host process.",
+      "Add a listener, a route, or a firewall rule.",
+      "Read, print or transmit a token, cookie, key file or the DSH credential store."
+    ]
+  },
+  "items": [
+    {
+      "id": "TAILSCALE_INSTALLED",
+      "uninstall": {
+        "policy": "keep",
+        "keepReason": "Tailscale is the product this link is built on and other software on this machine may rely on it; uninstalling it would break the link and every tailnet route at once. The uninstaller has no code path that uninstalls it, whatever -KeepTailscale says.",
+        "removeCommand": null,
+        "impactIfRemoved": "the link stops working entirely and this machine leaves the tailnet until Tailscale is reinstalled and signed in again. With -KeepTailscale:$false the tool only prints the suggestion you would run yourself."
+      },
+      "roles": ["server", "client"],
+      "os": ["win10", "win11"],
+      "title": "Tailscale for Windows is installed",
+      "detect": {
+        "kind": "command",
+        "command": "tailscale.exe",
+        "args": ["version"],
+        "expect": { "exitCode": 0 },
+        "note": "version does not touch the daemon, so exit 0 proves only that the binary exists and self-reports. Availability is judged by the separate CLI-layer item."
+      },
+      "alternativeDetect": {
+        "kind": "registry",
+        "path": "HKLM:\\SOFTWARE\\Tailscale IPN",
+        "value": "InstallDir",
+        "expect": { "present": true }
+      },
+      "whenMissing": {
+        "en": "Tailscale is not installed on this machine. Install it yourself from the vendor download page; this plugin never installs software for you.",
+        "zh": "本机未安装 Tailscale。请自行从厂商下载页安装;本插件不会替你安装软件。"
+      },
+      "install": {
+        "automatic": false,
+        "humanSteps": [
+          "Download the Windows .msi from the vendor download page (no version is hardcoded here).",
+          "Verify: sha256 (computed by you and pinned in this manifest) + Authenticode signature Valid.",
+          "Run the installer; accept the UAC prompt yourself.",
+          "After it finishes, sign in through the browser page that the client opens - a human action."
+        ],
+        "command": "msiexec /i \"<MSI_PATH>\" /passive /norestart",
+        "verify": [
+          "powershell -NoProfile -Command \"(Get-FileHash -Algorithm SHA256 -LiteralPath '<MSI_PATH>').Hash\"",
+          "powershell -NoProfile -Command \"Get-AuthenticodeSignature -LiteralPath '<MSI_PATH>' | Select-Object Status,@{n='Signer';e={$_.SignerCertificate.Subject}}\"",
+          "powershell -NoProfile -Command \"(Get-Command tailscale.exe).Source\""
+        ],
+        "rollback": "msiexec /x \"<MSI_PATH>\" /passive /norestart    # or: Settings > Apps > Tailscale > Uninstall"
+      }
+    },
+    {
+      "id": "TAILSCALE_CLI_LAYER",
+      "uninstall": {
+        "policy": "keep",
+        "keepReason": "This item is a permission boundary of the current session, not an artifact the remediation created: nothing was installed, so there is nothing to remove.",
+        "removeCommand": null,
+        "impactIfRemoved": "nothing would change - no file and no setting exists for this item."
+      },
+      "roles": ["server", "client"],
+      "os": ["win10", "win11"],
+      "title": "tailscale CLI is actually usable from this account",
+      "detect": {
+        "kind": "command",
+        "command": "tailscale.exe",
+        "args": ["ip", "-4"],
+        "expect": { "exitCode": 0 },
+        "note": "Measured on the reference machine: version exits 0 while ip -4 / status / serve status exit 1 with `open \\\\.\\pipe\\ProtectedPrefix\\Administrators\\Tailscale\\tailscaled: Access is denied.` A denied pipe is an unavailable probe, NOT 'not signed in' and NOT 'serve is not configured'."
+      },
+      "whenMissing": {
+        "en": "The tailscale CLI cannot reach its daemon from this session (named pipe protected / access denied). Use an ordinary, non-sandboxed window for tailscale commands, or accept that the CLI-based checks stay unknown.",
+        "zh": "本会话里 tailscale CLI 连不到守护进程(命名管道被保护/拒绝访问)。请改在普通(非沙箱)窗口执行 tailscale 命令,或接受 CLI 类判定为未知。"
+      },
+      "install": { "automatic": false, "humanSteps": ["No install step: this is an environment/permission boundary, not a missing prerequisite."] },
+      "rollback": "nothing to roll back"
+    },
+    {
+      "id": "TAILSCALE_SIGNED_IN",
+      "uninstall": {
+        "policy": "keep",
+        "keepReason": "The sign-in is your own account session, not a file this tool wrote; revoking it would disconnect the machine from the tailnet. This tool never signs out and never touches a credential.",
+        "removeCommand": null,
+        "impactIfRemoved": "the machine leaves the tailnet, so the link is dead until you sign in again by hand."
+      },
+      "roles": ["server", "client"],
+      "os": ["win10", "win11"],
+      "title": "This machine is signed in and has a tailnet address",
+      "detect": {
+        "kind": "listener",
+        "addressClass": "tailnet",
+        "port": "",
+        "note": "A 100.64.0.0/10 (or fd7a:115c:a1e0::/48) address on this machine is evidence of a signed-in, connected tailnet interface; it needs no daemon round-trip."
+      },
+      "whenMissing": {
+        "en": "No tailnet address found. Sign in to Tailscale (browser OAuth, human action) and confirm the interface is up.",
+        "zh": "没有找到 tailnet 地址。请在 Tailscale 里登录(浏览器 OAuth,人工操作)并确认接口已启用。"
+      },
+      "install": {
+        "automatic": false,
+        "humanSteps": [
+          "Open the Tailscale client and choose Sign in - the browser OAuth page is yours to complete.",
+          "This plugin never types an account, a password, a code or a token."
+        ]
+      },
+      "rollback": "Tailscale tray menu > Disconnect (or `tailscale down` in an ordinary window)"
+    },
+    {
+      "id": "DSH_RUNNING_LOOPBACK",
+      "uninstall": {
+        "policy": "keep",
+        "keepReason": "DSH is the application being reached over the link, not an artifact of the link; this tool never starts, stops or restarts it, and it never kills its host process.",
+        "removeCommand": null,
+        "impactIfRemoved": "not applicable - there is no code path in the uninstaller that stops DSH."
+      },
+      "roles": ["server", "client"],
+      "os": ["win10", "win11"],
+      "title": "DSH is running and its HTTP port is bound to loopback only",
+      "detect": {
+        "kind": "listener",
+        "addressClass": "loopback",
+        "port": "<DSH_PORT>",
+        "note": "Default port is the documented 43120; override with -Port or $env:DSH_WEB_URL. The port is measured, never read back from a config file."
+      },
+      "whenMissing": {
+        "en": "Nothing listens on 127.0.0.1:<DSH_PORT>. Start DSH Desktop first; if it listens on a wildcard address instead, that is a security finding, not a prerequisite.",
+        "zh": "127.0.0.1:<DSH_PORT> 上没有监听。请先启动 DSH Desktop;若它绑在通配地址上,那是安全问题,不是前置件缺失。"
+      },
+      "install": { "automatic": false, "humanSteps": ["Start DSH Desktop; read the real posture with: powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly"] },
+      "rollback": "nothing to roll back (the collector never starts or stops DSH)"
+    },
+    {
+      "id": "SERVE_ON_TAILNET_443",
+      "uninstall": {
+        "policy": "optional-remove",
+        "keepReason": null,
+        "removeCommand": "tailscale serve reset",
+        "impactIfRemoved": "the remote URL stops working: the tailnet 443 listener and its proxy to the DSH loopback port are gone. Measured wording matters here - `tailscale serve reset` clears the WHOLE serve configuration of this machine, not only this port, so any other serve target you configured is cleared with it. Verify with `tailscale serve status`."
+      },
+      "roles": ["server"],
+      "os": ["win10", "win11"],
+      "title": "tailscale serve publishes the DSH loopback port on the tailnet (443)",
+      "detect": {
+        "kind": "listener",
+        "addressClass": "tailnet",
+        "port": "443",
+        "note": "Expect one LISTENING row whose owner is tailscaled. The equivalent human proof is `tailscale serve status` in an ordinary window, which shows the proxy target 127.0.0.1:<DSH_PORT>."
+      },
+      "whenMissing": {
+        "en": "No 443 listener on a tailnet address. Configure it in an ordinary window: tailscale serve --bg <DSH_PORT>. Without --bg the serve config is not restored after a reboot or a tailscale up/down.",
+        "zh": "tailnet 地址上没有 443 监听。请在普通窗口执行:tailscale serve --bg <DSH_PORT>。不加 --bg 时,重启或 tailscale up/down 后 serve 配置不会自动恢复。"
+      },
+      "install": {
+        "automatic": false,
+        "humanSteps": ["Run it yourself in an ordinary window; the agent session cannot reach the daemon."],
+        "command": "tailscale serve --bg <DSH_PORT>",
+        "verify": [
+          "tailscale serve status",
+          "powershell -NoProfile -Command \"netstat -ano | Select-String ':443'\""
+        ],
+        "rollback": "tailscale serve reset    # clears the WHOLE serve config on this machine (it is not a per-port stop); verify with: tailscale serve status"
+      }
+    },
+    {
+      "id": "TRUSTED_HOSTS_CONFIGURED",
+      "uninstall": {
+        "policy": "optional-remove",
+        "keepReason": null,
+        "removeCommand": "delete the trustedHosts lines you added in <DSH_HOME>\\profiles\\<name>\\cordis.patch.yml, then restart DSH from its own Restart menu",
+        "impactIfRemoved": "the remote UI still opens but every /api call fails, so the page reconnects forever. This is the exact change the journal records as the dsh-profile-row / dsh-settings surfaces, so the uninstaller reverts it only while the recorded text is unchanged."
+      },
+      "roles": ["server"],
+      "os": ["win10", "win11"],
+      "title": "connection.trustedHosts trusts the tailnet hostname",
+      "detect": {
+        "kind": "delegate",
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role server -AsJson",
+        "note": "Delegated on purpose: judging this correctly means scanning the WHOLE loaded patch chain (app bundle layer + every profile layer) and requiring a real ts.net authority, not merely the presence of the key. An earlier revision of this manifest tested only 'the file mentions trustedHosts', which returned a FALSE PASS on the reference machine where the app layer ships `trustedHosts: []`. The collector already implements the full scan (see docs/collect.md section 4, TRUSTED_HOSTS_PATCH), so it stays the single authority instead of a second, weaker implementation."
+      },
+      "whenMissing": {
+        "en": "trustedHosts does not carry the tailnet hostname, so the remote UI will open and then fail on /api (endless 'reconnecting'). Add it to the active profile patch and restart DSH from its OWN restart menu.",
+        "zh": "trustedHosts 里没有 tailnet 主机名,远端界面能打开但 /api 会一直失败(表现为反复「自动重连中」)。请在活动 profile 的 patch 里加上,并用 DSH 自带的重启菜单重启。"
+      },
+      "install": {
+        "automatic": false,
+        "humanSteps": [
+          "Edit the profile patch yourself and add the server MagicDNS name to connection.trustedHosts.",
+          "Restart DSH only from its own Restart menu (Settings > Desktop). Never kill the host process and never install a restart plugin: the host is an Electron utilityProcess child that throws without its supervisor."
+        ],
+        "command": "# in <DSH_HOME>\\profiles\\<name>\\cordis.patch.yml :\n# - id: web-runtime\n#   config:\n#     trustedHosts:\n#       - <MACHINE>.<TAILNET>.ts.net",
+        "verify": "powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role server",
+        "rollback": "delete the trustedHosts lines you added, then restart DSH from its own menu"
+      }
+    },
+    {
+      "id": "NARROW_INBOUND_ALLOW",
+      "uninstall": {
+        "policy": "optional-remove",
+        "keepReason": null,
+        "removeCommand": "Remove-NetFirewallRule -DisplayName 'DSH via Tailscale serve (tcp 443)'",
+        "impactIfRemoved": "the tailnet client can no longer reach tcp 443 of this machine, so the link is dead; every other rule and every profile default stays exactly as it is. The uninstaller removes only a rule whose name it recorded AND whose current value is still the one its own remediation produced."
+      },
+      "roles": ["server"],
+      "os": ["win10", "win11"],
+      "title": "Inbound 443 from the tailnet is allowed (and nothing wider)",
+      "detect": {
+        "kind": "registry",
+        "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\FirewallRules",
+        "contains": "Tailscale-Process",
+        "expect": { "present": true },
+        "note": "Tailscale ships its own rules: the process-level Tailscale-Process (UDP, Edge=TRUE) and two address-level Tailscale-In rules that only cover the Domain,Private profiles. If the Tailscale adapter is classified Public those allows silently stop applying, so a narrow explicit allow may be required."
+      },
+      "whenMissing": {
+        "en": "The built-in Tailscale rules are absent or do not cover this deployment. Add ONE narrow inbound allow: tcp 443, remote address 100.64.0.0/10, program tailscaled.exe. Widening the default profile policy is not an acceptable substitute.",
+        "zh": "Tailscale 自带规则缺失或覆盖不到本部署。请只加一条窄入向放行:tcp 443、远端地址 100.64.0.0/10、程序 tailscaled.exe。放宽 profile 默认策略不能作为替代。"
+      },
+      "install": {
+        "automatic": false,
+        "elevation": "your UAC prompt; this manifest never elevates",
+        "humanSteps": ["Run this in an elevated PowerShell yourself (the agent session is not elevated and must not try to become so)."],
+        "command": "New-NetFirewallRule -DisplayName 'DSH via Tailscale serve (tcp 443)' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 443 -RemoteAddress 100.64.0.0/10 -Program \"$env:ProgramFiles\\Tailscale\\tailscaled.exe\" -Profile Any",
+        "verify": [
+          "powershell -NoProfile -Command \"netsh advfirewall monitor show currentprofile\"",
+          "powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role server"
+        ],
+        "rollback": "Remove-NetFirewallRule -DisplayName 'DSH via Tailscale serve (tcp 443)'"
+      }
+    },
+    {
+      "id": "SERVER_POWER_IDLE_SLEEP",
+      "uninstall": {
+        "policy": "optional-remove",
+        "keepReason": null,
+        "removeCommand": "powercfg /change standby-timeout-ac <previous minutes>   and   powercfg /change standby-timeout-dc <previous minutes>",
+        "impactIfRemoved": "the server may idle-sleep again, so the link dies while nobody is at the keyboard. The uninstaller derives the command from the value it recorded in the journal and refuses to run anything it cannot derive."
+      },
+      "roles": ["server"],
+      "os": ["win10", "win11"],
+      "title": "The server does not idle-sleep out of the link",
+      "detect": {
+        "kind": "command",
+        "command": "powercfg.exe",
+        "args": ["/query", "SCHEME_CURRENT", "238c9fa8-0aad-41ed-83f4-97be242c8f20", "29f6c1db-86da-48c5-9fdb-f2b67b1f44da"],
+        "expect": { "exitCode": 0 },
+        "note": "The raw AC/DC indices are read by the collector (never the localized labels). Reference machine: AC=DC=0x0 (never sleep). The Win11 peer measured DC=0x00000e10 = 3600 s, i.e. 'the link dies 3600 s after mains power is lost'."
+      },
+      "whenMissing": {
+        "en": "STANDBYIDLE is non-zero on AC and/or DC, so this server will sleep and the link will drop. Wording matters: report the DC value in seconds instead of claiming 'sleep is disabled'.",
+        "zh": "STANDBYIDLE 的 AC 或 DC 非 0,服务端会到点睡眠、链路必断。措辞要准:报出 DC 的秒数,不要笼统写「已设不休眠」。"
+      },
+      "install": {
+        "automatic": false,
+        "elevation": "your UAC prompt",
+        "command": "powercfg /change standby-timeout-ac 0\npowercfg /change standby-timeout-dc 0",
+        "verify": "powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role server",
+        "rollback": "powercfg /change standby-timeout-ac <previous minutes>\npowercfg /change standby-timeout-dc <previous minutes>   # record both before changing"
+      }
+    },
+    {
+      "id": "TAILNET_ACL_NARROW",
+      "uninstall": {
+        "policy": "keep",
+        "keepReason": "The tailnet policy lives in your admin console. This tool holds no credential, calls no API and cannot read or change it, so only you can edit it and this tool never claims to.",
+        "removeCommand": null,
+        "impactIfRemoved": "not applicable - the console-side policy is out of reach of this tool; restoring your previous policy text is a change only you can make."
+      },
+      "roles": ["server"],
+      "os": ["win10", "win11"],
+      "title": "The tailnet policy allows the client only to tcp 443 of this server",
+      "detect": {
+        "kind": "manual",
+        "note": "The tailnet policy lives in the admin console; nothing on this machine can read it (and the CLI is not an authority here)."
+      },
+      "whenMissing": {
+        "en": "Not machine-verifiable. In the tailnet admin console, allow only client -> server tcp 443. A one-way narrow ACL also makes reverse ping fail by design - that is expected, not a fault.",
+        "zh": "无法在本机验证。请在 tailnet 控制台只放行「客户端 → 服务端 tcp 443」。单向窄 ACL 会让反向 ping 不通,这是预期行为,不是故障。"
+      },
+      "install": { "automatic": false, "humanSteps": ["Console-only change; keep a copy of the previous policy so you can paste it back."] },
+      "rollback": "restore the previous policy text in the admin console"
+    },
+    {
+      "id": "CLIENT_FIRST_OPEN_TOKEN",
+      "uninstall": {
+        "policy": "keep",
+        "keepReason": "The 30-day cookie is a credential in your own browser. This tool never reads, prints, stores or revokes a credential, so the revocation steps (clear that site's cookies, then optionally the server-side credentials records) stay yours; see docs/install/rollback.md section 3.",
+        "removeCommand": null,
+        "impactIfRemoved": "not applicable - this tool has no code path that touches a cookie or a credential."
+      },
+      "roles": ["client"],
+      "os": ["win10", "win11"],
+      "title": "First open of the remote URL (token in the URL) is a human action",
+      "detect": {
+        "kind": "manual",
+        "note": "The one-time token is a credential. No automated check may read it, echo it, log it or open the URL for you."
+      },
+      "whenMissing": {
+        "en": "Paste the one-time URL (<https://<MACHINE>.<TAILNET>.ts.net/>?token=<TOKEN>) into your own browser once; it exchanges for a 30-day cookie. Never paste it into a chat, a file or a log.",
+        "zh": "请把一次性 URL(<https://<MACHINE>.<TAILNET>.ts.net/>?token=<TOKEN>)自己粘进浏览器打开一次,它会换成 30 天 cookie。不要把它贴进聊天、文件或日志。"
+      },
+      "install": { "automatic": false, "humanSteps": ["Human-only by design: printing the token anywhere would leak it."] },
+      "rollback": "3 steps, in this order (details: docs/install/rollback.md section 3): (1) clear that site's cookies in the CLIENT browser (browser -> that site -> clear site data); (2) only if you suspect the cookie leaked, delete the server-side credentials records \"client-connection\" / \"browser-session\" and restart DSH from its own menu; (3) note that restarting DSH alone does NOT invalidate an already-issued 30-day cookie - a restart only rotates the per-process launch token. There is no UI entry that revokes it: the only two revocation points are the client cookie and the server credentials records."
+    },
+    {
+      "id": "CLIENT_MAGICDNS",
+      "uninstall": {
+        "policy": "keep",
+        "keepReason": "Name resolution needs no artifact of its own: nothing was installed or changed on this machine for it, so there is nothing to remove.",
+        "removeCommand": null,
+        "impactIfRemoved": "not applicable - no file and no setting belongs to this item."
+      },
+      "roles": ["client"],
+      "os": ["win10", "win11"],
+      "title": "MagicDNS resolves the server name",
+      "detect": {
+        "kind": "delegate",
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -AsJson -Role client -Peer <SERVER_IP> -PeerName <MACHINE>.<TAILNET>.ts.net",
+        "note": "Name resolution needs the peer name, which only the operator knows; the collector judges it with an explicit 4 s timeout."
+      },
+      "whenMissing": {
+        "en": "Provide -PeerName and let the collector judge it. Never guess or hardcode a tailnet name.",
+        "zh": "请提供 -PeerName 交给采集器判定。绝不猜测或写死 tailnet 名字。"
+      },
+      "install": { "automatic": false, "humanSteps": ["Re-run the delegate command with your real peer values."] },
+      "rollback": "nothing to roll back"
+    },
+    {
+      "id": "CLIENT_PROXY_BYPASS",
+      "uninstall": {
+        "policy": "optional-remove",
+        "keepReason": null,
+        "removeCommand": "remove the tailnet name / 100.64.0.0/10 entry you added to the proxy bypass list (Settings > Network & Internet > Proxy), or re-enable the proxy you turned off",
+        "impactIfRemoved": "with a proxy enabled and no bypass, the tailnet page may never load even though TCP works."
+      },
+      "roles": ["client"],
+      "os": ["win10", "win11"],
+      "title": "A system proxy does not hijack the tailnet name",
+      "detect": {
+        "kind": "registry",
+        "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
+        "value": "ProxyEnable",
+        "expect": { "equals": 0 },
+        "note": "When ProxyEnable=1 the bypass list must contain the tailnet name or 100.64.0.0/10; otherwise the browser times out while scripted probes succeed."
+      },
+      "whenMissing": {
+        "en": "A system proxy is enabled without a tailnet bypass, so the page may never load even though TCP works. Add the tailnet name / 100.64.0.0/10 to the bypass list, or disable the proxy while using the link.",
+        "zh": "系统代理已启用且没有 tailnet 直连规则,即使 TCP 通,页面也可能打不开。请把 tailnet 名字 / 100.64.0.0/10 加入绕过列表,或使用链路时关闭代理。"
+      },
+      "install": {
+        "automatic": false,
+        "humanSteps": ["Change it in Windows Settings > Network & Internet > Proxy, or leave the collector's degraded finding as-is."],
+        "command": "# Settings > Network & Internet > Proxy > 'Do not use the proxy server for these addresses'",
+        "verify": "powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role client",
+        "rollback": "remove the bypass entry you added (or re-enable the proxy)"
+      }
+    },
+    {
+      "id": "HOST_SERVICE_FOR_PANEL",
+      "uninstall": {
+        "policy": "optional-remove",
+        "keepReason": null,
+        "removeCommand": "cordis_undefine(<PLUGIN_ID>)   # in the DSH session, for the panel package you activated (guard-1 or panel-2)",
+        "impactIfRemoved": "the optional posture Service and the panel disappear; the collector itself and the panel's fallback path are unaffected, so the read-only posture check still works. This is the cordis-dynamic-package surface: the uninstaller PRINTS this command, never executes it, because a dynamic package exists only in DSH process memory."
+      },
+      "roles": ["server", "client"],
+      "os": ["win10", "win11"],
+      "title": "Optional: the t5 host package provides the posture Service the panel prefers",
+      "detect": {
+        "kind": "delegate",
+        "command": "cordis_inspect_self  (look for the t5 host plugin, package guard-1/pkg-4, state running)",
+        "note": "Without it the panel still works: its host half runs the collector directly. With it the panel reuses the same Service and reports source=service:remoteTailnetGuard."
+      },
+      "whenMissing": {
+        "en": "Optional. Activate the t5 host package (docs/install/install.md) if you want the panel to share one collector service.",
+        "zh": "可选。若希望面板共用一个采集服务,请激活 t5 的 host 包(见 docs/install/install.md)。"
+      },
+      "install": { "automatic": false, "humanSteps": ["See docs/install/install.md - dynamic package path."] },
+      "rollback": "cordis_stop on that pluginId (removes the Service, the private method and the tool)"
+    }
+  ]
+}

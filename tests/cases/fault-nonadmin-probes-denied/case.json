@@ -1,0 +1,23 @@
+{
+  "id": "fault-nonadmin-probes-denied",
+  "title": "elevation-only probes are denied: unknown(permission), not 'nothing found'",
+  "titleZh": "需要提权的探针被拒:unknown(权限被拒),不是「没找到」",
+  "kind": "collector",
+  "why": "MEASURED on the reference machine: non-elevated Get-NetConnectionProfile and powercfg /requests are refused outright. A refusal carries no information about the machine's state, so the verdict must be unknown with the denial attached - claiming 'no rule / not configured' would be a fabricated answer. The registry-based firewall check must still work, because that is exactly why the collector prefers it.",
+  "inject": "the admin-only cmdlet and powercfg query replaced by an access-denied result; the netsh fallback removed as well",
+  "expectSummary": "NIC unknown/nic_probe_failed, POWER unknown/power_unparsed, FIREWALL_PROFILES still pass from the registry, exit != 0",
+  "base": "_base/server-en.json",
+  "unset": ["native.netsh_currentprofile"],
+  "layer": {
+    "cmdlets": { "net_connection_profile": { "_available": false, "_error": "Access is denied" } },
+    "native": { "powercfg_query_standby": { "_available": false, "_error": "Access is denied" } }
+  },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCodeNot": 0,
+    "verdicts": { "NIC_PROFILE_ATTRIBUTION": "unknown", "POWER_STANDBY_IDLE_AC_DC": "unknown", "FIREWALL_PROFILES": "pass" },
+    "reasons": { "NIC_PROFILE_ATTRIBUTION": "nic_probe_failed", "POWER_STANDBY_IDLE_AC_DC": "power_unparsed", "FIREWALL_PROFILES": "fw_ok" },
+    "notVerdicts": { "NIC_PROFILE_ATTRIBUTION": ["pass", "degraded", "blocked"], "POWER_STANDBY_IDLE_AC_DC": ["pass", "degraded", "blocked"] },
+    "raw": { "NIC_PROFILE_ATTRIBUTION": { "structureParsed": false } }
+  }
+}

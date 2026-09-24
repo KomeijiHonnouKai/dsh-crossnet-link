@@ -1,0 +1,21 @@
+{
+  "id": "uninstall-purge-without-apply-refused",
+  "title": "uninstaller refuses -PurgeBackup unless the same run also carries -Apply",
+  "kind": "uninstall",
+  "why": "The retention rule is 'did not back it up in this run => must not delete it'. -PurgeBackup without -Apply would delete a backup directory that this run never created, so it must be refused (exit 2) before anything is touched. The refusal must name the rule (purge_without_apply) so the operator can act on it.",
+  "inject": "an empty fixture plus -PurgeBackup -AsJson and no -Apply, with an explicit -StateDir under the case temp dir",
+  "expectSummary": "exit 2, refusals[0].reasonKey=purge_without_apply (and journal_required second), temp dir untouched",
+  "uninstall": {
+    "args": ["-PurgeBackup", "-AsJson"],
+    "fixture": {},
+    "expectExit": 2,
+    "assertNoTmpWrites": true,
+    "jsonEq": [
+      { "path": "summary.exitCode", "eq": 2 },
+      { "path": "summary.verdict", "eq": "refused" },
+      { "path": "refusals[0].reasonKey", "eq": "purge_without_apply" },
+      { "path": "refusals[1].reasonKey", "eq": "journal_required" },
+      { "path": "tool.action", "eq": "purge" }
+    ]
+  }
+}

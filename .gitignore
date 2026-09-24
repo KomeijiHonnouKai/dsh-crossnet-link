@@ -1,0 +1,82 @@
+# remote-tailnet-guard - repository hygiene / ignore rules
+#
+# LAST UPDATED  : 2026-09-24 (task t39 - tools/ listed in the release set so the uninstaller
+#                 ships with a clone; task t12 completed the internal-material list)
+# COMMANDS USED : powershell -NoProfile -ExecutionPolicy Bypass -File
+#                 .github/scripts/repo-hygiene.ps1        (reads this file to prove the
+#                 internal material below is excluded)
+#
+# NOTE: the gate script holds the blocked-identifier patterns, so this file refers to them
+# by name instead of quoting them - quoting them here would make the release-set scan
+# report this file. See .github/scripts/repo-hygiene.ps1 section 0 for the actual list.
+
+# ---------------------------------------------------------------------------
+# 1. INTERNAL MATERIAL - deliberately NOT part of the released repository
+# ---------------------------------------------------------------------------
+# The release set is exactly:
+#   src/  i18n/  tests/  panel/  tools/  docs/collect.md  docs/install/
+#   docs/threat-model.md  SECURITY.md  LICENSE  README.md  CHANGELOG.md
+#   CONTRIBUTING.md  .gitignore  .editorconfig  .github/**
+# Everything else under docs/ is internal analysis and review material: it contains
+# machine specifics gathered while the checks were designed, so it is excluded on purpose.
+# README.md states the same thing for readers ("Internal analysis and review material does
+# not ship with the repository"), and repo-hygiene.ps1 fails if a file listed here is
+# missing from this section.
+docs/baseline.md
+docs/matrix.md
+docs/harness-contract.md
+docs/defensive-spec.md
+docs/security-review.md
+docs/security-review-r2.md
+docs/security-review-r3.md
+docs/verify-t7.md
+
+# ---------------------------------------------------------------------------
+# 2. Collector / prerequisite-checker output (opt-in report files only)
+# ---------------------------------------------------------------------------
+# collect.ps1 writes ZERO bytes unless the caller passes -OutFile / -DumpFixture, and
+# panel/prereq.ps1 has no output-file switch at all. Anything either can produce is a local
+# report and must never be committed (it may contain live peer addresses).
+*.report.json
+*-report.json
+rtg-report*
+out/
+*.log
+
+# ---------------------------------------------------------------------------
+# 3. Binary products - this repository is text-only
+# ---------------------------------------------------------------------------
+*.exe
+*.dll
+*.msi
+*.msix
+*.zip
+*.7z
+*.cab
+*.pdb
+*.nupkg
+
+# ---------------------------------------------------------------------------
+# 4. Secret stores and credential material (defence in depth)
+# ---------------------------------------------------------------------------
+# The plugin never reads, prints, stores or transmits these; this section exists so that an
+# accidental copy never gets committed. See SECURITY.md promise P4.
+.credentials.yaml
+*.credentials.yaml
+*.token
+*.pem
+*.pfx
+*.key
+ext-bridge-token*
+
+# ---------------------------------------------------------------------------
+# 5. OS / editor litter
+# ---------------------------------------------------------------------------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.swp
+*~
+.vscode/
+.idea/

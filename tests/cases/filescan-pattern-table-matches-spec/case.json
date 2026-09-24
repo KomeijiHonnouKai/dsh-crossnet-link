@@ -1,0 +1,24 @@
+{
+  "id": "filescan-pattern-table-matches-spec",
+  "title": "the scanner's pattern table and the specification cannot drift apart (spec-side checks run in the maintainer workspace, skipped when the spec is absent)",
+  "titleZh": "\u626b\u63cf\u5668\u7684 pattern \u8868\u4e0e\u89c4\u683c 2.1 \u4e0d\u4f1a\u5404\u8bf4\u5404\u8bdd(\u89c4\u683c\u4fa7\u7684\u65ad\u8a00\u53ea\u5728\u7ef4\u62a4\u8005\u5de5\u4f5c\u533a\u8dd1,\u89c4\u683c\u7f3a\u5e2d\u65f6\u8bb0\u4e3a skip)",
+  "kind": "filescan",
+  "why": "The suite owns its copy of the six forbidden patterns; the normative list lives in the design specification. If somebody adds a seventh pattern to the spec, or renames one here, the two documents start disagreeing and the scan silently stops covering a class of leak. The six assertions against tests/run-tests.ps1 always run. The five assertions against docs/defensive-spec.md describe internal material (listed in .github/scripts/repo-hygiene.ps1 as $InternalMaterial) that is deliberately NOT published, so they carry ifMissing:'skip': in the maintainer workspace that file is present and all eleven assertions run for real; in a published clone the five are reported as SKIP lines and counted in the summary, instead of failing a suite that only ever claimed to be runnable from the published set. Encoding note: titleZh is stored with JSON \\u escapes so this touched file stays byte-ASCII; every other case file carries raw UTF-8 Chinese, and the runner reads case.json as explicit UTF-8, so the decoded title is unchanged.",
+  "inject": "the runner source (always present) and docs/defensive-spec.md (maintainer workspace only; absent from the published set)",
+  "expectSummary": "6 pattern names present in tests/run-tests.ps1 (always) + 5 spec-side assertions that run in the maintainer workspace and are reported as SKIP in a published clone",
+  "filescan": {
+    "asserts": [
+      { "type": "contains", "file": "tests/run-tests.ps1", "pattern": "abs-user-path" },
+      { "type": "contains", "file": "tests/run-tests.ps1", "pattern": "username" },
+      { "type": "contains", "file": "tests/run-tests.ps1", "pattern": "hostname" },
+      { "type": "contains", "file": "tests/run-tests.ps1", "pattern": "fixed-peer-ip" },
+      { "type": "contains", "file": "tests/run-tests.ps1", "pattern": "fixed-tailnet" },
+      { "type": "contains", "file": "tests/run-tests.ps1", "pattern": "credential-like" },
+      { "type": "contains", "file": "docs/defensive-spec.md", "pattern": "abs-user-path", "ifMissing": "skip" },
+      { "type": "contains", "file": "docs/defensive-spec.md", "pattern": "fixed-tailnet", "ifMissing": "skip" },
+      { "type": "contains", "file": "docs/defensive-spec.md", "pattern": "credential-like", "ifMissing": "skip" },
+      { "type": "contains", "file": "docs/defensive-spec.md", "pattern": "allowlist.json", "ifMissing": "skip" },
+      { "type": "contains", "file": "docs/defensive-spec.md", "pattern": "\\*\\.ps1", "ifMissing": "skip" }
+    ]
+  }
+}

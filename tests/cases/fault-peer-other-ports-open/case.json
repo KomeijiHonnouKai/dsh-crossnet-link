@@ -1,0 +1,17 @@
+{
+  "id": "fault-peer-other-ports-open",
+  "title": "peer answers on 135 as well: ACL is wider than intended",
+  "titleZh": "对端在 135 上也有响应:ACL 比预期宽",
+  "kind": "collector",
+  "why": "The designed ACL allows exactly one path (client -> server tcp:443). A reachable 135 means the ACL is too wide. It is a real finding but not a link-breaking one, so it must be degraded - the middle state between pass and blocked.",
+  "inject": "TCP probe result for 203.0.113.5:135 replaced by 'connected'",
+  "expectSummary": "PEER_ISOLATION_PROBES degraded/peer_iso_too_open, no blocked item",
+  "base": "_base/server-en.json",
+  "layer": { "network": { "tcp/203.0.113.5/135": { "result": "connected", "ms": 2 } } },
+  "args": ["-Role", "client", "-Peer", "203.0.113.5", "-PeerName", "peer.example.test"],
+  "expect": {
+    "exitCode": 1,
+    "verdicts": { "PEER_ISOLATION_PROBES": "degraded", "PEER_TCP_443": "pass" },
+    "reasons": { "PEER_ISOLATION_PROBES": "peer_iso_too_open" }
+  }
+}

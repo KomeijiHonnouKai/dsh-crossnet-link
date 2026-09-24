@@ -1,0 +1,18 @@
+{
+  "id": "filescan-no-localized-hardmatch-and-ascii",
+  "title": "scripts stay ASCII and tool field names come from the pattern layer, not from literals",
+  "titleZh": "脚本保持纯 ASCII,工具字段名来自 pattern 层而不是字面量",
+  "kind": "filescan",
+  "why": "Three measured traps in one static check. (1) Windows PowerShell 5.1 decodes a BOM-less script as the system ANSI code page, so a non-ASCII literal can absorb the next quote byte and produce a wall of fake syntax errors - which is exactly what happened while this suite was being written. (2) The netsh field names must be read through Get-Pattern, so a new locale needs a new label file and not a code change. (3) The netstat state token may only appear in the scripts that legitimately own it - src/collect.ps1 (the parser), tests/run-tests.ps1 and tests/run-smoke.ps1 (their own netstat readers) and panel/prereq.ps1 (it declares the injectable state pattern) - so a localized hard match cannot be added anywhere else by accident. t38 turned these assertions back on: they had been dead code since the runner skipped every tree-wide assertion type, and the file set is now filtered by extension explicitly because `-Include` is ignored for a wildcard-free -LiteralPath directory.",
+  "inject": "the plugin's *.ps1 sources, checked for the netstat state literal, the localized field names, the Get-Pattern call sites and the ASCII/BOM/parse rules",
+  "expectSummary": "no Chinese literals in *.ps1; the state token only in src/collect.ps1, tests/run-tests.ps1, tests/run-smoke.ps1 and panel/prereq.ps1; >=4 Get-Pattern netsh_ call sites",
+  "filescan": {
+    "asserts": [
+      { "type": "literal-zero", "extensions": ["*.ps1"], "pattern": "\u8fb9\u7f18\u904d\u5386|\u4e13\u7528\u914d\u7f6e\u6587\u4ef6|\u57df\u914d\u7f6e\u6587\u4ef6|\u516c\u7528\u914d\u7f6e\u6587\u4ef6|\u786e\u5b9a\u3002" },
+      { "type": "literal-zero", "extensions": ["*.ps1"], "pattern": "LISTENING", "allowFiles": ["src/collect.ps1", "tests/run-tests.ps1", "tests/run-smoke.ps1", "panel/prereq.ps1"] },
+      { "type": "literal-min", "extensions": ["*.ps1"], "pattern": "Get-Pattern 'netsh_", "minCount": 4 },
+      { "type": "parses", "file": "panel/prereq.ps1" },
+      { "type": "no-bom", "file": "panel/prereq.ps1" }
+    ]
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "id": "fault-edge-drift-blocked",
+  "title": "Edge traversal on Tailscale-Process was turned off -> blocked (silent NAT-traversal loss)",
+  "titleZh": "Tailscale-Process 的边缘遍历被关掉 -> blocked(NAT 穿透静默失效)",
+  "kind": "collector",
+  "why": "Failures F24 in the failure library: the rule that must be inspected is the PROCESS rule Tailscale-Process; Tailscale-In is expected to be Edge=No, so reading the wrong rule concludes 'no drift'. This case pins both halves: the drift is caught from the stored registry value, and the Tailscale-In judgement stays pass so the two are not confused.",
+  "inject": "the stored Tailscale-Process rule carries Edge=FALSE while Tailscale-In is untouched",
+  "expectSummary": "TAILSCALE_PROCESS_EDGE_DB blocked/edge_false while TAILSCALE_IN_RULES stays pass, exit 2",
+  "base": "_base/server-en.json",
+  "layer": {
+    "registry": {
+      "firewall_rules": {
+        "Tailscale-Process": "Name=Tailscale-Process|Edge=FALSE|Dir=Out|Action=Allow|Active=TRUE|Protocol=Any|Profile=Domain,Private"
+      }
+    },
+    "native": { "netsh_rule_process_verbose": { "exitCode": 0, "stdout": "Rule Name: Tailscale-Process\r\n----------------------------------------------------------------------\r\nEdge traversal: No\r\n" } }
+  },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCode": 2,
+    "verdicts": { "TAILSCALE_PROCESS_EDGE_DB": "blocked", "TAILSCALE_IN_RULES": "pass" },
+    "reasons": { "TAILSCALE_PROCESS_EDGE_DB": "edge_false", "TAILSCALE_IN_RULES": "ts_in_ok" },
+    "remediation": { "TAILSCALE_PROCESS_EDGE_DB": { "applied": false, "needsNonEmptyRollback": true } },
+    "raw": { "TAILSCALE_PROCESS_EDGE_DB": { "storedEdge": "FALSE", "echoedEdge": "No" } }
+  }
+}

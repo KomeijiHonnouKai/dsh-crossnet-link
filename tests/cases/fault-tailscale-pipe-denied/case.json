@@ -1,0 +1,24 @@
+{
+  "id": "fault-tailscale-pipe-denied",
+  "title": "tailscale CLI is refused by the protected named pipe: unknown, not 'not logged in'",
+  "titleZh": "tailscale CLI 被受保护命名管道拒绝:unknown,不是「未登录」",
+  "kind": "collector",
+  "why": "MEASURED on the reference machine. Two traps in one case: (1) 'tailscale version' exits 0 even here, so a version check must never be read as 'the CLI is usable'; (2) the denial must not be reported as a login or configuration problem, because that sends the user to fix the wrong thing. This case fails if either trap is re-introduced.",
+  "inject": "version exits 0, while 'ip -4' exits 1 with the ProtectedPrefix access-denied text",
+  "expectSummary": "TAILSCALE_CLI_LAYER unknown/ts_pipe_denied (never ts_cli_ok, never ts_not_logged_in), exit != 0",
+  "base": "_base/server-en.json",
+  "layer": {
+    "native": {
+      "tailscale_version": { "exitCode": 0, "stdout": "1.102.4\r\n" },
+      "tailscale_ip4": { "exitCode": 1, "stdout": "", "stderr": "open \\\\.\\pipe\\ProtectedPrefix\\Administrators\\Tailscale\\tailscaled: Access is denied." }
+    }
+  },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCodeNot": 0,
+    "verdicts": { "TAILSCALE_CLI_LAYER": "unknown" },
+    "reasons": { "TAILSCALE_CLI_LAYER": "ts_pipe_denied" },
+    "reasonNot": { "TAILSCALE_CLI_LAYER": ["ts_cli_ok", "ts_not_logged_in", "ts_probe_failed"] },
+    "raw": { "TAILSCALE_CLI_LAYER": { "version.exitCode": 0, "ip4.exitCode": 1 } }
+  }
+}

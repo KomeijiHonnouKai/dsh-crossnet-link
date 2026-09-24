@@ -1,0 +1,18 @@
+{
+  "id": "fault-peer-refused",
+  "title": "peer reachable but tcp 443 refused (nothing listening)",
+  "titleZh": "对端可达但 443 拒绝(nothing listening)",
+  "kind": "collector",
+  "why": "Refused and timeout mean different things: refused says the packet was answered, so the ACL is fine but tailscale serve is not up. The verdict keys must be distinct, otherwise the troubleshooting hint is wrong.",
+  "inject": "TCP probe result for 203.0.113.5:443 replaced by 'refused'",
+  "expectSummary": "PEER_TCP_443 blocked/peer_443_refused, exit 2",
+  "base": "_base/server-en.json",
+  "layer": { "network": { "tcp/203.0.113.5/443": { "result": "refused", "ms": 4 } } },
+  "args": ["-Role", "client", "-Peer", "203.0.113.5", "-PeerName", "peer.example.test"],
+  "expect": {
+    "exitCode": 2,
+    "verdicts": { "PEER_TCP_443": "blocked" },
+    "reasons": { "PEER_TCP_443": "peer_443_refused" },
+    "raw": { "PEER_TCP_443": { "probe.result": "refused" } }
+  }
+}

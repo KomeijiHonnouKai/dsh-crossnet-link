@@ -1,0 +1,18 @@
+{
+  "id": "isolation-no-writes-to-dsh-home",
+  "title": "a full run leaves the DSH home byte-identical",
+  "titleZh": "完整跑一遍后,DSH home 逐字节不变",
+  "kind": "isolation",
+  "why": "The isolation claim of the whole plugin is 'read-only by default'. This case builds a disposable DSH home that looks real (settings.yaml, two profiles, a .credentials.yaml placeholder that is never read), hashes every file, runs the collector against it, and hashes everything again. Any created, deleted or rewritten byte fails the case - including a cache file or a rewritten settings.yaml.",
+  "inject": "a temp DSH_HOME with settings.yaml, two profiles and an untouched .credentials.yaml; the collector is pointed at it with -DshHome",
+  "expectSummary": "every file hash unchanged, no file created or deleted, CREDENTIAL_DISCIPLINE pass, exit 1",
+  "base": "_base/server-en.json",
+  "tmp": { "home": { "settings": "networkExposure: loopback\nmode: host\n" } },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCode": 1,
+    "verdicts": { "CREDENTIAL_DISCIPLINE": "pass", "NO_NEW_WILDCARD_LISTENER": "pass", "DSH_LOOPBACK_ONLY": "pass" },
+    "info": { "collector.readOnly": true },
+    "summary": { "blocked": 0 }
+  }
+}

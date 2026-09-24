@@ -1,0 +1,18 @@
+{
+  "id": "fault-peer-dsh-port-open-on-peer",
+  "title": "the peer answers on its own DSH port -> the loopback-only premise is broken",
+  "titleZh": "对端在自己的 DSH 端口上有响应 -> loopback-only 前提被破坏",
+  "kind": "collector",
+  "why": "If the DSH port answers from the tailnet side, something widened the bind (or a proxy was added). That is worse than an unreachable peer: the narrow ACL no longer protects anything. Must be blocked, not degraded.",
+  "inject": "TCP probe result for 203.0.113.5:<DSH port> replaced by 'connected'",
+  "expectSummary": "PEER_ISOLATION_PROBES blocked/peer_iso_dsh_open, exit 2",
+  "base": "_base/server-en.json",
+  "args": ["-Role", "client", "-Peer", "203.0.113.5", "-PeerName", "peer.example.test", "-Port", "49999"],
+  "layer": { "network": { "tcp/203.0.113.5/49999": { "result": "connected", "ms": 5 } } },
+  "expect": {
+    "exitCode": 2,
+    "verdicts": { "PEER_ISOLATION_PROBES": "blocked" },
+    "reasons": { "PEER_ISOLATION_PROBES": "peer_iso_dsh_open" },
+    "raw": { "PEER_ISOLATION_PROBES": { "results.49999.result": "connected" } }
+  }
+}

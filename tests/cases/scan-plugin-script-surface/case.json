@@ -1,0 +1,14 @@
+{
+  "id": "scan-plugin-script-surface",
+  "title": "no user name, host name, peer address, tailnet name or credential pattern in any script",
+  "titleZh": "任何脚本里都没有用户名/主机名/对端 IP/tailnet 名/凭据样式",
+  "kind": "scan",
+  "why": "MEASURED lesson from the skill: scripts/verify.ps1 carried a real peer address inside its comment-based help, which is the code face, not the doc face. A clone that ships one real address is a clone that cannot be published safely. The script surface therefore gets no allowlist at all in this scan.",
+  "inject": "the plugin's own *.ps1 / *.psm1 / *.js / *.mjs files, scanned with the six patterns from defensive-spec section 2.1",
+  "expectSummary": "0 hits (no allowlist for the script surface)",
+  "scan": {
+    "root": "repo",
+    "extensions": [".ps1", ".psm1", ".js", ".mjs"],
+    "expectHits": 0
+  }
+}

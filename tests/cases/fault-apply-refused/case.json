@@ -1,0 +1,17 @@
+{
+  "id": "fault-apply-refused",
+  "title": "-Apply is refused on purpose: the read-only contract cannot be switched off",
+  "titleZh": "-Apply 被刻意拒绝:只读契约无法被打开",
+  "kind": "collector",
+  "checkOnly": false,
+  "why": "The collector has no write path at all, and the acceptance for this suite requires that to stay true. -Apply must be accepted as a parameter (so a caller cannot think it worked) and then refused with a non-zero exit and a printed reason. This is the closest thing to a switch that could ever make the tool dangerous, so it is tested explicitly.",
+  "inject": "the -Apply switch, with no -CheckOnly",
+  "expectSummary": "exit 2 and a REFUSED explanation on stdout",
+  "base": "_base/server-en.json",
+  "args": ["-Apply"],
+  "expect": {
+    "exitCode": 2,
+    "stdoutMatch": ["REFUSED"],
+    "stdoutNotMatch": ["remote-tailnet-guard/collect/1"]
+  }
+}

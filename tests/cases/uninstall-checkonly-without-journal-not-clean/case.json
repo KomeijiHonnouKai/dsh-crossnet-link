@@ -1,0 +1,25 @@
+{
+  "id": "uninstall-checkonly-without-journal-not-clean",
+  "title": "with no journal the residue scan must not claim a clean machine (exit 1, attribution unavailable)",
+  "kind": "uninstall",
+  "why": "Without a journal nothing on this machine can be attributed to this tool, so 'nothing of ours was ever installed here' is not a proven fact. The tool must say so: exit 1, attribution=unavailable with reasonKey journal_absent_cannot_attribute, and the probes it cannot answer (state directory, wildcard listener, collector delta) must be unknown rather than pass. Only the process-memory cordis item is exempt.",
+  "inject": "an empty fixture (no journal, no observations) with -CheckOnly -AsJson",
+  "expectSummary": "exit 1, attribution=unavailable, residue unknown (not pass), cordis unknown but exempt, nothing written",
+  "uninstall": {
+    "args": ["-CheckOnly", "-AsJson"],
+    "fixture": {},
+    "expectExit": 1,
+    "assertNoTmpWrites": true,
+    "jsonEq": [
+      { "path": "summary.exitCode", "eq": 1 },
+      { "path": "summary.verdict", "eq": "attention" },
+      { "path": "summary.attribution", "eq": "unavailable" },
+      { "path": "summary.attributionReasonKey", "eq": "journal_absent_cannot_attribute" },
+      { "path": "journal.found", "eq": false },
+      { "path": "residue.clean", "eq": false },
+      { "path": "residue.items[7].id", "eq": "cordis-dynamic-package" },
+      { "path": "residue.items[7].status", "eq": "unknown" },
+      { "path": "residue.items[7].exemptFromExit", "eq": true }
+    ]
+  }
+}

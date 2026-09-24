@@ -1,0 +1,27 @@
+# remote-tailnet-guard - git line-ending policy
+#
+# WHY THIS FILE EXISTS: git's own core.autocrlf (true on many Windows machines) rewrites
+# LF to CRLF in the working tree at checkout time. This repository is text-only and every
+# file in it is LF, with exactly two documented exceptions (the captured console-output
+# fixtures, which record what a Windows tool actually printed - see .editorconfig). Without
+# this file a fresh clone on a machine with core.autocrlf=true would produce CRLF files,
+# and the release gate (repo-hygiene.ps1) would report non-zero line-ending notes.
+#
+# LAST UPDATED  : 2026-09-24 (README closeout: added together with the first git commit)
+# COMMANDS USED : powershell -NoProfile -Command "Get-ChildItem -Recurse -File | % { ... }"
+#                 (line-ending census, see repo-hygiene.ps1 section 6)
+#
+# Rule 1: every file is text and stays LF in the working tree, whatever the local
+#         core.autocrlf setting is.
+* text=auto eol=lf
+
+# Rule 2: the two captured-output fixtures are byte evidence, not source - git must not
+#         touch their CRLF endings at all.
+tests/fixtures/*.json -text
+
+# Rule 3: binaries (should not exist here; the repository is text-only by policy)
+*.png binary
+*.jpg binary
+*.zip binary
+*.exe binary
+*.dll binary

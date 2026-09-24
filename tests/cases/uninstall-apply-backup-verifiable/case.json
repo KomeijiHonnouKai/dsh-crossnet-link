@@ -1,0 +1,73 @@
+{
+  "id": "uninstall-apply-backup-verifiable",
+  "title": "an -Apply run backs up first, and every MANIFEST entry verifies by sha256 and byte count",
+  "kind": "uninstall",
+  "why": "The promise 'backup before any change' is only as good as the backup itself. This case runs the whole chain offline with an explicit -StateDir: the run must create exactly the always-present backup set (journal.json, plan.json, MANIFEST.json, restore.md), and then the runner re-reads MANIFEST.json and recomputes the sha256 and the byte count of every file it lists - a tampered or truncated backup fails the case. In fixture mode no system surface may be mutated, so the revert is reported as would-do with executed=false and the run still ends exit 0, which is the documented meaning of 'a kept backup is a normal state, not a warning'.",
+  "inject": "the revertable dsh-settings fixture with -Apply -AsJson and an explicit -StateDir inside the case temp dir",
+  "expectSummary": "exit 0, backup.created=true with the 4 always-present files, every MANIFEST sha256/byte count verifies, the revert stays would-do in fixture mode",
+  "uninstall": {
+    "args": ["-Apply", "-AsJson"],
+    "fixture": {
+      "observations": {
+        "dsh-settings:dsh-desktop.networkExposure": { "status": "read", "value": "loopback" },
+        "power-plan:standbyidle-ac-dc": { "status": "read", "value": "0x00000000" }
+      },
+      "journal": {
+        "schemaVersion": 1,
+        "records": [
+          {
+            "id": "dsh-settings:dsh-desktop.networkExposure",
+            "surface": "dsh-settings",
+            "scope": "dsh-desktop.networkExposure",
+            "before": "lan",
+            "expected": "loopback",
+            "after": "loopback",
+            "revert": { "kind": "edit", "command": "set networkExposure back to lan", "note": "value only" },
+            "verify": { "command": "read the setting back", "expect": "lan" },
+            "userOwned": false
+          },
+          {
+            "id": "power-plan:standbyidle-ac-dc",
+            "surface": "power-plan",
+            "scope": "standbyidle-ac-dc",
+            "before": "0x00000000",
+            "expected": "0x00000000",
+            "after": "0x00000000",
+            "revert": { "kind": "command", "command": "powercfg /change standby-timeout-ac 0", "note": "restore the recorded index" },
+            "verify": { "command": "powercfg /query STANDBYIDLE", "expect": "0x00000000" },
+            "userOwned": false
+          }
+        ]
+      },
+      "collector": {
+        "before": {
+          "summary": { "exitCode": 1 },
+          "checks": [ { "id": "NO_NEW_WILDCARD_LISTENER", "verdict": "pass", "reasonKey": "ok" } ]
+        },
+        "after": {
+          "summary": { "exitCode": 1 },
+          "checks": [ { "id": "NO_NEW_WILDCARD_LISTENER", "verdict": "pass", "reasonKey": "ok" } ]
+        }
+      },
+      "stateDir": { "exists": true, "entries": [] }
+    },
+    "expectExit": 0,
+    "expectBackupFiles": ["MANIFEST.json", "journal.json", "plan.json", "restore.md"],
+    "verifyBackupManifest": true,
+    "orderingContains": ["backup"],
+    "jsonEq": [
+      { "path": "summary.exitCode", "eq": 0 },
+      { "path": "summary.verdict", "eq": "clean" },
+      { "path": "backup.created", "eq": true },
+      { "path": "classification.revert", "eq": 1 },
+      { "path": "records[0].classification.status", "eq": "revert" },
+      { "path": "records[0].classification.executable", "eq": true },
+      { "path": "records[0].action", "eq": "would-do" },
+      { "path": "fixture.mode", "eq": "fixture" }
+    ],
+    "jsonMatch": [
+      { "path": "backup.manifestSha256", "match": "^[0-9A-Fa-f]{64}$" },
+      { "path": "backup.dir", "match": "backups" }
+    ]
+  }
+}

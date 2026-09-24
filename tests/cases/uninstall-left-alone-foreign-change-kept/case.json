@@ -1,0 +1,72 @@
+{
+  "id": "uninstall-left-alone-foreign-change-kept",
+  "title": "a value somebody changed after the remediation is reported with provenance and never touched",
+  "kind": "uninstall",
+  "why": "This is the core promise of the retention rule: only what this tool can attribute to itself may be reverted. The power-plan record was recorded as BEFORE=0x00000000 and AFTER=0x00000000, but the machine now reads 0x00001c20 - that is a foreign change (the operator or Windows set a 2 hour standby timeout). It must land in left-alone with the full provenance chain (recorded before/expected/after plus what is observed now), executable=false, and it must NOT appear in any execution list. Exit 1 makes it loud instead of silent.",
+  "inject": "a fixture whose power-plan observation (0x00001c20) matches neither the recorded before nor the recorded after value, plus a second record that is still at its before value",
+  "expectSummary": "exit 1, records[0] left-alone/cchanged_by_somebody_else with provenance, records[1] noop, no record executable, nothing written",
+  "uninstall": {
+    "args": ["-Plan", "-AsJson"],
+    "fixture": {
+      "observations": {
+        "power-plan:standbyidle-ac-dc": { "status": "read", "value": "0x00001c20" },
+        "dsh-settings:dsh-desktop.networkExposure": { "status": "read", "value": "lan" }
+      },
+      "journal": {
+        "schemaVersion": 1,
+        "records": [
+          {
+            "id": "power-plan:standbyidle-ac-dc",
+            "surface": "power-plan",
+            "scope": "standbyidle-ac-dc",
+            "before": "0x00000000",
+            "expected": "0x00000000",
+            "after": "0x00000000",
+            "revert": { "kind": "command", "command": "powercfg /change standby-timeout-ac 0", "note": "restore the recorded index" },
+            "verify": { "command": "powercfg /query STANDBYIDLE", "expect": "0x00000000" },
+            "userOwned": false
+          },
+          {
+            "id": "dsh-settings:dsh-desktop.networkExposure",
+            "surface": "dsh-settings",
+            "scope": "dsh-desktop.networkExposure",
+            "before": "lan",
+            "expected": "loopback",
+            "after": "loopback",
+            "revert": { "kind": "edit", "command": "set networkExposure back to lan", "note": "value only" },
+            "verify": { "command": "read the setting back", "expect": "lan" },
+            "userOwned": false
+          }
+        ]
+      },
+      "collector": {
+        "after": {
+          "summary": { "exitCode": 1 },
+          "checks": [ { "id": "NO_NEW_WILDCARD_LISTENER", "verdict": "pass", "reasonKey": "ok" } ]
+        }
+      },
+      "stateDir": { "exists": true, "entries": [] }
+    },
+    "expectExit": 1,
+    "assertNoTmpWrites": true,
+    "jsonEq": [
+      { "path": "summary.exitCode", "eq": 1 },
+      { "path": "summary.verdict", "eq": "attention" },
+      { "path": "classification.left_alone", "eq": 1 },
+      { "path": "classification.noop", "eq": 1 },
+      { "path": "classification.revert", "eq": 0 },
+      { "path": "records[0].classification.status", "eq": "left_alone" },
+      { "path": "records[0].classification.reasonKey", "eq": "changed_by_somebody_else" },
+      { "path": "records[0].classification.executable", "eq": false },
+      { "path": "records[0].action", "eq": "none" },
+      { "path": "records[0].classification.provenance.recordedBefore", "eq": "0x00000000" },
+      { "path": "records[0].classification.provenance.recordedExpected", "eq": "0x00000000" },
+      { "path": "records[0].classification.provenance.recordedAfter", "eq": "0x00000000" },
+      { "path": "records[0].classification.provenance.observedNow", "eq": "0x00001c20" },
+      { "path": "records[0].classification.provenance.comparedAgainst", "eq": "after" },
+      { "path": "records[1].classification.status", "eq": "noop" },
+      { "path": "records[1].classification.executable", "eq": false },
+      { "path": "backup.created", "eq": false }
+    ]
+  }
+}

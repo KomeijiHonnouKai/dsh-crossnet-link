@@ -1,0 +1,18 @@
+{
+  "id": "fault-tailscale-not-installed-fails-no-install",
+  "title": "the missing-prerequisite path prints an install command but never runs one",
+  "titleZh": "缺前置件时只打印安装命令,绝不代跑",
+  "kind": "collector",
+  "checkOnly": false,
+  "why": "The remedy for a missing prerequisite is an interactive install that the collector must never perform. Two properties are asserted together: the blocked verdict with a printable remedy (checked in fault-tailscale-not-installed) and, on the human-readable path, that the reported action is text a person has to run. The suite also proves the negative statically in filescan-no-localized-hardmatch-and-ascii (no msiexec / Start-Process / runas anywhere) - this case is the runtime counterpart.",
+  "inject": "fixture declares tools.tailscale absent, the run is rendered for a human instead of as JSON",
+  "expectSummary": "exit 2, stdout shows the blocked item, names Tailscale, and mentions installing it by hand",
+  "base": "_base/server-en.json",
+  "layer": { "tools": { "tailscale": "" } },
+  "args": ["-Role", "server", "-Port", "49999", "-Lang", "en"],
+  "expect": {
+    "exitCode": 2,
+    "stdoutMatch": ["\\[BLOCKED\\] TAILSCALE_CLI_LAYER \\(both\\)", "rollback:", "Install Tailscale yourself"],
+    "stdoutNotMatch": ["msiexec", "Start-Process", "runas"]
+  }
+}

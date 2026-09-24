@@ -1,0 +1,81 @@
+{
+  "schema": "remote-tailnet-guard/fixture/1",
+  "name": "healthy Win11 server candidate with a battery (the peer's measured power shape)",
+  "locale": "en-US",
+  "note": "Hand-built fixture for the Win11 side of the four-quadrant matrix. It carries exactly the values measured on the Win11 peer on 2026-09-23 (STANDBYIDLE DC = 0x00000e10 = 3600 s, S0 low-power-idle present) plus a configured serve listener and a patched trustedHosts, i.e. the 'everything is set up, only the power policy is a hazard' case. Host names and tailnet names are placeholders (never real ones). Expected under -Role server: 17 pass / 1 degraded / 0 blocked / 0 unknown => exit 1, which is also how the degraded step of the exit-code ladder is proven. Sanitized round 2 2026-09-24 17:33 (t14): the remaining RFC1918 addresses were moved into neutral private ranges (10.20.0.0/16 for the LAN interface, plus the 10.21 and 10.22 host entries; the /16 membership is left readable) and the Tailscale IPv6 node suffix was replaced with the ::1000:1 (local) / ::1000:2 (peer) placeholder; the Tailscale IPv6 /48 product prefix is unchanged. Re-verify with: powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-fixtures.ps1 Re-verify with: powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-fixtures.ps1 Sanitized 2026-09-24 17:29 (t13): real captured identifiers were replaced with neutral placeholders (tailnet 100.64.0.11 local / 100.64.0.12 peer, non-tailnet 198.51.100.11, user paths C:/Users/<USER>); structure, indentation and field names are unchanged. Re-verify with: powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-fixtures.ps1",
+  "registry": {
+    "os_version": {
+      "ProductName": "Windows 11 Home",
+      "DisplayVersion": "25H2",
+      "ReleaseId": "2009",
+      "CurrentBuild": "26100",
+      "UBR": 1000,
+      "EditionID": "Core",
+      "InstallationType": "Client",
+      "BuildLabEx": "26100.1.amd64fre.ge_release.240331-1435"
+    },
+    "firewall_rules": {
+      "{A3F28CE2-C510-4837-AEF0-E35F746000AC}": "v2.30|Action=Allow|Active=TRUE|Dir=In|Protocol=17|App=C:\\Program Files\\Tailscale\\tailscaled.exe|Name=Tailscale-Process|Edge=TRUE|",
+      "{8F279CC0-D010-420B-9EFC-57C8CEC6BEC4}": "v2.30|Action=Allow|Active=TRUE|Dir=In|Profile=Domain|Profile=Private|LA4=100.64.0.12|Name=Tailscale-In|",
+      "{A31CEF0E-9862-48F4-AAFA-CE469F1D21E4}": "v2.30|Action=Allow|Active=TRUE|Dir=In|Profile=Domain|Profile=Private|LA6=fd7a:115c:a1e0::1000:2|Name=Tailscale-In|"
+    },
+    "fw_domain": { "EnableFirewall": 1 },
+    "fw_standard": { "EnableFirewall": 1 },
+    "fw_public": { "EnableFirewall": 1 },
+    "tailscale_ipn": { "InstallDir": "C:\\Program Files\\Tailscale" },
+    "internet_settings": { "ProxyEnable": 0, "ProxyServer": "", "ProxyOverride": "<local>" }
+  },
+  "native": {
+    "netstat": {
+      "exitCode": 0,
+      "stdout": "  TCP    0.0.0.0:135            0.0.0.0:0              LISTENING       1000\n  TCP    0.0.0.0:3389           0.0.0.0:0              LISTENING       1392\n  TCP    127.0.0.1:43120          0.0.0.0:0              LISTENING       32388\n  TCP    100.64.0.12:139        0.0.0.0:0              LISTENING       4\n  TCP    100.64.0.12:443        0.0.0.0:0              LISTENING       23488\n  TCP    [fd7a:115c:a1e0::1000:2]:443  [::]:0          LISTENING       23488\n",
+      "stderr": ""
+    },
+    "netstat_post": {
+      "exitCode": 0,
+      "stdout": "  TCP    0.0.0.0:135            0.0.0.0:0              LISTENING       1000\n  TCP    0.0.0.0:3389           0.0.0.0:0              LISTENING       1392\n  TCP    127.0.0.1:43120          0.0.0.0:0              LISTENING       32388\n  TCP    100.64.0.12:139        0.0.0.0:0              LISTENING       4\n  TCP    100.64.0.12:443        0.0.0.0:0              LISTENING       23488\n  TCP    [fd7a:115c:a1e0::1000:2]:443  [::]:0          LISTENING       23488\n",
+      "stderr": ""
+    },
+    "tailscale_version": { "exitCode": 0, "stdout": "1.102.4\n  tailscale commit: 3caf7d9e7dcaba589cfc58beda596929733e4fea\n", "stderr": "" },
+    "tailscale_ip4": { "exitCode": 0, "stdout": "100.64.0.12\n", "stderr": "" },
+    "tailscale_servestatus": { "exitCode": 0, "stdout": "https://server-example.tailXXXX.ts.net (tailnet only)\n|-- / proxy http://127.0.0.1:43120\n", "stderr": "" },
+    "ip_addresses": { "exitCode": 0, "stdout": "Configuration for interface \"Tailscale\"\n    DHCP enabled:                         No\n    IP Address:                           100.64.0.12\n    Subnet Prefix:                        100.64.0.12/32 (mask 255.255.255.255)\n\nConfiguration for interface \"Ethernet\"\n    DHCP enabled:                         Yes\n    IP Address:                           192.0.2.20\n", "stderr": "" },
+    "netsh_currentprofile": { "exitCode": 0, "stdout": "", "stderr": "" },
+    "netsh_show_allprofiles": { "exitCode": 0, "stdout": "Domain Profile Settings:\n----------------------------------------------------------------------\nState                                 ON\n\nPrivate Profile Settings:\n----------------------------------------------------------------------\nState                                 ON\n\nPublic Profile Settings:\n----------------------------------------------------------------------\nState                                 ON\nOk.\n", "stderr": "" },
+    "netsh_rule_process_verbose": { "exitCode": 0, "stdout": "Rule Name:                            Tailscale-Process\n----------------------------------------------------------------------\nEnabled:                              Yes\nDirection:                            In\nProfiles:                             Domain,Private,Public\nProtocol:                             UDP\nEdge traversal:                       Yes\nProgram:                              C:\\Program Files\\Tailscale\\tailscaled.exe\nAction:                               Allow\nOk.\n", "stderr": "" },
+    "powercfg_query_standby": { "exitCode": 0, "stdout": "Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)\n  GUID Alias: SCHEME_BALANCED\n  Subgroup GUID: 238c9fa8-0aad-41ed-83f4-97be242c8f20  (Sleep)\n    GUID Alias: SUB_SLEEP\n    Power Setting GUID: 29f6c1db-86da-48c5-9fdb-f2b67b1f44da  (Sleep after)\n      GUID Alias: STANDBYIDLE\n      Minimum Possible Setting: 0x00000000\n      Maximum Possible Setting: 0xffffffff\n      Possible Settings increment: 0x00000001\n      Possible Settings units: Seconds\n    Current AC Power Setting Index: 0x00000000\n    Current DC Power Setting Index: 0x00000e10\n", "stderr": "" },
+    "powercfg_query_hibernate": { "exitCode": 0, "stdout": "Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)\n  GUID Alias: SCHEME_BALANCED\n  Subgroup GUID: 238c9fa8-0aad-41ed-83f4-97be242c8f20  (Sleep)\n    GUID Alias: SUB_SLEEP\n    Power Setting GUID: 9d7815a6-7ee4-497e-8888-515a05f02364  (Hibernate after)\n      GUID Alias: HIBERNATEIDLE\n      Minimum Possible Setting: 0x00000000\n      Maximum Possible Setting: 0xffffffff\n      Possible Settings increment: 0x00000001\n      Possible Settings units: Seconds\n    Current AC Power Setting Index: 0x00000000\n    Current DC Power Setting Index: 0x00000000\n", "stderr": "" },
+    "powercfg_a": { "exitCode": 0, "stdout": "The following sleep states are available on this system:\n    Standby (S0 Low Power Idle) Network Disconnected\n    Hibernate\n    Fast Startup\n\nThe following sleep states are not available on this system:\n    Standby (S1)\n        The system firmware does not support this standby state.\n    Standby (S2)\n        The system firmware does not support this standby state.\n    Standby (S3)\n        The system firmware does not support this standby state.\n", "stderr": "" }
+  },
+  "files": {
+    "settings_yaml": "dsh-desktop:\n  mode: compatibility\n  networkExposure: loopback\n"
+  },
+  "fileLists": {
+    "patch_files": [
+      {
+        "path": "<app>/cordis.patch.yml",
+        "text": "# Desktop Host operations compose around the existing Web bundle.\n- insert:\n    - id: desktop-shell\n      name: dsh-plugin-desktop\n\n- id: web-runtime\n  config:\n    openBrowser: false\n    trustedHosts: []\n"
+      },
+      {
+        "path": "<profile>/cordis.patch.yml",
+        "text": "# user patch layer for this profile\n- id: web-runtime\n  config:\n    trustedHosts:\n      - server-example.tailXXXX.ts.net\n"
+      }
+    ]
+  },
+  "services": {
+    "Tailscale": { "status": "Running", "startType": "Automatic" }
+  },
+  "cmdlets": {
+    "net_connection_profile": [
+      { "interfaceAlias": "Tailscale", "networkCategory": "Private" },
+      { "interfaceAlias": "Ethernet", "networkCategory": "Public" }
+    ]
+  },
+  "processes": {
+    "1000": "svchost",
+    "1392": "svchost",
+    "4": "System",
+    "23488": "tailscaled",
+    "32388": "DSH Desktop"
+  }
+}

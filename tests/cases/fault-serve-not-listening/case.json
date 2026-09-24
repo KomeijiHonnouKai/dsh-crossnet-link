@@ -1,0 +1,25 @@
+{
+  "id": "fault-serve-not-listening",
+  "title": "no 443 listener and serve status unreadable: unknown, never 'not configured'",
+  "titleZh": "没有 443 监听且 serve 状态读不到:unknown,绝不判未配置",
+  "kind": "collector",
+  "why": "A missing Windows-side 443 listener does not prove serve is off: tailscaled can terminate TLS outside the Windows TCP stack, and the CLI can be sandboxed. The honest answer is unknown with the serve status exit code attached, so a human knows what to re-run. Treating it as 'serve is off' would send the user down the wrong path.",
+  "inject": "the tailnet 443 row removed from both netstat snapshots; 'tailscale serve status' exits 1",
+  "expectSummary": "SERVE_PRESENT unknown/serve_unknown (never pass), exit != 0",
+  "base": "_base/server-en.json",
+  "layer": {
+    "native": {
+      "netstat": { "exitCode": 0, "stdout": "  TCP    127.0.0.1:49999        0.0.0.0:0              LISTENING       1072\r\n" },
+      "netstat_post": { "exitCode": 0, "stdout": "  TCP    127.0.0.1:49999        0.0.0.0:0              LISTENING       1072\r\n" },
+      "tailscale_servestatus": { "exitCode": 1, "stdout": "", "stderr": "serve is not configured on this node" }
+    }
+  },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCodeNot": 0,
+    "verdicts": { "SERVE_PRESENT": "unknown", "WILDCARD_LISTENER_INVENTORY": "pass" },
+    "reasons": { "SERVE_PRESENT": "serve_unknown" },
+    "notVerdicts": { "SERVE_PRESENT": ["pass", "degraded", "blocked"] },
+    "raw": { "SERVE_PRESENT": { "serveStatusExitCode": 1 } }
+  }
+}

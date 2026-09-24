@@ -1,0 +1,9 @@
+{
+  "id": "canary-filescan-treewide-assertions-live",
+  "title": "positive control: the tree-wide filescan assertions fail when a violation is planted, and pass when it is not",
+  "kind": "canary",
+  "why": "Between t32 and t38 a bare `continue` in Invoke-FileScanCase skipped literal-zero / literal-min / hits-confined-to entirely, so two filescan cases passed vacuously for several rounds: 'no write verb outside the allow-listed file', 'no Chinese literal in *.ps1' and 'the netstat state token only in the four files that own it' were never actually evaluated. A static assertion that can be muted without any test turning red is worse than no assertion at all. This case is the antidote, and it is built out of the REAL engine rather than a re-implementation: the handler plants a violation in a throw-away tree under %TEMP%, points the engine at it through a scan-root override, and then asserts on the failure record the engine produced (rule text + EXPECTED + ACTUAL). Each of the three types gets a planted twin and a clean twin, so both directions are pinned in the same run. Delete an assertion call, reintroduce the `continue`, or make the scan root ignore the override, and this case goes red while every other case stays green - which is exactly the signal the suite was missing. The scenario needs no case body: the handler owns it.",
+  "inject": "a throw-away tree under %TEMP% with, per assertion type, one planted violation (a *.ps1 carrying Set-Content / too few Get-Pattern hits / a hit outside allowPattern) and one clean twin",
+  "expectSummary": "planted => the hit-count assertion failure with EXPECTED 0 / ACTUAL 1 plus its raw detail line (literal-zero), the min-count failure reporting 'found 1' below minCount 3 (literal-min) and the confinement failure with EXPECTED 0 / ACTUAL 1 plus its raw detail line (hits-confined-to); clean twins => 0 failures each",
+  "canary": { }
+}

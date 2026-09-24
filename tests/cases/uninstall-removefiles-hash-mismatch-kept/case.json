@@ -1,0 +1,54 @@
+{
+  "id": "uninstall-removefiles-hash-mismatch-kept",
+  "title": "-RemoveFiles keeps a file whose current hash does not match the recorded one (and exits 1)",
+  "kind": "uninstall",
+  "why": "File deletion is the most destructive action in the whole tool, so it is guarded by the recorded sha256: a file is only its own if the bytes still match what -RecordAfter wrote. Here the installed file was edited after the recording, so the recorded hash can never match again. The tool must keep the file, report the deletion as kept (hash guard), leave the bytes on disk untouched and end exit 1 instead of deleting somebody else's edit.",
+  "inject": "a plugin-files record whose after value is a deliberately wrong sha256, a real installed-file.js under the case temp dir, and -Apply -RemoveFiles -AsJson",
+  "expectSummary": "exit 1, deletions[0] kept (hash guard), installed-file.js still present with the same bytes",
+  "uninstall": {
+    "args": ["-Apply", "-RemoveFiles", "-AsJson"],
+    "tmpFiles": {
+      "installed-file.js": "console.log(\"panel\");\n"
+    },
+    "fixture": {
+      "observations": {
+        "plugin-files:<TMP>\\installed-file.js": { "status": "read", "value": "present" }
+      },
+      "journal": {
+        "schemaVersion": 1,
+        "records": [
+          {
+            "id": "plugin-files:<TMP>\\installed-file.js",
+            "surface": "plugin-files",
+            "scope": "<TMP>\\installed-file.js",
+            "before": "absent",
+            "expected": "present",
+            "after": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "revert": { "kind": "delete", "command": "Remove-Item -LiteralPath '<PATH>'", "note": "only this recorded file" },
+            "verify": { "command": "Test-Path -LiteralPath '<PATH>'", "expect": "absent" },
+            "userOwned": false
+          }
+        ]
+      },
+      "collector": {
+        "after": {
+          "summary": { "exitCode": 1 },
+          "checks": [ { "id": "NO_NEW_WILDCARD_LISTENER", "verdict": "pass", "reasonKey": "ok" } ]
+        }
+      },
+      "stateDir": { "exists": true, "entries": [] }
+    },
+    "expectExit": 1,
+    "expectFilesPresentUnchanged": ["installed-file.js"],
+    "jsonEq": [
+      { "path": "summary.exitCode", "eq": 1 },
+      { "path": "summary.verdict", "eq": "attention" },
+      { "path": "deletions[0].status", "eq": "kept" },
+      { "path": "residue.items[1].id", "eq": "install-artifacts-absent" },
+      { "path": "residue.items[1].status", "eq": "residue" }
+    ],
+    "jsonIn": [
+      { "path": "deletions[0].reasonKey", "in": ["hash_guard_or_unreadable", "hash_mismatch"] }
+    ]
+  }
+}

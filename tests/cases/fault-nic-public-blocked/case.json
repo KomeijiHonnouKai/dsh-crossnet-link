@@ -1,0 +1,28 @@
+{
+  "id": "fault-nic-public-blocked",
+  "title": "the Tailscale adapter landed in the Public profile -> blocked (silent allow-rule failure)",
+  "titleZh": "Tailscale 网卡被归到公用配置 -> blocked(放行规则静默失效)",
+  "kind": "collector",
+  "why": "The built-in Tailscale-In rules cover only Domain and Private. If the adapter is classified Public, tailscale serve keeps working while every inbound tailnet connection is dropped, and nothing in the tailscale output says so. This is the failure the whole NIC_PROFILE_ATTRIBUTION check exists for, so it must be blocked with a remediation.",
+  "inject": "netsh show currentprofile lists the Tailscale adapter under the Public section",
+  "expectSummary": "NIC_PROFILE_ATTRIBUTION blocked/nic_public with remediation, exit 2",
+  "base": "_base/server-en.json",
+  "unset": ["cmdlets.net_connection_profile"],
+  "layer": {
+    "native": {
+      "netsh_currentprofile": {
+        "exitCode": 0,
+        "stdout": "\r\nPrivate Profile:\r\n----------------------------------------------------------------------\r\nOk.\r\n\r\nPublic Profile:\r\n----------------------------------------------------------------------\r\nTailscale\r\n\r\nOk.\r\n\r\n"
+      }
+    }
+  },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCode": 2,
+    "verdicts": { "NIC_PROFILE_ATTRIBUTION": "blocked" },
+    "reasons": { "NIC_PROFILE_ATTRIBUTION": "nic_public" },
+    "notVerdicts": { "NIC_PROFILE_ATTRIBUTION": ["pass", "degraded"] },
+    "remediation": { "NIC_PROFILE_ATTRIBUTION": { "applied": false, "needsNonEmptyCommand": true, "needsNonEmptyRollback": true } },
+    "raw": { "NIC_PROFILE_ATTRIBUTION": { "tailscaleProfile": "Public" } }
+  }
+}
