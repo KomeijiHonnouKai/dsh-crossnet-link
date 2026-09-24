@@ -10,7 +10,7 @@
 
   WHAT IT PROVES (release set = what a clone of the published repository contains:
     src/, i18n/, tests/, panel/, tools/, plugin/, docs/collect.md, docs/install/,
-    docs/threat-model.md, SECURITY.md, LICENSE, README.md, README.zh-CN.md, CHANGELOG.md,
+    docs/threat-model.md, SECURITY.md, LICENSE, README.md, README.en.md, CHANGELOG.md,
     CONTRIBUTING.md, .gitignore, .editorconfig, .github/**. The plugin's other half - the
     prerequisite checker, its manifest and both panel halves - the uninstaller and the
     persistent plugin package therefore sit inside the scanned surface, not beside it):
@@ -104,7 +104,7 @@ $RepoRootDefault = Split-Path -Parent (Split-Path -Parent $ScriptDir)
 $PublishRoots = @(
   'src', 'i18n', 'tests', 'panel', 'tools', 'plugin',
   'docs\collect.md', 'docs\install', 'docs\threat-model.md',
-  'SECURITY.md', 'LICENSE', 'README.md', 'README.zh-CN.md', 'CHANGELOG.md', 'CONTRIBUTING.md',
+  'SECURITY.md', 'LICENSE', 'README.md', 'README.en.md', 'CHANGELOG.md', 'CONTRIBUTING.md',
   '.gitignore', '.editorconfig', '.gitattributes', '.github'
 )
 

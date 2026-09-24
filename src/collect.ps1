@@ -1906,6 +1906,80 @@ if (-not $proxyReg.available) {
 }
 Add-Check $c
 
+# ---------------------------------------------------------------------------
+# PROXY POSTURE, BOTH ENDS (t49)
+#
+# The link has two ends and each end may run its own proxy, so there are four
+# combinations. This collector runs on ONE machine and reports that machine's
+# posture for the role it was told it plays; the OTHER end's proxy state cannot
+# be observed from here, so it is never guessed - it simply does not appear in
+# these checks (matrix and per-quadrant cases: tests/cases/README.md 7.5).
+#
+#   end    proxy  local signal (no network, no HTTP)                     verdict
+#   client on     ProxyEnable=1 and ProxyOverride has no ts.net/100.64.* degraded/proxy_hijack
+#   client off    ProxyEnable=0                                          pass/proxy_ok
+#   server on     ProxyEnable=1 (WinINET never affects the inbound path) degraded/proxy_active_route_intact
+#   server off    ProxyEnable=0                                          pass/proxy_ok
+#   server -      no 100.64.0.0/10 route in 'route print -4'             blocked/route_tailnet_missing
+#
+# A TUN-mode proxy CAN steal the tailnet route, but its internal rules and its
+# tunnel state are not readable from here: the route table is the only provable
+# half (the route is gone), and the attribution stays explicitly unknown.
+# ---------------------------------------------------------------------------
+
+$c = New-Check 'SERVER_PROXY_STATE' 'server' 'server_proxy_state'
+Add-Cmd $c 'registry HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings (ProxyEnable, ProxyServer, ProxyOverride)'
+$proxyRegSrv = Get-RegProbe 'internet_settings' 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' @('ProxyEnable','ProxyServer','ProxyOverride')
+$c.raw.proxyEnable = $proxyRegSrv.values['ProxyEnable']
+$c.raw.proxyServer = [string]$proxyRegSrv.values['ProxyServer']
+$c.raw.proxyOverride = [string]$proxyRegSrv.values['ProxyOverride']
+$c.raw.probe = [ordered]@{ available=$proxyRegSrv.available; source=$proxyRegSrv.source; error=$proxyRegSrv.error }
+$c.raw.note = 'a WinINET system proxy is a per-user browsing setting, so it does not change this machine''s inbound path; a TUN-mode proxy can, and its state is exactly what TAILNET_ROUTE_PRESENT can only see the shadow of'
+if (-not $proxyRegSrv.available) {
+  Set-Verdict $c 'unknown' 'proxy_unavailable' @($proxyRegSrv.error)
+} elseif ([int]$proxyRegSrv.values['ProxyEnable'] -eq 0) {
+  Set-Verdict $c 'pass' 'proxy_ok' @('disabled')
+} else {
+  $c.raw.confidence = 'low'
+  Set-Verdict $c 'degraded' 'proxy_active_route_intact' @([string]$proxyRegSrv.values['ProxyServer'])
+  Set-Remediation $c 'rem_proxy_server_note' 'A system proxy on the server does not open or close the inbound path; if the client times out while this is on, look for a TUN-mode proxy and check the tailnet route (TAILNET_ROUTE_PRESENT)' 'nothing to roll back: this collector changes no proxy setting' $false
+}
+Add-Check $c
+
+$c = New-Check 'TAILNET_ROUTE_PRESENT' 'server' 'tailnet_route_present'
+Add-Cmd $c 'route.exe print -4  (the 100.64.0.0/10 destination, netmask 255.192.0.0)'
+$routeExe = Join-Path $env:SystemRoot 'System32\route.exe'
+$routeProbe = Invoke-External 'route_print4' $routeExe @('print','-4') $CommandTimeoutMs
+$routeText = [string]$routeProbe.stdout
+$routeHit = ''
+# MEASURED (t49): the Windows client installs PER-ADDRESS host routes inside the tailnet range
+# (one /32 per tailnet host, plus the MagicDNS resolver /32) and NO 100.64.0.0/10 prefix route, so a
+# prefix-only test reports a healthy machine as blocked - a fabricated certainty. Any destination
+# inside the CGNAT /10 counts, and the prefix spelling itself is accepted too (fixtures use it).
+if ($routeText -match '100\.64\.0\.0\s*/\s*10') {
+  $routeHit = '100.64.0.0/10'
+} else {
+  foreach ($rtLine in ($routeText -split "`r?`n")) {
+    $m = [regex]::Match($rtLine, '^\s*(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\s+255\.')
+    if (-not $m.Success) { continue }
+    $o1 = [int]$m.Groups[1].Value
+    $o2 = [int]$m.Groups[2].Value
+    if ($o1 -eq 100 -and $o2 -ge 64 -and $o2 -le 127) { $routeHit = '100.64.0.0/10'; break }
+  }
+}
+$c.raw.routeProbe = [ordered]@{ available=$routeProbe.available; exitCode=$routeProbe.exitCode; source=$routeProbe.source; error=$routeProbe.error }
+$c.raw.routeFound = $routeHit
+$c.raw.note = 'the route table is the only provable half: no destination inside the CGNAT /10 breaks the link for anyone reaching this machine over the tailnet, but whether a TUN-mode proxy, Tailscale itself or something else removed them cannot be decided from the file system - the cause is reported as unattributable, not guessed. Measured: the Windows client ships per-address host routes, not one prefix route.'
+if (-not $routeProbe.available) {
+  Set-Verdict $c 'unknown' 'route_probe_unavailable' @($routeProbe.error)
+} elseif ($routeHit) {
+  Set-Verdict $c 'pass' 'route_ok' @($routeHit)
+} else {
+  Set-Verdict $c 'blocked' 'route_tailnet_missing' @()
+  Set-Remediation $c 'rem_route_missing' 'Check Tailscale first (tailscale ip -4, tray menu); if a TUN-mode proxy is running, stop it or let 100.64.0.0/10 through, then re-run this collector' 'put the proxy back exactly as it was' $false
+}
+Add-Check $c
+
 $c = New-Check 'HTTPS_CLIENT_ONLY' 'client' 'https_client_only'
 Add-Cmd $c 'capability declaration only: no TLS/HTTP request is made by this collector'
 $nodeOk = ($nodePath -ne '')

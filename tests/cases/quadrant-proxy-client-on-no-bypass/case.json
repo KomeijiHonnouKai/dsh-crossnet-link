@@ -1,0 +1,19 @@
+{
+  "id": "quadrant-proxy-client-on-no-bypass",
+  "title": "quadrant: client proxy ON without a tailnet bypass -> browser hijack is reported",
+  "kind": "collector",
+  "why": "Quadrant 1 of the two-end proxy matrix (tests/cases/README.md 7.5). The signal is local and offline: HKCU Internet Settings ProxyEnable=1 while ProxyOverride carries no ts.net / 100.64.* / peer entry, so a browser is told to send the ts.net URL to the proxy and the page never loads even though TCP works. The verdict must be degraded (the link itself still works for scripts) with a remedy, and never pass - this is the measured cause of the reference machine's browser failure.",
+  "inject": "registry.internet_settings ProxyEnable=1 with ProxyServer set and ProxyOverride containing only <local>, role=client",
+  "expectSummary": "BROWSER_PROXY_TSNET degraded/proxy_hijack with a remedy, exit 1",
+  "base": "_base/server-en.json",
+  "layer": { "registry": { "internet_settings": { "ProxyEnable": 1, "ProxyServer": "127.0.0.1:7890", "ProxyOverride": "<local>" } } },
+  "args": ["-Role", "client"],
+  "expect": {
+    "exitCode": 1,
+    "verdicts": { "BROWSER_PROXY_TSNET": "degraded" },
+    "reasons": { "BROWSER_PROXY_TSNET": "proxy_hijack" },
+    "notVerdicts": { "BROWSER_PROXY_TSNET": ["pass", "unknown", "blocked"] },
+    "raw": { "BROWSER_PROXY_TSNET": { "proxyEnable": 1 } },
+    "remediation": { "BROWSER_PROXY_TSNET": { "applied": false, "needsNonEmptyCommand": true, "needsNonEmptyRollback": true } }
+  }
+}

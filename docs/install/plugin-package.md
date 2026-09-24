@@ -214,29 +214,101 @@ tsdown/tsc 工具链,所以 `plugin/lib/client.js` 是**按同一格式手写的
   - `<APP_DIR>\node_modules\@deepseek-ai\dsh\lib\bin.js:105-116` 就是 `dsh plugin --profile <name> <pnpm 参数>`;
     `:41` 的帮助原文:`dsh plugin --profile tui add <package>`。
 
+### 2.6 「设置 → 插件」页的**卡片**座位(t46 勘探,结论 + 行号)
+
+**页面的真实结构**(先看清再谈座位):「设置 → 插件」本身是一个 `settings.section`
+(`id: "plugins"`,order 15,声明在 `<APP_DIR>\node_modules\@deepseek-ai\dsh-client-ui-settings-plugins\lib\client.js:1761-1772`),
+它内部有**两个 tab**(`settings.plugins.tab` 座位):
+
+| tab | 谁注册 | id / order | 内容 |
+|---|---|---|---|
+| `all`(插件清单) | `dsh-client-ui-settings-plugin-inventory\lib\client.js:666-673` | `all` / 10 | 列出**每个已装插件行**(`ctx.remote.pluginInventory.list()`,`:655-659`):条目名、启用/禁用、fiber 状态、跳转链接。**清单由平台自带**:host 侧 `plugin-inventory` 行与 client 侧 `ui-settings-plugin-inventory` 行都在 `<APP_DIR>\node_modules\@deepseek-ai\dsh-web-app\cordis.patch.yml:101-102` 与 `:246-247`,所以它同时列出**未启用**的行 |
+| `configurable`(可配置插件) | `dsh-client-ui-settings-plugins\lib\client.js:1773-1784` | `configurable` / 0 | 按**已服务的设置命名空间**逐个渲染 `settings.plugin.item` 卡片;本包自己的四张内置卡片(`:1785-1810`)也在这里 |
+
+**卡片座位契约**:`<APP_DIR>\node_modules\@deepseek-ai\dsh-cordis-client-runner\lib\client.js:3790-3825`
+
+- key `settings.plugin.item`,`kind: **keyed**`,`scope: root`,一句话:*"One plugin's card inside the plugin configuration section"*;
+- 注册项只有一个:`key`(**必填**)—— *"Your cell key: the entry renders where the owner dispatches this exact key."*;
+- ownerProps:`SettingsPluginItemOwnerProps { children?: never }` —— **卡片自己的标题/内部布局全由卡片自己画**,座位不投任何 label;
+- `declaredBy: "an entry in 'settings.plugins.tab' (client-ui-settings-plugins), so it exists while that entry is mounted"`;
+- 官方示例(`:3823`)就是 `ctx.slots.inject('settings.plugin.item', () => ctx.slots.register({ name:'settings.plugin.item', key:'<one key the owner dispatches>' }, () => React.createElement('div', null, 'hello')))`。
+
+**关键门槛(这一条决定了"只注册卡片"是无效的)**:owner 是 `ConfigurablePluginsTab`,`lib/client.js:1100-1152` 的控制器:
+
+- `:1144` `const served = new Set(mirrored.view?.namespaces.map((view) => view.ns) ?? []);`
+- `:1145` `const namespaces = this.entries().flatMap((entry) => entry.options.key !== void 0 && served.has(entry.options.key) ? [entry.options.key] : []);`
+- `:411-416` 渲染:`namespaces.map((ns) => renderSlot("settings.plugin.item", {}, { entryKey: ns }))`
+
+⇒ **只有当卡片的 `key` 等于一个"已被 Host 注册并被 describe() 报告"的设置命名空间时,这张卡片才会被渲染。**
+`served` 来自 `ctx.settingsScope.describe().view.namespaces[].ns`,即 Host 侧 `settings.describe()` 的结果。
+
+**Host 侧因此必须做的一件事**:注册一个设置命名空间。
+
+- `<APP_DIR>\node_modules\@deepseek-ai\dsh-settings\lib\index.js:288-304` `register(ns, schema, options)`:
+  `ns` 必须匹配 `^[a-z][a-z0-9-]*$`(`:82-86`),`schema` 必须是**活的 schemastery schema**;
+- 同文件 `:358-388` `describe()`:每个**已注册**命名空间返回一条 descriptor,`:370` 直接调 `schema.toJSON()`
+  —— 没有字段的命名空间同样会出现在 `served` 里(不会因为 schema 为空被过滤);
+- 一线实现(FQ 包名 `@deepseek-ai/schemastery`):`<APP_DIR>\node_modules\@deepseek-ai\dsh-client-locale\lib\index.js:1,23`
+  (`import z from "@deepseek-ai/schemastery"` + `ctx.inject(['settings'], (sctx) => sctx.settings.register(NS, Schema))`);
+- **第三方常驻插件的完整先例**:`<DSH_HOME>\profiles\desktop\node_modules\dsh-ego-browser`
+  —— host 半边 `lib/index.js:1606-1652`(`const SETTINGS_NAMESPACE = "ego-browser"` + `sctx.settings.register(...)`,schema 来自 `import z from "schemastery"`),
+  client 半边 `lib/client.js:1681-1694`(`ctx.slots.inject("settings.plugin.item", function* () { yield ctx.slots.register({ name:"settings.plugin.item", key: SETTINGS_NS, order: 60, locale: SETTINGS_NS, inject: ... }, EgoBrowserCard); })`)。
+  **这就是本包 t46 照搬的形态。**
+
+**两个座位的区别**(t43 的 `settings.section` vs t46 的 `settings.plugin.item`):
+
+| | `settings.section`(t43) | `settings.plugin.item`(t46) |
+|---|---|---|
+| 位置 | 设置面板**左侧导航**里独立的一页 | 「设置 → 插件」页 → `configurable` tab 里的**一张卡片** |
+| 渲染 | 整页内容列,owner 投 `label`(导航文字)与 `{ close }` | tab 里的卡片列表,owner **不投任何东西**(`children?: never`),卡片自画标题 |
+| 可点击行为 | 导航项可点击切换分区 | 卡片本身没有跳转语义(跳转链接在 `all` tab 的清单行上) |
+| 生命周期 | 座位由 `sidebar.settings` 条目(settings-general)声明 ⇒ 设置面板挂载期间存在 | 座位由 `settings.plugins.tab` 的 `configurable` 条目声明 ⇒ **只有插件页开着时存在**;且**还要**满足上面那条"命名空间已被服务" |
+| 额外前置件 | 无(只靠 cordis 服务 `slots`) | **Host 必须注册一个设置命名空间**,client 卡片的 `key` 必须等于它 |
+
+**"脚本经典加载 + 自注册"对两个座位是否一致?** —— **完全一致**。两个座位都只是**客户端半边**向槽位注册表登记的一行;
+客户端半边只有一份(一个 bundle),它被页面按经典脚本加载、执行时自注册(§2.3),`ctx.slots.inject(...)` 等座位就绪后
+`ctx.slots.register(...)`。差别只在**注入哪个 key** 与 **owner 是否投 label**,与加载方式无关。
+(反证:同一份 `dsh-client-ui-settings-plugins/lib/client.js` 里 `:1761`/`:1773`/`:1785` 三种座位都由**同一个 bundle** 注册;
+ego-browser 的同一个 `lib/client.js` 同时注册 `settings.plugin.item` 与它的其它 UI。)
+
+**本包的落地与安全边界(t46)**:
+
+- client 半边(`lib/client.js` 与 `lib/client/index.js`,共享正文逐字节一致)**同时**注册两个座位;
+  卡片 `key: SETTINGS_NS` = `'remote-tailnet-guard'` = 包名;
+- host 半边注册同名命名空间,但**schema 是空的**(`schemaFactory.object({})`):本插件**没有任何可配置项**,
+  host 也从不调用 `update()`/`replace()`,因此**不会向用户的设置文档写入任何值**;
+- **schema 库用受保护的运行时解析**取得(`await import(specifier)`,依次试 `@deepseek-ai/schemastery` 与 `schemastery`,
+  整段 try/catch),**绝不写静态 `import`**:本包装法是 `link:<插件目录>`,`link:` 目标不保证自带 `node_modules`
+  (包自己的依赖不会被装进 profile),静态 import 一旦解析不到就会把整个 host 半边带下去;
+  解析不到时只打一条 warning 并**跳过命名空间注册** ⇒ 卡片不渲染(fail closed),其余功能照常。
+  这一点由 `panel/plugin-preflight.ps1` 的 `ns.static-import` / `ns.guarded-import` / `ns.empty-schema` 三条断言钉住。
+
 ---
 
-## 3. 本仓库交付的骨架(`plugin/`)
+## 3. 本仓库交付的包(`plugin/`)
 
 ```
 plugin/
   package.json          name remote-tailnet-guard / type module / main ./lib/index.js
                         exports: "." "./client" "./package.json"
                         dsh.bundle.patch ./cordis.patch.yml / dsh.client{platform:'web', inject:['@deepseek-ai/dsh-client-ui-slots']}
-  cordis.patch.yml      - insert: 一条,id 与 name 都等于 remote-tailnet-guard,disabled: true
-  lib/index.js          host 半边:真 ESM,只读,复用 src/collect.ps1
-  lib/client.js         client 半边(运行时 bundle,window.__ModuleLoader__.load 自注册)
-  lib/client/index.js   client 半边(打包前的 ESM 源码,与上面共享正文)
+  cordis.patch.yml      - insert: 一条,id 与 name 都等于 remote-tailnet-guard,**disabled: true**
+  lib/index.js          host 半边:真 ESM,只读,复用 src/collect.ps1;额外注册一个**空 schema** 的设置命名空间(受保护)
+  lib/client.js         client 半边(运行时 bundle,window.__ModuleLoader__.load 自注册;**注册两个座位**)
+  lib/client/index.js   client 半边(打包前的 ESM 源码,与上面共享正文逐字节一致)
 ```
 
-- host 半边做的事只有两件:①在**既有** web 服务上注册 `POST /remote-tailnet-guard/api/posture`
+- host 半边做的事只有三件:①在**既有** web 服务上注册 `POST /remote-tailnet-guard/api/posture`
   (同源校验 + `application/json` + body ≤16 KiB);②只读地跑一次
-  `src/collect.ps1 -CheckOnly -AsJson -Role <client|server|both>`,把**叶子字段**投影成 JSON 返回。
-  它不写文件、不新增监听、不读凭据、不改任何设置、不重启 DSH。
-- client 半边做的事只有一件:把与动态包面板**同名同内容**的只读分区注册进 `settings.section`
-  (id `remote-tailnet-guard`,label `Remote access link (read-only posture)`,order 100);
-  取数走上面那条 POST(动态包那一侧走的是 `host.call`)。
-- **只有 `require("react")` 一个外部依赖**(平台 seed),其余全部自包含。
+  `src/collect.ps1 -CheckOnly -AsJson -Role <client|server|both>`,把**叶子字段**投影成 JSON 返回;
+  ③注册一个**空 schema** 的设置命名空间 `remote-tailnet-guard`(t46,见 §2.6)——只为让插件页的卡片能被渲染,
+  没有任何可写字段,也从不写用户的设置文档。
+  它不写文件、不新增监听、不读凭据、不改任何系统设置、不重启 DSH。
+- client 半边做的事只有一件(注册两个座位,同一份只读面板):`settings.section`
+  (id `remote-tailnet-guard`,label `Remote access link (read-only posture)`,order 100)
+  **加上** `settings.plugin.item`(key `remote-tailnet-guard`,order 100 —— 即插件页里的卡片);
+  两个座位取数都走上面那条 POST(动态包那一侧走的是 `host.call`)。
+- **只有 `require("react")` 一个外部依赖**(平台 seed),其余全部自包含;schema 库是**运行时可选解析**,不是依赖。
 
 ---
 
@@ -253,9 +325,47 @@ powershell -NoProfile -ExecutionPolicy Bypass -File $preflight
 powershell -NoProfile -ExecutionPolicy Bypass -File $preflight -Profile desktop
 ```
 
-退出码:**0** = 全部断言通过;**1** = 至少一条断言失败;**2** = 预检跑不起来(路径不对/没有 `plugin/`/`-Profile` 指定的 profile 不存在)。
+### 4.1 退出码契约(t43 的 0/1/2,t46 补齐实现与自证)
 
-它逐条断言:
+| 退出码 | 含义 | 什么会触发 |
+|---|---|---|
+| **0** | 全部**阻断项**通过 | 允许已登记的 skip:本机 `node` 不在 PATH 时那 3 条 `node --check` 打印 `[SKIP]`,**不改变退出码**(skip 永远打印出来,绝不静默) |
+| **1** | 只有**非阻断告警** | 目前只有一条:缺 `docs/install/plugin-package.md`(包照样能加载,交付物不完整) |
+| **2** | **有阻断项**,或**根本没法判定** | 入口缺失(`main`/`exports` 指不到文件)/ insert 行 `id` 或 `name` 与包名不一致 / `disabled` 被改成非 `true` / 两个文件的共享正文漂移 / 某个座位注册消失 / 静态 schema import / BOM/非 ASCII/非 LF / JSX 或 TS 语法 / 读不到或解析不了输入 / 预检自身抛异常 / 根目录或 `-Profile` 不对 |
+
+判据不是"退出码好看",而是**判不了就以 2 收场**(fail closed):解析不了、读不到、抛异常,一律 2。
+脚本内自带 `trap`,把任何意外异常收敛成 2,绝不会返回契约之外的码。
+
+**调用方式也算契约的一部分**(t46 实测):脚本用 `exit N` 设码,而 PowerShell **只在 `-File` 下保留它** ——
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File <脚本>` ⇒ **保留**(实测 `exit 2` 得到 2);
+- `powershell -NoProfile -ExecutionPolicy Bypass -Command "& '<脚本>'"` 与点源 `. '<脚本>'` ⇒ 实测都被改写成 **1**。
+
+所以本仓库一律用 `-File` 调用(§4 上面两行命令、以及 §4.2 的 `-SelfTest` 都是);
+若你用别的包装器拿到非契约值,**以脚本打印的 `[FAIL]`/`[WARN]` 行与 `exit code:` 那一行为准**,别只看外面的 `$LASTEXITCODE`。
+
+### 4.2 故障注入自证(`-SelfTest`)
+
+```powershell
+# 把每一种"已记录的故障"注入到 %TEMP% 的一次性副本里,断言它产生的退出码
+powershell -NoProfile -ExecutionPolicy Bypass -File $preflight -SelfTest
+```
+
+只在 `%TEMP%\rtg-preflight-selftest-<pid>` 下写,跑完删除;退出码 **0** = 每种注入都产生了预期码,**2** = 有偏差。
+本机实测(t46):
+
+```
+[ok]   baseline             expect 0  actual 0  findings: (none)
+[ok]   entry-missing        expect 2  actual 2  findings: path.main, path.exports['.'], js.lib/index.js
+[ok]   row-id-mismatch      expect 2  actual 2  findings: row.id
+[ok]   row-enabled          expect 2  actual 2  findings: row.disabled
+[ok]   client-twin-drift    expect 2  actual 2  findings: js.shared-body
+[ok]   card-seat-missing    expect 2  actual 2  findings: seat.lib/client.js.card, seat.lib/client/index.js.card
+[ok]   doc-missing          expect 1  actual 1  findings: doc.plugin-package
+self-test: 7 cases  matched: 7  mismatched: 0
+```
+
+### 4.3 它逐条断言什么
 
 1. `plugin/package.json` 能被 JSON 解析;`plugin/cordis.patch.yml` 具备最小结构(恰好一个 `- insert:` 块、
    恰好一行、只用 `key: value` 简单标量、无 TAB)。**说明**:Windows PowerShell 5.1 没有 YAML 引擎,
@@ -267,8 +377,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File $preflight -Profile desktop
    两个文件的**共享正文逐字节相同**(sha256 比对)。
    另外:若 `node` 恰好在 PATH 上,会对三个文件各跑一次 `node --check`;不在 PATH 时打印 `[SKIP]`,
    计入 skipped 但**不影响退出码**(本机 `node` 不在 PATH,实测 3 条 SKIP)。
-4. insert 行自洽且安全:唯一一行,`id` 与 `name` 都等于 package.json 的 `name`,`disabled: true`。
-5. 清单:若启用会改动哪些文件、改动前该备份什么、以及"启用覆盖行"的原文。
+4. **两个座位都在、键都对**(t46):两个 client 文件里 `settings.section` 与 `settings.plugin.item` 各注册**恰好一次**;
+   分区用 `SECTION_ID`、卡片用 `SETTINGS_NS`,两个常量都**等于包名**;host 半边声明同名命名空间,
+   且 schema 为空(`schemaFactory.object({})`)。
+5. **host 半边不得有静态 schema import**,必须是受保护的运行时解析(`await import(specifier)` 在 try/catch 里)
+   —— 这是"`link:` 装法下 import 解析不到也不会把 host 半边带下去"的静态保证。
+6. insert 行自洽且安全:唯一一行,`id` 与 `name` 都等于 package.json 的 `name`,`disabled: true`。
+7. 清单:若启用会改动哪些文件、改动前该备份什么、以及"启用覆盖行"的原文。
 
 ---
 
@@ -309,6 +424,20 @@ dsh --profile $profile --dump-config | Select-String -SimpleMatch 'remote-tailne
 **为什么启用是"加三行覆盖"而不是改包里的 `disabled`**:`plugin/cordis.patch.yml` 是**包自己的层**,
 `<profile>\cordis.patch.yml` 是**用户层、在所有 bundle 层之后应用**(§2.5),同一个 `id` 会被用户层覆盖。
 这样 `node_modules` 里的包保持原样、升级不丢,回滚也只需要动一个文件。
+
+### 5.1 启用后你会看到什么(预期,尚未验证)
+
+| 位置 | 预期看到 | 由什么实现 |
+|---|---|---|
+| 设置面板**左侧导航** | 一个独立分区 `Remote access link (read-only posture)` | `settings.section`(t43) |
+| **设置 → 插件**(`all` tab,插件清单) | 清单里出现 `remote-tailnet-guard` 这一行及其启用状态 | 平台自带的 inventory tab,**不需要我们写任何代码**;只要行被装进 profile 就会有(`all` tab 同时列出**未启用**的行并把它们标成未启用,所以装完还没启用时它其实就已经在清单里了) |
+| **设置 → 插件 → 「可配置插件」tab** | 一张卡片:同样的只读面板(标题 `Remote access link (read-only posture)`,perspective 选择、refresh、逐条判定、凭据与不改动声明) | `settings.plugin.item`(t46),`key` = 设置命名空间 `remote-tailnet-guard` |
+
+两个我们主动注册的座位(分区 + 卡片)**取的是同一份数据、同一段组件代码**;区别只在宿主把它放在哪一页(§2.6)。
+**这三个"会看到"都是预期,不是已验证的观察**:第一阶段没有任何运行证据,必须由你在 §8 的一次性 profile 上启用一次后复核;
+尤其注意卡片这一格:它还多依赖"host 半边成功注册了那个空 schema 命名空间"这一条件(§2.6 的最后一段),
+如果那一步没成功,卡片**不会出现**(分区与清单行仍然正常),面板也不会因此报错。
+失败时的观察点:`logs` 里 `remote-tailnet-guard: settings namespace ...` 是 info 还是 warning。
 
 ---
 
@@ -402,3 +531,11 @@ dsh plugin --profile plugin-test remove remote-tailnet-guard
 5. **多 profile / 多版本组合**:本文只覆盖"一个 profile、本机这一版 DSH"的口径;Win10/Win11 四种组合
    的适配属于另一条任务线,不在本阶段结论内。
 6. **`<APP_DIR>` 下的行号**来自本机这一版安装镜像;DSH 升级后行号可能平移,文件名与结构才是判据。
+7. **插件页卡片(t46)同样未验证,而且多一个前置件**:卡片能否渲染取决于两点同时成立 ——
+   ①host 半边成功注册了空 schema 的命名空间 `remote-tailnet-guard`;②client 半边把 `settings.plugin.item`
+   以同名字符串为 `key` 注册上。第①点在 `link:` 装法下依赖 **schema 库能否被运行时解析**
+   (`@deepseek-ai/schemastery` / `schemastery`),本机没有跑过一次真实解析,所以这一格是**未验证**的;
+   解析不到时的行为是**已知且刻意的**(打 warning、不注册、卡片不出现、其余功能照常)。
+   判断口诀:分区出现 = 骨架加载成功;清单里出现该行 = 行真的被装进 profile;卡片出现 = 上面两点都成立。
+8. **退出码契约的自证范围**:`-SelfTest` 覆盖的是**静态**故障(入口缺失 / 行 id / 行 disabled / 共享正文漂移 /
+   卡片座位消失 / 文档缺失)与基线;真实加载期的失败(路由注册失败、采集器超时、命名空间被占用)不在它的覆盖里。

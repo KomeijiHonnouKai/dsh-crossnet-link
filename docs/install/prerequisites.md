@@ -10,6 +10,7 @@
   6. `Get-FileHash -LiteralPath 'C:\Program Files\Tailscale\tailscale.exe' -Algorithm SHA256`
   7. `Get-AuthenticodeSignature -LiteralPath 'C:\Program Files\Tailscale\tailscale.exe'`
   8. 交叉核对:`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role server`
+- **克隆目录名**:本文件里所有 `remote-tailnet-plugin/...` 路径都从工作区根写;仓库名是 `dsh-crossnet-link`,而克隆目录**必须**叫 `remote-tailnet-plugin` —— 改了目录名,采集器就会找不到 `src/collect.ps1`(改报 `collector-missing`)。
 
 > **单一来源**:清单本体是 `panel/prereq-manifest.json`(机器可读),`panel/prereq.ps1` 读取它并按角色逐项检测;
 > 本文件是同一份数据的人读渲染。改一处即可,不会出现「文档与脚本各说一套」。
@@ -69,13 +70,15 @@ client-only 机器:  powershell -NoProfile -ExecutionPolicy Bypass -File remote-
 | 9 | `TAILNET_ACL_NARROW` | server | ✔ | ✔ | `manual`(控制台操作,本机不可验证) | **unknown** |
 | 10 | `CLIENT_FIRST_OPEN_TOKEN` | client | ✔ | ✔ | `manual`(凭据类,禁止自动化) | **unknown** |
 | 11 | `CLIENT_MAGICDNS` | client | ✔ | ✔ | `delegate` → `collect.ps1 -Role client -Peer … -PeerName …` | **unknown**(需操作者给对端) |
-| 12 | `CLIENT_PROXY_BYPASS` | client | ✔ | ✔ | `registry`: `ProxyEnable` | **pass** |
+| 12 | `CLIENT_PROXY_BYPASS` | client | ✔ | ✔ | `registry`: `ProxyEnable`(期望 0;非 0 且绕过列表里没有 tailnet 名 / `100.64.0.0/10` ⇒ `registry_mismatch`) | **blocked**(本机实测:`ProxyEnable=1` 且无绕过;**只**覆盖客户端这一端,服务端见下面的说明) |
 | 13 | `HOST_SERVICE_FOR_PANEL` | 两端 | ✔ | ✔ | `delegate`(可选:面板共享 t5 采集服务) | **unknown** |
 
 **为什么 6 与 11 走委派**:判断这两项需要「扫整条实际加载的 patch 链」与「带超时的 DNS 解析 + 对端参数」,
 `src/collect.ps1` 已经实现且是本团队唯一权威实现。**这里刻意不再写第二份弱实现** ——
 清单的第一版只检查「文件里出现了 `trustedHosts` 这个词」,在本机(`app` 层是 `trustedHosts: []`)会给出**假通过**,
 已改为委派并把这个教训写进 manifest 的 `detect.note`。
+
+**代理是「两端 × 四格」,不是一条单侧提示**:本清单第 12 项只看**客户端这一端**(`ProxyEnable=1` 且没有 tailnet 直连规则 ⇒ `blocked/registry_mismatch`);**服务端那一端**由采集器判(`SERVER_PROXY_STATE` / `TAILNET_ROUTE_PRESENT`),本清单**不**为它设项。四种组合(客户端关·服务端关 / 客户端开·服务端关 / 客户端关·服务端开 / 客户端开·服务端开)、每格的判据命令、两条修法与回滚,见根 `README.md` 的 §6.1「两台设备 × 开/关代理 = 四种情况」([链接](../../README.md#61-两台设备--开关代理--四种情况));三个易踩点(WinINET 的 `ProxyOverride` 不支持 CIDR、git 的代理与系统代理是两件事、TUN 模式只能落 `unknown`)也在那一节。
 
 ---
 
@@ -174,9 +177,28 @@ New-NetFirewallRule -DisplayName 'DSH via Tailscale serve (tcp 443)' -Direction 
 
 ### 3.12 `CLIENT_PROXY_BYPASS`(客户端)
 
+- **角色与范围**:这一项**只覆盖客户端这一端**;服务端那一端的代理姿态是采集器的 `SERVER_PROXY_STATE` / `TAILNET_ROUTE_PRESENT`,不是本清单的一项(不为它设第二份实现)。
 - **缺失提示**:「系统代理已启用且没有 tailnet 直连规则,即使 TCP 通,页面也可能打不开。请把 tailnet 名字 / 100.64.0.0/10 加入绕过列表,或使用链路时关闭代理。」
-- **安装(人工)**:设置 → 网络和 Internet → 代理 → 「不对这些地址使用代理服务器」里加入 tailnet 名 / `100.64.0.0/10`
-- **回滚**:删掉你加的绕过项(或重新启用代理)
+- **本机实测(写这一节时)**:`blocked`(`registry_mismatch`)—— `ProxyEnable=1`、`ProxyServer=127.0.0.1:7897`,而 `ProxyOverride` 里既没有 `ts.net` 也没有 `100.64.`。
+- **判据命令**(两端各跑一次;第 3 条是采集器的权威判定):
+
+```powershell
+# 1) 这一端的 WinINET 代理
+Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' |
+  Select-Object ProxyEnable, ProxyServer, ProxyOverride
+
+# 2) 本清单自己的判定(客户端角色)
+powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/panel/prereq.ps1 -CheckOnly -Role client
+
+# 3) 采集器的权威判定(客户端 / 服务端各一次)
+powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role client
+powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly -Role server
+```
+
+- **服务端那一端**:WinINET 系统代理**不影响入站路径**,所以服务端开着它时客户端照常打得开;但 **TUN 模式**的代理会接管路由 ⇒ 采集器报 `TAILNET_ROUTE_PRESENT = blocked/route_tailnet_missing`(聚合路由不见了这一半可以证明,**是不是那个代理干的判不了**)与 `SERVER_PROXY_STATE = degraded/proxy_active_route_intact`(`confidence=low`)。
+- **四格与两条路**:四种组合 = 客户端关·服务端关 / 客户端开·服务端关 / 客户端关·服务端开 / 客户端开·服务端开;每格「客户端会看到什么 / 服务端会看到什么 / 怎么判 / 怎么修 / 怎么回滚」见根 `README.md` §6.1([链接](../../README.md#61-两台设备--开关代理--四种情况))。两条路选一 —— **路 1(推荐,一次性)**:在代理软件自己的规则里把 `*.ts.net` 与 `100.64.0.0/10` 设为直连;只能改 Windows 系统代理那一栏时写 `*.ts.net;100.64.*`(**`ProxyOverride` 不支持 CIDR,写 `100.64.0.0/10` 不生效**)。**路 2(最省事)**:用链路时关掉系统代理,用完再开。
+- **安装(人工)**:设置 → 网络和 Internet → 代理 → 「不对这些地址使用代理服务器」里加入 `*.ts.net;100.64.*`(或你代理软件里的直连规则)。
+- **回滚**:删掉你加的绕过项,或把开关与 `ProxyEnable` / `ProxyServer` / `ProxyOverride` 按原值打回 —— **改之前先留着 `Get-ItemProperty …` 的输出**,那就是你的备份。本清单与采集器**都不改**任何代理设置,所以它们这边没有回滚动作。
 
 ### 3.13 `HOST_SERVICE_FOR_PANEL`(两端,可选)
 

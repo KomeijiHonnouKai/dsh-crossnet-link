@@ -5,7 +5,7 @@
   "kind": "portability",
   "why": "defensive-spec section 2.4 and section 7 case 6. A stranger may clone into 'D:\\my tools\\插件' or into a OneDrive-synced Chinese folder. This case copies the real collector and the real label files into such a path, proves the copy is byte-identical, runs it there, and finally runs the same fixture through the original path and requires identical verdicts and exit code - so a quoting or Join-Path bug cannot hide behind a passing verdict map.",
   "inject": "src/collect.ps1 plus i18n/labels.*.json copied into a temp folder named '插件 目录 带空格', then run with the same fixture",
-  "expectSummary": "same 19 verdicts and exit code as the in-place run; NIC pass, POWER pass, exit 1",
+  "expectSummary": "same 21 verdicts and exit code as the in-place run; NIC pass, POWER pass, exit 1",
   "base": "_base/server-en.json",
   "args": ["-Role", "server", "-Port", "49999"],
   "expect": {

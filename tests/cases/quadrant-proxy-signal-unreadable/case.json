@@ -1,0 +1,18 @@
+{
+  "id": "quadrant-proxy-signal-unreadable",
+  "title": "fail-closed: with both proxy signals unreadable the posture is unknown, never pass",
+  "kind": "collector",
+  "why": "The rule that makes the whole matrix trustworthy: a signal the collector cannot read is reported as unknown with the underlying error, never as pass and never as a guess about a third-party proxy's internal rules or a TUN tunnel's state. Both new probes are declared unavailable here (the same empty-string convention fault-tailscale-not-installed uses), so both checks must go unknown and the exit code must stay non-zero.",
+  "inject": "registry.internet_settings and native.route_print4 both declared _available=false (the fixture-level 'the probe could not be read' marker), role=server",
+  "expectSummary": "SERVER_PROXY_STATE unknown/proxy_unavailable + TAILNET_ROUTE_PRESENT unknown/route_probe_unavailable, exit 1",
+  "base": "_base/server-en.json",
+  "layer": { "registry": { "internet_settings": { "_available": false, "_error": "the registry read was refused for this case" } }, "native": { "route_print4": { "_available": false, "_error": "the route probe was unavailable for this case" } } },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCodeNot": 0,
+    "exitCodeNotIn": [2],
+    "verdicts": { "SERVER_PROXY_STATE": "unknown", "TAILNET_ROUTE_PRESENT": "unknown" },
+    "reasons": { "SERVER_PROXY_STATE": "proxy_unavailable", "TAILNET_ROUTE_PRESENT": "route_probe_unavailable" },
+    "notVerdicts": { "SERVER_PROXY_STATE": ["pass", "blocked", "degraded"], "TAILNET_ROUTE_PRESENT": ["pass", "blocked", "degraded"] }
+  }
+}

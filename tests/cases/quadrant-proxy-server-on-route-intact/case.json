@@ -1,0 +1,18 @@
+{
+  "id": "quadrant-proxy-server-on-route-intact",
+  "title": "quadrant: server proxy ON with the tailnet route still present -> degraded, not blocked",
+  "kind": "collector",
+  "why": "Quadrant 3 of the two-end proxy matrix (tests/cases/README.md 7.5). A WinINET system proxy is a per-user browsing setting: it does not open or close this machine's inbound path, so the report must NOT claim the link is broken. It is reported as degraded with an explicit reason and low confidence, because the one proxy mode that CAN steal the tailnet route (TUN) is invisible from the file system - and the route table still shows the route, which is what TAILNET_ROUTE_PRESENT asserts. A blocked verdict here would be a fabricated certainty.",
+  "inject": "registry.internet_settings ProxyEnable=1 while native.route_print4 still carries the 100.64.0.0/10 route, role=server",
+  "expectSummary": "SERVER_PROXY_STATE degraded/proxy_active_route_intact + TAILNET_ROUTE_PRESENT pass/route_ok, exit 1",
+  "base": "_base/server-en.json",
+  "layer": { "registry": { "internet_settings": { "ProxyEnable": 1, "ProxyServer": "127.0.0.1:7890", "ProxyOverride": "<local>" } } },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCode": 1,
+    "verdicts": { "SERVER_PROXY_STATE": "degraded", "TAILNET_ROUTE_PRESENT": "pass" },
+    "reasons": { "SERVER_PROXY_STATE": "proxy_active_route_intact", "TAILNET_ROUTE_PRESENT": "route_ok" },
+    "notVerdicts": { "SERVER_PROXY_STATE": ["pass", "unknown", "blocked"], "TAILNET_ROUTE_PRESENT": ["blocked", "unknown"] },
+    "raw": { "TAILNET_ROUTE_PRESENT": { "routeFound": "100.64.0.0/10" } }
+  }
+}

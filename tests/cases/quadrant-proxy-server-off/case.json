@@ -1,0 +1,17 @@
+{
+  "id": "quadrant-proxy-server-off",
+  "title": "quadrant: server proxy OFF with the tailnet route present -> both checks pass",
+  "kind": "collector",
+  "why": "Quadrant 4 of the two-end proxy matrix (tests/cases/README.md 7.5). The negative control for the server side: no system proxy and the tailnet route in place, so the server-side posture is pass/pass and nothing is invented. This is also the shape a healthy server must show, which keeps the two 'proxy active' quadrants from looking like the normal state.",
+  "inject": "registry.internet_settings ProxyEnable=0 and native.route_print4 carrying the 100.64.0.0/10 route, role=server",
+  "expectSummary": "SERVER_PROXY_STATE pass/proxy_ok + TAILNET_ROUTE_PRESENT pass/route_ok, exit 1",
+  "base": "_base/server-en.json",
+  "layer": { "registry": { "internet_settings": { "ProxyEnable": 0, "ProxyServer": "", "ProxyOverride": "" } } },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCode": 1,
+    "verdicts": { "SERVER_PROXY_STATE": "pass", "TAILNET_ROUTE_PRESENT": "pass" },
+    "reasons": { "SERVER_PROXY_STATE": "proxy_ok", "TAILNET_ROUTE_PRESENT": "route_ok" },
+    "notVerdicts": { "SERVER_PROXY_STATE": ["degraded", "unknown", "blocked"], "TAILNET_ROUTE_PRESENT": ["blocked", "unknown"] }
+  }
+}

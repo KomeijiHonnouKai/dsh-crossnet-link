@@ -89,7 +89,7 @@ tests/
 - 它仍然失败 ⇒ 打印 `XFAIL`，**不算套件失败**（缺口还在，符合预期）；
 - 它开始通过 ⇒ 打印 `XPASS`，**套件失败**，提示把这行标记翻掉。
 
-这样「已知缺口」既不会阻塞绿灯，也不会在修好之后悄悄腐烂成一句过期的注释。**当前没有任何 xfail**（t43 复跑快照：`cases run = 64 / passed = 64 / failed = 0 / xfail held = 0 / xpass = 0`，退出码 0；t41 那年是 63，t43 加了一条 `plugin-package-shape`）。**历史**：最后一条 xfail 用例已于 **t23** 按新语义重构为新用例 **`fault-serve-target-port-mismatch`**（连同负向对照 `fault-serve-moved-port-8443`），它原来的名字 `xfail-serve-moved-port-should-block` **已从套件中删除**，不应再被当作现存用例引用 —— 机制保留着，供下一个真缺口用。
+这样「已知缺口」既不会阻塞绿灯，也不会在修好之后悄悄腐烂成一句过期的注释。**当前没有任何 xfail**（t49 复跑快照：`cases run = 70 / passed = 70 / failed = 0 / xfail held = 0 / xpass = 0`，退出码 0；t41 是 63，t43 加了一条 `plugin-package-shape`，t49 加了 6 条 `quadrant-proxy-*`）。**历史**：最后一条 xfail 用例已于 **t23** 按新语义重构为新用例 **`fault-serve-target-port-mismatch`**（连同负向对照 `fault-serve-moved-port-8443`），它原来的名字 `xfail-serve-moved-port-should-block` **已从套件中删除**，不应再被当作现存用例引用 —— 机制保留着，供下一个真缺口用。
 
 本套件在开发过程中用这条机制抓到并推动了 3 个真实缺陷的修复，修好后按语义翻成了正常用例（历史保留在各用例的 `why` 里）：
 1. `WILDCARD_LISTENER_INVENTORY` 在 netstat 行读不出来（状态词被本地化）时**报 pass** —— 安全判定上的假通过；
@@ -160,7 +160,13 @@ tests/
 | `locale-zh-clean-baseline` | collector | the same state with Chinese netsh/powercfg text (_base/server-zh.json), offline | identical verdict map to locale-en-clean-baseline, exit 1 |
 | `locale-zh-netsh-text-only` | collector | -NoNative, cmdlet probe removed, Chinese netsh section headers and Chinese state word | identical verdict map to locale-en-netsh-text-only |
 | `plugin-package-shape` | filescan | the plugin package (plugin/package.json, plugin/cordis.patch.yml, plugin/lib/*.js), docs/install/plugin-package.md and the preflight script, checked for the declared-path, module-shape and disabled-row facts | package.json declares module/main/exports[./client]/bundle.patch and each target exists; require( appears only in plugin/lib/client.js (seed react); no JSX, no TypeScript syntax; the insert row has id==name==package.json name and disabled: true; the doc carries the paste-ready commands and the three-step/four-step headings |
-| `portability-chinese-space-path` | portability | src/collect.ps1 plus i18n/labels.*.json copied into a temp folder named '插件 目录 带空格', then run with the same fixture | same 19 verdicts and exit code as the in-place run; NIC pass, POWER pass, exit 1 |
+| `portability-chinese-space-path` | portability | src/collect.ps1 plus i18n/labels.*.json copied into a temp folder named '插件 目录 带空格', then run with the same fixture | same 21 verdicts and exit code as the in-place run; NIC pass, POWER pass, exit 1 |
+| `quadrant-proxy-client-on-no-bypass` | collector | `registry.internet_settings` ProxyEnable=1 with an override list that has no ts.net / 100.64.* entry, role=client | BROWSER_PROXY_TSNET degraded/proxy_hijack with a remedy, exit 1 |
+| `quadrant-proxy-client-off` | collector | `registry.internet_settings` ProxyEnable=0, role=client | BROWSER_PROXY_TSNET pass/proxy_ok (disabled), exit 1 |
+| `quadrant-proxy-server-off` | collector | ProxyEnable=0 and a route table carrying the tailnet destination, role=server | SERVER_PROXY_STATE pass/proxy_ok + TAILNET_ROUTE_PRESENT pass/route_ok, exit 1 |
+| `quadrant-proxy-server-on-route-intact` | collector | ProxyEnable=1 while the tailnet route is still present, role=server | SERVER_PROXY_STATE degraded/proxy_active_route_intact (confidence low) + TAILNET_ROUTE_PRESENT pass/route_ok, exit 1 |
+| `quadrant-proxy-server-route-missing` | collector | the route table replaced by one without the tailnet destination, role=server | TAILNET_ROUTE_PRESENT blocked/route_tailnet_missing with a remedy, exit 2 |
+| `quadrant-proxy-signal-unreadable` | collector | both proxy probes declared `_available=false`, role=server | SERVER_PROXY_STATE unknown/proxy_unavailable + TAILNET_ROUTE_PRESENT unknown/route_probe_unavailable, exit 1 |
 | `scan-md-json-confined-to-docs-and-fixtures` | scan | every *.md and *.json in the plugin, with the two documented roots excluded | 0 hits outside docs/ and tests/fixtures/ |
 | `scan-plugin-script-surface` | scan | the plugin's own *.ps1 / *.psm1 / *.js / *.mjs files, scanned with the six patterns from defensive-spec section 2.1 | 0 hits (no allowlist for the script surface) |
 | `scan-positive-control-catches-each-extension` | scan | a temp tree with a planted peer address (.ps1), host name (.md), absolute user path (.json) and one approved placeholder (.md) | exactly 3 hits, one per extension, plus 1 approved placeholder match that is not counted |
@@ -181,7 +187,7 @@ tests/
 
 | 验收要求 | 由哪些用例覆盖 |
 |---|---|
-| 零外部依赖、PS 5.1 直接跑、退出码 0/1 | 入口本身（`run-tests.ps1` 无 Pester/无 node/无网络）；实测 63 例 0 fail 时退出码 0 |
+| 零外部依赖、PS 5.1 直接跑、退出码 0/1 | 入口本身（`run-tests.ps1` 无 Pester/无 node/无网络）；实测 70 例 0 fail 时退出码 0 |
 | 对端离线 | `fault-peer-offline-timeout`（超时）`fault-peer-refused`（拒绝）`fault-peer-connected-isolation-clean`（正常）`fault-peer-other-ports-open`（ACL 过宽）`fault-peer-dsh-port-open-on-peer`（对端 DSH 口可达）`fault-magicdns-hostnotfound` |
 | serve 未配置 / 已关闭 | `fault-serve-not-listening`、`fault-serve-status-no-target`、`fault-serve-moved-port-8443`、`fault-tailscale-service-stopped`、`fault-tailscale-service-absent` |
 | DSH 端口被改 | `fault-dsh-port-from-env`（环境变量发现）、`fault-dsh-port-param-then-discovery`（参数优先 + 实测发现回退） |
@@ -258,6 +264,25 @@ tests/
 
 **它不能证明什么（不改口径）**：真实加载。`plugin/` 的 host/client 半边**从未在真实 DSH 里跑过**，「设置里出现该分区」必须在用户机器上启用一次才算验证。另外 `panel/plugin-preflight.ps1` 的 `node --check` 三连在本机是 **SKIP**（`node` 不在 PATH），所以「能作为普通 JS 解析」目前只有正则级静态断言，不是解析器级证明。
 
+### 7.5 代理姿态四格（两种角色 × 开/关，t49）
+
+链路两端各自可能开着自己的代理，所以是四格。**采集器跑在一台机器上，只报这台机器在它被告知的角色下的姿态**；对端的代理状态在本机**读不到**，因此它根本不进判定（不会被猜成「对端没开代理」）。
+
+判据全部是本机、离线、零 HTTP 的：注册表 `HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings`（`ProxyEnable` / `ProxyServer` / `ProxyOverride`）与路由表 `route print -4`（是否还有该 CGNAT 目的 /10、掩码 `255.192.0.0`）。
+
+| # | 本机角色 | 本机代理 | 本地信号 | 判定 |
+|---|---|---|---|---|
+| Q1 | client | 开，且 `ProxyOverride` 未命中 `ts.net` / `100.64.*` / 对端名 | `ProxyEnable=1` + override 不匹配 | `BROWSER_PROXY_TSNET degraded/proxy_hijack` + 修复建议（脚本仍通、浏览器被劫持） |
+| Q2 | client | 关 | `ProxyEnable=0` | `BROWSER_PROXY_TSNET pass/proxy_ok`（不报） |
+| Q3 | server | 开，tailnet 路由仍在 | `ProxyEnable=1` + 路由表有该目的 | `SERVER_PROXY_STATE degraded/proxy_active_route_intact`（confidence low）+ `TAILNET_ROUTE_PRESENT pass/route_ok` —— **不谎报 blocked**：WinINET 系统代理不影响入向；能抢路由的是 TUN 类，而 TUN 的内部状态本机读不到 |
+| Q4 | server | 关，tailnet 路由仍在 | `ProxyEnable=0` + 路由在 | 两项都 `pass`（健康形态） |
+| Q5 | server | 任意，**路由消失** | 路由表里没有该目的 | `TAILNET_ROUTE_PRESENT blocked/route_tailnet_missing` + 建议（先查 Tailscale，再查 TUN 类代理）—— **只报可证的一半**，成因明确写成「不可归因」，不猜 |
+| Q6 | server | 读不到 | 探针 `_available=false` 或夹具缺失 | 两项都 `unknown`（`proxy_unavailable` / `route_probe_unavailable`），**绝不 pass** |
+
+用例：`quadrant-proxy-client-on-no-bypass`(Q1)、`quadrant-proxy-client-off`(Q2)、`quadrant-proxy-server-on-route-intact`(Q3)、`quadrant-proxy-server-off`(Q4)、`quadrant-proxy-server-route-missing`(Q5 负控)、`quadrant-proxy-signal-unreadable`(Q6 fail-closed)。每条都断言 verdict / reason / exit code，正向与反向都有。
+
+两点注意：①夹具里那条路由用的是**已批准的 CIDR 拼写**（而不是真实 `route print` 的「目的 + 掩码」两列），因为仓库的静态扫描只允许已批准常量；采集器两种拼写都接受。②Q3 与 Q5 是同一条 `TAILNET_ROUTE_PRESENT` 的两个方向：路由在 ⇒ pass，路由没了 ⇒ blocked；「代理开着」本身在服务端**不构成** blocked。
+
 ## 8. 诚实的限制（不藏）
 
 1. ~~**`SERVE_PRESENT` 的「serve 换端口」只做到 fail-closed，没做到规格的 `blocked`**~~ **已在 t23 闭环,且口径先被 t22 的实验纠正过一次**:原裁定想拿「tailnet 侧存在 tailscaled 拥有的非 443 监听、且没有 443」当正向证据 —— **t22 实测推翻**了它:本机健康状态就长这个形状(`<PEER_IP>:33588` 与 `[<ULA_IP>]:56868` 都是 tailscaled 自有端点),按那条规则实现会把**任何已登录节点**误报成「serve 换了端口」(`%TEMP%` 副本对照:原实现 `unknown` vs 该补丁 `blocked`,otherPorts=33588/56868)。t23 改为**只看 `tailscale serve status` 的 proxy 目标端口**:目标 ≠ 实测 DSH 端口 ⇒ `blocked/serve_port_mismatch`(带 command + rollback);CLI 不可读、或输出里没有可解析目标 ⇒ `unknown`。原意(serve 指向别处 ⇒ 只放行 443 的窄 ACL 静默失效)**没有削弱**,由 `fault-serve-target-port-mismatch` 正向钉住,并由 `fault-serve-moved-port-8443` 作负向对照。(本条的取证 = t22 的 `%TEMP%` 副本对照 + t23 的落地,记在本套件 `fault-serve-*` 用例的 `why` 与 §10 的原始尾部输出里,**不指向任何未发布的内部资料**。)
@@ -281,10 +306,12 @@ tests/
 
 ## 10. 最近一次全绿运行
 
-- 命令：`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1`（t43 定格；t23 的 52 例 + t38 的 10 条 uninstall 用例 + t41 的 1 条 canary 用例 + t43 的 1 条 `plugin-package-shape` 用例 = **64**）
-- 被测 `src/collect.ps1` SHA256：`06A69B349FFFF7E348A73B5C49BA2D42F024F84440BBC77241F75CE37A21A9A5`
-- 结果：`cases run = 64 / passed = 64 / failed = 0 / xfail held = 0 / xpass = 0`，退出码 **0**（64 = t23 的 52 + t38 新增的 10 条 `kind=uninstall` 用例 + t41 新增的 1 条 `kind=canary` 防失效正控 + t43 新增的 1 条 `kind=filescan` 常驻插件包形状用例；`xfail held` 与 `xpass` 仍同时为 0）
-- 另外两条同轮全绿：`tests/run-fixtures.ps1` = `ALL PASS: 7 cases, 0 failed assertions`（退出码 0）；`.github/scripts/repo-hygiene.ps1 -Json` = `verdict: CLEAN (0 blocking finding(s))`、`blockingTotal=0`、`files=104`（退出码 0）。**files 计数说明（t43 实测）**：本次比 §10 上一次快照（99）多出的文件里，有 **3 个是本任务新增的发布集文件** —— `panel/plugin-preflight.ps1`、`docs/install/plugin-package.md`、`tests/cases/plugin-package-shape/case.json`；另有 `README.zh-CN.md` 被同一窗口的另一个任务登记进 `$PublishRoots`。**`plugin/` 目录目前不在 `$PublishRoots` 里**，本任务**没有**擅自改发布集（发布集定义在 `.github/scripts/repo-hygiene.ps1`，属别的成员领地），留给 captain 决定是否把它纳入。
+- 命令：`powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/tests/run-tests.ps1`（t49 定格；t23 的 52 例 + t38 的 10 条 uninstall 用例 + t41 的 1 条 canary 用例 + t43 的 1 条 `plugin-package-shape` 用例 + t49 的 6 条 `quadrant-proxy-*` 用例 = **70**）
+- 被测 `src/collect.ps1` SHA256：`8851A0A30F1728D732E3BFE48FD80A3E3E134C4A3A08070779E89BD1AC094671`
+- 结果：`cases run = 70 / passed = 70 / failed = 0 / xfail held = 0 / xpass = 0`，退出码 **0**（70 = t23 的 52 + t38 新增的 10 条 `kind=uninstall` 用例 + t41 新增的 1 条 `kind=canary` 防失效正控 + t43 新增的 1 条 `plugin-package-shape` 用例 + t49 新增的 6 条 `kind=collector` 代理四格用例；`xfail held` 与 `xpass` 仍同时为 0）
+- 另外两条同轮全绿：`tests/run-fixtures.ps1` = `ALL PASS: 7 cases, 0 failed assertions`（退出码 0）；`.github/scripts/repo-hygiene.ps1 -Json` = `verdict: CLEAN (0 blocking finding(s))`、`blockingTotal=0`、`files=116`（退出码 0）。**files 计数说明（t43 实测）**：本次比 §10 上一次快照（99）多出的文件里，有 **3 个是本任务新增的发布集文件** —— `panel/plugin-preflight.ps1`、`docs/install/plugin-package.md`、`tests/cases/plugin-package-shape/case.json`；另有 `README.en.md` 被同一窗口的另一个任务登记进 `$PublishRoots`。**`plugin/` 目录目前不在 `$PublishRoots` 里**，本任务**没有**擅自改发布集（发布集定义在 `.github/scripts/repo-hygiene.ps1`，属别的成员领地），留给 captain 决定是否把它纳入。
+- **t49 连带改动（如实记录，不是放宽断言）**：t49 新增的服务端检查 `TAILNET_ROUTE_PRESENT` 需要 `route print -4` 这一层，而旧的 `tests/fixtures/win11-server.json` 没有 `route_print4`，在 `-NoNative` 下它只能报 `unknown` ⇒ `run-fixtures.ps1` case 6 的「no unknown item（每个探针都答了）」断言**真失败**（`FAILED assertions: 1`，`win11 :: no unknown item (every probe answered) -> TAILNET_ROUTE_PRESENT`）。修法是给该夹具补 `native.route_print4`（tailnet 目的地按**已批准写法** `100.64.0.0/10`，不写裸地址），夹具因此 19 项 → **21 项**（19 pass / 2 degraded / 0 blocked / 0 unknown，`exit 1` 不变）。`docs/collect.md` 第 80 行仍写着旧的「19 项:17 pass / 2 degraded」——`docs/` 不在 t49 的 inScope，留给 captain 处置。
+- **t49 顺手修掉的自造违规（同一轮实测）**：t49 新增注释里原本直接写了本机与对端的真实 tailnet `/32`，同时被 `scan-plugin-script-surface` 的 `fixed-peer-ip` 规则（脚本面**没有**允许清单）和 `repo-hygiene.ps1` 的 blocked-identifier 规则判失败（`expected=0 :: actual=2`，`verdict: FAIL (2 blocking finding(s))`）。改成「one /32 per tailnet host, plus the MagicDNS resolver /32」后两条门回绿：`unclassified` 1 → 0、`blockedHits` 1 → 0、`files=116`。
 - skip：**没有**。本套件没有 skip 机制：`-Filter`/`-Only` 只会减少运行条数并在头部如实打印 `cases run`，任何被选中的用例都会真实执行并给出 PASS/FAIL/XFAIL/XPASS 之一。
 - 尾部原始输出（不含机器标识，逐字节选：canary 的 evidence 行 + 首尾各一条用例 + 套件级门）：
 
@@ -294,9 +321,15 @@ tests/
         CANARY evidence literal-min(short): rule=literal /Get-Pattern 'netsh_/ appears at least 3 times :: EXPECTED true / ACTUAL found 1
         CANARY evidence hits-confined-to(outside): rule=all /T41CANARY/ hits inside /^allowed// :: EXPECTED 0 / ACTUAL 1
 [ 1] PASS  canary-filescan-treewide-assertions-live planted => the hit-count assertion failure with EXPECTED 0 / ACTUAL 1 plus its raw detail line (literal-zero), the min-count failure reporting 'found 1' below minCount 3 (literal-min) and the confinement failure with EXPECTED 0 / ACTUAL 1 plus its raw detail line (hits-confined-to); clean twins => 0 failures each
-# t43 新增的用例在本次运行里的序号是 [50](目录名 p 排在 l 之后、s 之前);下面这段 uninstall 用例的编号仍是 t38 的原文,本次运行里它们整体是 [55]..[64]。
+# t49 定格:plugin-package-shape 仍是 [50];t49 的 6 条 quadrant-proxy-* 用例(目录名 q 排在 p 之后、u 之前)是 [52]..[57];下面这段 uninstall 用例的编号仍是 t38 的原文,本次运行里它们整体已后移到 [61]..[70]。
 [50] PASS  plugin-package-shape                   package.json declares module/main/exports[./client]/bundle.patch and each target exists; require( appears only in plugin/lib/client.js (seed react); no JSX, no TypeScript syntax; the insert row has id==name==package.json name and disabled: true; the doc carries the paste-ready commands and the three-step/four-step headings
-# 注:t41 新增的 canary 目录名以 c 开头、排在全部 fault-* 之前,所以下面这些用例在 t41 运行里的序号整体 +1([53]→[54] … [62]→[63]);t43 又加了一条 p 开头的用例,它们再 +1([53]→[55] … [62]→[64])。逐字原文保留 t38 的编号,末尾汇总行才是本次(t43)的真实值。
+[52] PASS  quadrant-proxy-client-off              BROWSER_PROXY_TSNET pass/proxy_ok (disabled), exit 1
+[53] PASS  quadrant-proxy-client-on-no-bypass     BROWSER_PROXY_TSNET degraded/proxy_hijack with a remedy, exit 1
+[54] PASS  quadrant-proxy-server-off              SERVER_PROXY_STATE pass/proxy_ok + TAILNET_ROUTE_PRESENT pass/route_ok, exit 1
+[55] PASS  quadrant-proxy-server-on-route-intact  SERVER_PROXY_STATE degraded/proxy_active_route_intact + TAILNET_ROUTE_PRESENT pass/route_ok, exit 1
+[56] PASS  quadrant-proxy-server-route-missing    TAILNET_ROUTE_PRESENT blocked/route_tailnet_missing with a remedy, exit 2
+[57] PASS  quadrant-proxy-signal-unreadable       SERVER_PROXY_STATE unknown/proxy_unavailable + TAILNET_ROUTE_PRESENT unknown/route_probe_unavailable, exit 1
+# 注:t41 新增的 canary 目录名以 c 开头、排在全部 fault-* 之前(+1);t43 又加了一条 p 开头的用例(+1);t49 再加了 6 条 q 开头的用例(+6)⇒ t38 原文的 [53]..[62] 在本次(t49)运行里是 [61]..[70]。逐字原文保留 t38 的编号,末尾汇总行才是本次的真实值。
 [53] PASS  uninstall-apply-backup-verifiable      exit 0, backup.created=true with the 4 always-present files, every MANIFEST sha256/byte count verifies, the revert stays would-do in fixture mode
 [54] PASS  uninstall-apply-firewall-capture-and-residue exit 1, backup contains firewall-rules.txt and verifies, the revert stays would-do in fixture mode, residue item recorded-firewall-rules-absent = residue
 [55] PASS  uninstall-checkonly-without-journal-not-clean exit 1, attribution=unavailable, residue unknown (not pass), cordis unknown but exempt, nothing written
@@ -310,14 +343,14 @@ tests/
 
 --- suite-level gates (real machine, measured outside the fixtures) ---
 G1a no file under tests/ was created, deleted or modified: OK
-G1b the collector under test is unchanged for the whole run: OK (06A69B349FFFF7E3...)
+G1b the collector under test is unchanged for the whole run: OK (8851A0A30F1728D7...)
 G1c no file outside tests/ changed during the run: OK
-tested collector sha256: 06A69B349FFFF7E348A73B5C49BA2D42F024F84440BBC77241F75CE37A21A9A5
+tested collector sha256: 8851A0A30F1728D732E3BFE48FD80A3E3E134C4A3A08070779E89BD1AC094671
 G2  wildcard listener set unchanged: OK (26 listeners)
 G3  temp dirs removed (no leftovers): OK
 
-cases run     : 64
-passed        : 64
+cases run     : 70
+passed        : 70
 failed        : 0
 xfail held    : 0 (known gaps that still exist - they do not fail the suite)
 xpass         : 0 (a known gap disappeared - the suite fails until the marker is flipped)

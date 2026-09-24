@@ -77,7 +77,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/co
 | `-Describe` | 0 | 打印配置面 / 退出码契约 / 明确不支持清单(**26 行非空输出**,不探测) |
 | 夹具 `zh.json -NoNative` | 2 | 与真跑**逐项一致**(默认 `role=both`:24 项 15/2/1/6;加 `-Role server`:19 项 14/2/1/2)⇒ 离线可复现、无隐藏本机依赖 |
 | 夹具 `en.json -NoNative` | 2 | 与 zh 夹具**逐项一致**(证明中英双语模式等价) |
-| 夹具 `win11-server.json -Role server` | **1** | 19 项:**17 pass** / **2 degraded** / 0 blocked / **0 unknown** ⇒ `verdict=degraded exit=1`;`OS_BUILD.raw.branch=win11`;`POWER…DC=3600 s → power_dc_only`;`SERVE_PRESENT=pass/serve_ok`(可读 serve status 目标 = `43120` = 实测 DSH 端口,且 443 上有 2 条 tailscaled 监听 —— 按 t23 新语义的通过路径) |
+| 夹具 `win11-server.json -Role server` | **1** | 21 项:**19 pass** / **2 degraded** / 0 blocked / **0 unknown** ⇒ `verdict=degraded exit=1`;`OS_BUILD.raw.branch=win11`;`POWER…DC=3600 s → power_dc_only`;`SERVE_PRESENT=pass/serve_ok`(可读 serve status 目标 = `43120` = 实测 DSH 端口,且 443 上有 2 条 tailscaled 监听 —— 按 t23 新语义的通过路径) |
 | `tests/run-fixtures.ps1` | **0** | `ALL PASS: 7 cases, 0 failed assertions` |
 
 > 本机 2 条 degraded 的来源是**同一类**:判定只能靠本地化文本(§13.1 的「不把本地化工具文本当安全判据」规则允许这种路径存在,但只允许报 **degraded**,不允许报 pass)⇒

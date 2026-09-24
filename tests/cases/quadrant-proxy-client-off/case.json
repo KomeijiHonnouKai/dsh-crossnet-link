@@ -1,0 +1,17 @@
+{
+  "id": "quadrant-proxy-client-off",
+  "title": "quadrant: client proxy OFF -> nothing to report",
+  "kind": "collector",
+  "why": "Quadrant 2 of the two-end proxy matrix (tests/cases/README.md 7.5). The negative control for the client side: with ProxyEnable=0 there is no hijack to report, so the check must be pass/proxy_ok and must not drift into degraded or unknown. Together with quadrant-proxy-client-on-no-bypass this pins both directions of the client-side judgement.",
+  "inject": "registry.internet_settings ProxyEnable=0, role=client",
+  "expectSummary": "BROWSER_PROXY_TSNET pass/proxy_ok (disabled), exit 1",
+  "base": "_base/server-en.json",
+  "layer": { "registry": { "internet_settings": { "ProxyEnable": 0, "ProxyServer": "", "ProxyOverride": "" } } },
+  "args": ["-Role", "client"],
+  "expect": {
+    "exitCode": 1,
+    "verdicts": { "BROWSER_PROXY_TSNET": "pass" },
+    "reasons": { "BROWSER_PROXY_TSNET": "proxy_ok" },
+    "notVerdicts": { "BROWSER_PROXY_TSNET": ["degraded", "unknown", "blocked"] }
+  }
+}

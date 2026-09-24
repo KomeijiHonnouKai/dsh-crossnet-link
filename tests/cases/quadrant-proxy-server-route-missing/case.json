@@ -1,0 +1,19 @@
+{
+  "id": "quadrant-proxy-server-route-missing",
+  "title": "negative control: the tailnet route is gone -> blocked, and the cause stays unattributed",
+  "kind": "collector",
+  "why": "The provider-neutral half of quadrant 3: whatever removed the route (a TUN-mode proxy, Tailscale being down, a killed tunnel), the fact that there is no 100.64.0.0/10 route makes the link unusable for anyone trying to reach this machine over the tailnet, so the verdict is blocked with a remedy that names Tailscale first and the proxy second. The point this case defends is that the collector reports the PROVABLE half (route absent) and neither blames nor clears the proxy: its internals are not readable, so the attribution is explicitly not claimed.",
+  "inject": "native.route_print4 replaced by a table without the 100.64.0.0/10 destination, role=server",
+  "expectSummary": "TAILNET_ROUTE_PRESENT blocked/route_tailnet_missing with a remedy, exit 2",
+  "base": "_base/server-en.json",
+  "layer": { "native": { "route_print4": { "exitCode": 0, "stdout": "===========================================================================\nIPv4 Route Table\n===========================================================================\nActive Routes:\nNetwork Destination        Netmask          Gateway       Interface  Metric\n          0.0.0.0          0.0.0.0      192.0.2.1      192.0.2.10     25\n        127.0.0.0        255.0.0.0         On-link         127.0.0.1    331\n===========================================================================\nPersistent Routes:\n  None\n" } } },
+  "args": ["-Role", "server", "-Port", "49999"],
+  "expect": {
+    "exitCode": 2,
+    "verdicts": { "TAILNET_ROUTE_PRESENT": "blocked" },
+    "reasons": { "TAILNET_ROUTE_PRESENT": "route_tailnet_missing" },
+    "notVerdicts": { "TAILNET_ROUTE_PRESENT": ["pass", "unknown", "degraded"] },
+    "raw": { "TAILNET_ROUTE_PRESENT": { "routeFound": "" } },
+    "remediation": { "TAILNET_ROUTE_PRESENT": { "applied": false, "needsNonEmptyCommand": true, "needsNonEmptyRollback": true } }
+  }
+}

@@ -8,6 +8,12 @@
   },
   "_comment": "Synthetic, fully offline baseline used by many tests/cases/*.json layers. It is a HAPPY server-side machine: no real machine value is embedded (see tests/cases/README.md, section 'why no real value appears here'). Tool text is English here; _base/server-zh.json carries the same state with Chinese tool text.",
   "registry": {
+    "internet_settings":     {
+        "ProxyEnable":  0,
+        "ProxyServer":  "",
+        "ProxyOverride":  "",
+        "_note":  "t49: the clean-host baseline has the system proxy OFF; the four-quadrant cases layer this block to turn it on"
+    },
     "os_version": {
       "ProductName": "Windows 10 Pro",
       "DisplayVersion": "22H2",
@@ -26,6 +32,10 @@
     }
   },
   "native": {
+    "route_print4":     {
+        "exitCode":  0,
+        "stdout":  "===========================================================================\nInterface List\n 14...00 ff 11 22 33 44 ......Tailscale\n  1...........................Software Loopback Interface 1\n===========================================================================\nIPv4 Route Table\n===========================================================================\nActive Routes:\nNetwork Destination        Netmask          Gateway       Interface  Metric\n          0.0.0.0          0.0.0.0      192.0.2.1      192.0.2.10     25\n        100.64.0.0/10        On-link   <TAILNET_IPV4\u003e   5275\n        127.0.0.0        255.0.0.0         On-link         127.0.0.1    331\n===========================================================================\nPersistent Routes:\n  None"
+    },
     "ip_addresses": {
       "exitCode": 0,
       "stdout": "Configuration for interface \"Tailscale\"\r\n    DHCP enabled: No\r\n    IP Address: <TAILNET_IPV4>\r\n    Subnet Prefix: 100.64.0.0/10 (mask 255.192.0.0)\r\n"
