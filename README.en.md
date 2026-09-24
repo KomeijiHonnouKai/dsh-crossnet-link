@@ -16,11 +16,11 @@
 
 ## Contents
 
-**Preamble**: [What it is for](#what-it-is-for) · [Plugin GUI: the three forms it ships in](#plugin-gui-the-three-forms-it-ships-in) · [How it was built, and by whom](#how-it-was-built-and-by-whom)
+**Preamble**: [What it is for](#what-it-is-for) · [How it was built, and by whom](#how-it-was-built-and-by-whom)
 
 **Part I - the checker**: [1. What it is](#1-what-it-is) · [2. What it checks](#2-what-it-checks) · [3. What it deliberately does not do](#3-what-it-deliberately-does-not-do) · [4. Install](#4-install) · [5. Usage](#5-usage) · [6. Support matrix](#6-support-matrix-the-four-windows-combinations) · [7. Security posture](#7-security-posture) · [8. Repository layout and release set](#8-repository-layout-and-release-set) · [9. CI and repository hygiene](#9-ci-and-repository-hygiene) · [10. Residual identifiers](#10-residual-identifiers-in-the-release-set) · [11. Versioning and release steps](#11-versioning-tags-and-release-steps) · [12. Contributing and license](#12-contributing-and-license)
 
-**Part II - activation, evidence and closing**: [Part II heading](#part-ii--detection-contract-activation-wake-up-to-dos-and-evidence-chain-task-t9) · [13. Detection items](#13-detection-items-and-what-each-one-actually-judges) · [14. Path A](#14-activating-the-plugin--path-a-dynamic-cordis-package-the-default) · [15. Path B](#15-path-b--the-persistent-plugin-package-optional-needs-your-explicit-approval) · [16. The four Windows combinations](#16-the-four-windows-combinations--prerequisites-and-traps) · [17. Wake-up to-dos](#17-wake-up-to-dos--the-things-only-a-human-can-do) · [18. Evidence chain](#18-evidence-chain-measured-here-cited-from-other-tasks-still-unverified) · [19. Open items](#19-open-items-and-deliberate-decisions-please-do-not-fix-these) · [20. Delivery checklist](#20-delivery-checklist-and-the-three-commands-a-stranger-needs) · [21. Uninstall and residue](#21-uninstall-and-residue--complete-clean-and-never-silent)
+**Part II - activation, evidence and closing**: [Part II heading](#part-ii--detection-contract-activation-wake-up-to-dos-and-evidence-chain-task-t9) · [13. Detection items](#13-detection-items-and-what-each-one-actually-judges) · [14. Path A](#14-activating-the-plugin--path-a-dynamic-cordis-package-the-default) · [15. Path B](#15-path-b--the-persistent-plugin-package-optional-needs-your-explicit-approval) · [Plugin GUI](#plugin-gui-the-three-forms-it-ships-in) · [16. The four Windows combinations](#16-the-four-windows-combinations--prerequisites-and-traps) · [17. Wake-up to-dos](#17-wake-up-to-dos--the-things-only-a-human-can-do) · [18. Evidence chain](#18-evidence-chain-measured-here-cited-from-other-tasks-still-unverified) · [19. Open items](#19-open-items-and-deliberate-decisions-please-do-not-fix-these) · [20. Delivery checklist](#20-delivery-checklist-and-the-three-commands-a-stranger-needs) · [21. Uninstall and residue](#21-uninstall-and-residue--complete-clean-and-never-silent)
 
 ---
 
@@ -54,7 +54,7 @@ one that was measured end to end):
 | Link in the chain | Where it lives |
 | --- | --- |
 | the how-to for building the link | the `dsh-remote-tailnet` skill, **not in this repository** |
-| the **read-only verdict** on the link's current posture (four states, fail-closed exit codes) | `src/collect.ps1` here (24 checks) |
+| the **read-only verdict** on the link's current posture (four states, fail-closed exit codes) | `src/collect.ps1` here (26 checks) |
 | the **prerequisite check** (installed? signed in? does a human still have to act?) | `panel/prereq.ps1` + `panel/prereq-manifest.json` here (13 items) |
 | the **read-only panel inside the DSH settings page** | `panel/client-half.js` + `panel/host-half.js` here |
 | the **uninstaller** that removes it completely and cleanly (dry-run by default) | `tools/uninstall.ps1` here (§21) |
@@ -63,97 +63,7 @@ one that was measured end to end):
 **forwards no traffic**, and it **changes none of your settings**. It reads and reports; whether and how
 to fix anything is your call, and every suggestion ships with its rollback.
 
-## Plugin GUI: the three forms it ships in
-
-**The GUI exists** - it is one read-only panel, titled `Remote access link (read-only posture)`,
-showing the read-only posture (the four states `pass / degraded / blocked / unknown`), the
-credential-discipline notices and the promise that nothing is changed. The panel is a **display only**
-- it carries no write button.
-
-It ships in **three forms**; all three render that same panel, and they differ in **which seat they
-register** and **how long they live**:
-
-| # | form | how it loads | seat it registers | lifetime |
-|---|---|---|---|---|
-| 1 | **dynamic Cordis package** (the default) | `cordis_define` + `cordis_run` from `panel/host-half.js` + `panel/client-half.js`; see §14 | `settings.section` - a read-only section inside the settings page | **process memory only** - a restart makes it disappear, nothing is written to disk, so there is nothing to uninstall |
-| 2 | **persistent plugin package** (`plugin/`, published) - the settings-page **section** | `plugin/package.json` (`type: module`, `main: ./lib/index.js`, `exports["./client"]` → `./lib/client.js`, a `dsh.client` block, `dsh.bundle.patch`) plus the mount row in `plugin/cordis.patch.yml`; see §15 | `settings.section` (id `remote-tailnet-guard`, order 100, label `Remote access link (read-only posture)`) | on disk: it survives a restart until the row is removed |
-| 3 | the same persistent package - the **card** on DSH's "Settings → Plugins" page | the same package, the same mount row, the same client half | `settings.plugin.item`, **keyed** by `SETTINGS_NS` = `'remote-tailnet-guard'` = the package name; the host half registers a settings namespace with that same name (an **empty** schema) so the seat owner renders the card | on disk, exactly like form 2 |
-
-Form 1's registration is in `panel/client-half.js`:
-`ctx.slots.register({ name:'settings.section', id:'remote-tailnet-guard', order:100, label:'Remote access link (read-only posture)' }, …)` inside `ctx.slots.inject('settings.section', …)`. Forms 2 and 3 come from one client half (`plugin/lib/client.js`, duplicated byte-for-byte in `plugin/lib/client/index.js`) plus the host half `plugin/lib/index.js`: the section seat is the same one form 1 registers, and the card seat is registered beside it as `ctx.slots.register({ name:'settings.plugin.item', key: SETTINGS_NS, order: 100 }, …)` inside `ctx.slots.inject('settings.plugin.item', …)` (`plugin/lib/client.js:251-256`, section at `:242-247`).
-
-**The card is a seat, not an entitlement - it is implemented, and still unverified.** The card seat
-ships inside the package (t46), but **nobody has loaded this package in a real DSH** (see §19.2 and the
-unverified list in [`docs/install/plugin-package.md`](docs/install/plugin-package.md) §9). It has one
-gate that is easy to trip: the card `key` is **not** an arbitrary string - the owner renders one card
-per **served** settings namespace, so the key must equal a settings namespace the host half actually
-**registered** (`ctx.settings.register`), which is why both halves declare `SETTINGS_NS` =
-`'remote-tailnet-guard'` = the package name. When that registration does not happen (sharpest case: a
-`link:` install where the schema library cannot be resolved at run time) the package logs a warning,
-the card simply **does not appear**, and **everything else keeps working**. Recorded failure modes and
-what they look like: `docs/install/plugin-package.md` §9 item 7.
-
-**All three forms are inert until you say so.** Forms 2 and 3 are one package behind one mount row,
-and that row ships **`disabled: true`** - the only `- insert:` block in `plugin/cordis.patch.yml`
-holds exactly one row, so neither the section nor the card can appear before you enable it.
-
-**Why form 2 is a second, opt-in step and ships `disabled: true`.** Installing it writes into **your
-own** DSH profile (`dsh plugin --profile <name> add <the package>` installs the package and reconciles
-it into the profile's bundle list) and that one row affects **every session** of that profile; a wrong
-client entry parks the whole GUI in "Failed to load plugins" recovery mode (a real trap recorded in
-this machine's `AGENTS.md`, not a theoretical risk). So the single mount row in
-`plugin/cordis.patch.yml` is **disabled by default**: while it stays disabled the loader never starts
-the row and the client-module scan skips disabled entries - both anchors are recorded in that file's
-own comment (`cordis-plugin-loader/lib/index.js:391`, `dsh-client-modules/lib/index.js:778`) - so
-installing the package **does nothing at all** until you enable it. Enable it only after the read-only
-preflight is green (`panel/plugin-preflight.ps1`, exit codes 0/1/2), and prefer a **throwaway profile**
-for the first run.
-
-**The preflight, measured (this revision).** `panel/plugin-preflight.ps1` is the read-only gate for
-forms 2 and 3. These numbers come from re-running it on 2026-09-24, not from an earlier README:
-
-```powershell
-# the gate: 66 assertions, 0 failed, 3 skipped (node is not on PATH on this machine), exit 0
-powershell -NoProfile -ExecutionPolicy Bypass -File panel/plugin-preflight.ps1
-#   checks: 66  passed: 66  failed: 0 (blocking: 0, advisory: 0)  skipped: 3
-#   exit code: 0   contract: 0 = all blocking checks passed (skips allowed) | 1 = advisory findings only | 2 = blocking finding or nothing judged
-
-# the fault-injection self-test: 7 injected faults, all 7 matched, exit 0
-powershell -NoProfile -ExecutionPolicy Bypass -File panel/plugin-preflight.ps1 -SelfTest
-#   self-test: 7 cases  matched: 7  mismatched: 0
-
-# the release-set hygiene gate: CLEAN, 110 files under the default roots, exit 0
-powershell -NoProfile -ExecutionPolicy Bypass -File .github/scripts/repo-hygiene.ps1 -Json
-#   files     : 110 under those roots (release set by default)
-#   verdict: CLEAN (0 blocking finding(s))
-```
-
-**The exit-code contract, and the calling convention it depends on**: `0` = every blocking check
-passed (registered skips are printed, never silent, and do not change the code), `1` = advisory
-findings only, `2` = a blocking finding **or nothing could be judged** (fail closed: an unreadable or
-unparsable input ends as `2`, and an internal `trap` converges any unexpected exception to `2`).
-**Always call the script with `-File`**: it sets its code with `exit N`, and PowerShell only preserves
-that under `-File` - `-Command "& '<script>'"` and dot-sourcing were measured to rewrite the code to
-**`1`**, which would hide a real `2`.
-
-**First action when it goes wrong**: put the row back to `disabled: true` (or delete those three lines)
-and restart DSH from its own menu; if the GUI is already broken, restore the whole `cordis.patch.yml`
-from the step-1 backup. That is [`docs/install/plugin-package.md`](docs/install/plugin-package.md) §6
-(four-step rollback) and §7 (the first action); §5 of the same file is the three-step enable and §4 the
-read-only preflight.
-
-**What is verified and what is not**: the package's shape, encodings, single disabled row, both seat
-registrations and the byte-identical client shared body are covered by the offline preflight (66
-assertions, above) and by the static case `tests/cases/plugin-package-shape/`; **loading it in a real
-DSH has not been verified**, and neither has the card rendering - that needs you to enable the row
-(§15, or the throwaway-profile route in `docs/install/plugin-package.md` §8). Keep the three sightings
-apart, exactly as `docs/install/plugin-package.md` §9 does: **the section appearing** = the skeleton
-loaded; **the row appearing in the plugin inventory** = the row really landed in the profile (a
-disabled row is listed there too); **the card appearing** = the host half successfully registered the
-settings namespace the card is keyed by.
-
-Activation, observation points, success/failure criteria and rollback: §14 (form 1, the default) and
-§15 (forms 2 and 3, which need your explicit authorisation).
+> **Looking for the panel / GUI?** The three-form read-only panel, with its activation, criteria and rollback notes, now lives further down - see "Plugin GUI: the three forms it ships in" (right after §15), plus §14 (form 1, the default) and §15 (forms 2 and 3).
 
 ## How it was built, and by whom
 
@@ -260,7 +170,7 @@ Four deliverables that share one detection core:
 
 | Piece | Entry point | What it is |
 |---|---|---|
-| Collector / judge | `src/collect.ps1` | 24 checks, four verdicts, exit codes 0/1/2, fixture-injectable |
+| Collector / judge | `src/collect.ps1` | 26 checks, four verdicts, exit codes 0/1/2, fixture-injectable |
 | Prerequisite checker | `panel/prereq.ps1` + `panel/prereq-manifest.json` | 13 prerequisite items with role, detection method, install command to *show*, verification and rollback |
 | DSH plugin (dynamic Cordis package) | `src/host-half.js`, `panel/host-half.js`, `panel/client-half.js` | host half exposes a bounded posture read; the settings panel is display-only |
 | Persistent plugin package | `plugin/package.json`, `plugin/cordis.patch.yml`, `plugin/lib/index.js` (host half), `plugin/lib/client.js` (loader bundle), `plugin/lib/client/index.js` (ESM twin) | the same read-only settings section as an installable bundle; its single mount row ships `disabled: true`, so installing it does nothing until you enable it |
@@ -279,7 +189,7 @@ and roll back the persistent package), `panel/plugin-preflight.ps1` (its read-on
 | Link | `TAILNET_ADDRESS`, `MAGICDNS_RESOLVE`, `PEER_TCP_443` (connected / refused / timeout), `PEER_ISOLATION_PROBES` (135, 5357 and the DSH port must **not** answer), `SERVE_PRESENT` |
 | Exposure | `DSH_LOOPBACK_ONLY`, `WILDCARD_LISTENER_INVENTORY`, `DSH_NETWORK_EXPOSURE`, `TRUSTED_HOSTS_PATCH`, `NO_NEW_WILDCARD_LISTENER` (before/after self-proof) |
 | Tailscale | `TAILSCALE_CLI_LAYER`, `TAILSCALE_SERVICE`, `TAILSCALE_PROCESS_EDGE_DB`, `TAILSCALE_IN_RULES` |
-| Windows posture | `FIREWALL_PROFILES`, `NIC_PROFILE_ATTRIBUTION`, `POWER_STANDBY_IDLE_AC_DC`, `POWER_S0_CAPABILITY`, `BROWSER_PROXY_TSNET` |
+| Windows posture | `FIREWALL_PROFILES`, `NIC_PROFILE_ATTRIBUTION`, `POWER_STANDBY_IDLE_AC_DC`, `POWER_S0_CAPABILITY`, `BROWSER_PROXY_TSNET`, `SERVER_PROXY_STATE` (server-side system-proxy posture), `TAILNET_ROUTE_PRESENT` (whether the tailnet route is still present; absence is `blocked`, cause unattributable) |
 | Client-only | `HTTPS_CLIENT_ONLY` (needs a Node/OpenSSL probe; `curl` under schannel fails falsely) |
 | Self-audit | `CREDENTIAL_DISCIPLINE` (re-audits every probe command string it executed) |
 
@@ -375,7 +285,7 @@ Measured on the reference machine (2026-09-24, Windows 10 Pro 19045, Windows Pow
 5.1.19041, no `-Peer` given, ~12 s):
 
 ```text
-total=24  pass=15  degraded=2  blocked=1  unknown=6   exit=2
+total=26  pass=15  degraded=4  blocked=1  unknown=6   exit=2
 ```
 
 Read that honestly: the `blocked` item is the local DSH `trustedHosts` patch (this machine has
@@ -408,7 +318,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-tests.ps1 -Filter 
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-tests.ps1 -Only isolation
 ```
 
-One case per directory under `tests/cases/` (64 today) runs the real collector against injected
+One case per directory under `tests/cases/` (70 today) runs the real collector against injected
 fixtures: peer offline/refused/timeout, serve moved or absent, a changed DSH port, a cookie that
 expired (401), a missing `trustedHosts` key, non-admin probes, Tailscale absent/logged out/
 unreadable, a path with spaces and Chinese characters, locale traps (including a Chinese-tool-output
@@ -515,8 +425,9 @@ the fix for the case you are in.
     fix: Add the tailnet name/range to the proxy bypass list, or disable the system proxy while using the link.
     cmd: Add the tailnet name/range to the proxy bypass list, or disable the system proxy while using the link
     rollback: remove the bypass entry you added
-[DEGRADED] SERVER_PROXY_STATE (server) - server_proxy_state
-    proxy_active_route_intact
+[DEGRADED] SERVER_PROXY_STATE (server) - Server system-proxy posture (unrelated to the inbound path)
+    A system proxy is enabled on the server (ProxyServer=127.0.0.1:7897). A WinINET proxy only shapes this machine's outbound browsing and never touches the inbound tailnet path, so the route stays intact. This degraded heads-up means: if the client still times out, look for a TUN-mode proxy and verify the 100.64.0.0/10 route (see TAILNET_ROUTE_PRESENT).
+    fix: MANUAL: a server-side system proxy neither opens nor closes the inbound path; if the client still times out while it is on, look for a TUN-mode proxy and check the 100.64.0.0/10 route (TAILNET_ROUTE_PRESENT). Nothing to roll back: this collector changes no proxy setting.
     cmd: A system proxy on the server does not open or close the inbound path; if the client times out while this is on, look for a TUN-mode proxy and check the tailnet route (TAILNET_ROUTE_PRESENT)
     rollback: nothing to roll back: this collector changes no proxy setting
 ```
@@ -684,7 +595,7 @@ node suffixes, **0** credential value shapes, and **0 unclassified tokens** - a 
 rule explains is itself a blocking finding, so the allow list can never become a blindfold. It
 reports `verdict: CLEAN` over the release set, which includes all four files under `panel/`, and it
 prints the live file count in its header (85 when this line was first written; with `tools/`,
-the second README and `plugin/` among the default roots it was 109 at that snapshot, and **110** is measured for this revision); the CI job passes no scan-root argument
+the second README and `plugin/` among the default roots it was 109 at that snapshot, and **116** is measured for this revision); the CI job passes no scan-root argument
 because the release set *is* the default scope. The classification of everything the gate does *not*
 treat as blocking is in section 10. Run the same gates locally:
 
@@ -710,7 +621,7 @@ finds instead of only counting it:
 | credential words as field names, "never read" declarations, fixture vocabulary | reported per file when you run it (a few hundred) | allow-listed; reported for human confirmation, never fatal on its own (the gate prints the live number and its per-file breakdown, which moves whenever a doc mentions one of the five words) |
 | product constants and sanitized replacement values | 12 distinct tokens, 135 occurrences (119 before the second README joined the release set) | allow-listed **by token** from the single shared allow list at the top of `.github/scripts/repo-hygiene.ps1`; **0 unclassified tokens**, and an unclassified token would fail the gate |
 | unapproved token (nothing on the allow list explains it) | 0 | must be 0 - the gate's self-test plants one and proves it alone flips the verdict to FAIL |
-| removed client-runtime package | 0 code references, 2 documentation mentions | code must be 0; the docs quote the ban and the check command on purpose |
+| removed client-runtime package | 0 code references, 3 documentation mentions | code must be 0; the docs quote the ban and the check command on purpose |
 | encodings, binary products, internal-material exclusions, document markers | 0 | must be 0 |
 | line endings | LF everywhere; 2 CRLF files today | both are the captured-output fixtures under `tests/fixtures/` (CRLF on purpose), and the gate now reports **no line-ending note at all** - the last one, `tests/cases/README.md`, was converted to LF; `repo-hygiene.ps1 -StrictLineEndings` still promotes any non-fixture CRLF file to a blocking finding |
 
@@ -787,11 +698,11 @@ its own only hit.
 
 ## 13. Detection items and what each one actually judges
 
-Two independent item sets ship here: the **collector** (24 checks, one JSON report, exit 0/1/2) and
+Two independent item sets ship here: the **collector** (26 checks, one JSON report, exit 0/1/2) and
 the **prerequisite checker** (13 items, install-plan oriented). They share the vocabulary but not
 the thresholds.
 
-### 13.1 Collector checks (24)
+### 13.1 Collector checks (26)
 
 `role` is the side a check belongs to; the report tags every item with it so a client-only run does
 not look "broken" because server items are missing. `evidence` is what the verdict is read from -
@@ -820,9 +731,11 @@ never a config file, and never a localized string without a `confidence: low` do
 | 19 | `PEER_ISOLATION_PROBES` | client | the peer's non-443 ports must **not** answer | all probes unanswered ⇒ pass; any port answering ⇒ degraded (the ACL is not narrow) | `[Net.Sockets.TcpClient]` |
 | 20 | `MAGICDNS_RESOLVE` | client | the peer's MagicDNS name resolves | resolution ⇒ pass; failure ⇒ blocked/unknown, separated by cause | DNS |
 | 21 | `BROWSER_PROXY_TSNET` | client | a browser proxy hijacking the tailnet | proxy bypass present ⇒ pass; a hijack whose symptom is "the script is fine, the browser times out" ⇒ degraded | `HKCU:\...\Internet Settings` |
-| 22 | `HTTPS_CLIENT_ONLY` | client | HTTPS/certificate verdict | needs a Node/OpenSSL probe: `curl` under schannel fails falsely, so its `000` is **not** evidence (see the skill's probe-capability table) | https request with `rejectUnauthorized:true` |
-| 23 | `CREDENTIAL_DISCIPLINE` | both | self-audit | re-scans every probe command string this run executed; any credential shape ⇒ blocked | own report |
-| 24 | `NO_NEW_WILDCARD_LISTENER` | both | read-only self-proof | the wildcard listener set before/after the run must be identical; a probe that cannot answer ⇒ `unknown` (`ro_probe_unavailable`) | own before/after snapshot |
+| 22 | `SERVER_PROXY_STATE` | server | the server's system proxy (a per-user browsing setting; it does not change the inbound path) | registry unreadable ⇒ `unknown` (`proxy_unavailable`); `ProxyEnable=0` ⇒ `pass` (`proxy_ok`); `ProxyEnable=1` ⇒ `degraded` (`proxy_active_route_intact`, `confidence: low`) | registry `HKCU:\...\Internet Settings` (`ProxyEnable` / `ProxyServer` / `ProxyOverride`) |
+| 23 | `TAILNET_ROUTE_PRESENT` | server | the tailnet route (a destination inside `100.64.0.0/10` in the route table) | `route` unreadable ⇒ `unknown` (`route_probe_unavailable`); an aggregate row or any destination inside the range ⇒ `pass` (`route_ok`); neither ⇒ `blocked` (`route_tailnet_missing`) | `route print -4` (destination `100.64.0.0/10`, netmask `255.192.0.0`) |
+| 24 | `HTTPS_CLIENT_ONLY` | client | HTTPS/certificate verdict | needs a Node/OpenSSL probe: `curl` under schannel fails falsely, so its `000` is **not** evidence (see the skill's probe-capability table) | https request with `rejectUnauthorized:true` |
+| 25 | `CREDENTIAL_DISCIPLINE` | both | self-audit | re-scans every probe command string this run executed; any credential shape ⇒ blocked | own report |
+| 26 | `NO_NEW_WILDCARD_LISTENER` | both | read-only self-proof | the wildcard listener set before/after the run must be identical; a probe that cannot answer ⇒ `unknown` (`ro_probe_unavailable`) | own before/after snapshot |
 
 Authoritative wording lives in `i18n/labels.{en,zh}.json` (`title` / `reason` per id, per verdict),
 and the expected verdict per injected fault lives in `tests/cases/<name>/case.json`. The table above
@@ -1010,6 +923,98 @@ config on that machine — it is not a per-port stop); verify with `tailscale se
 evidence ledger (`tailscale serve --help`, exit 0: USAGE lists only `<target>` / `status [--json]` /
 `reset`, and there is **no** `off`) is recorded in `docs/install/rollback.md` §3.1.
 
+## Plugin GUI: the three forms it ships in
+
+**The GUI exists** - it is one read-only panel, titled `Remote access link (read-only posture)`,
+showing the read-only posture (the four states `pass / degraded / blocked / unknown`), the
+credential-discipline notices and the promise that nothing is changed. The panel is a **display only**
+- it carries no write button.
+
+It ships in **three forms**; all three render that same panel, and they differ in **which seat they
+register** and **how long they live**:
+
+| # | form | how it loads | seat it registers | lifetime |
+|---|---|---|---|---|
+| 1 | **dynamic Cordis package** (the default) | `cordis_define` + `cordis_run` from `panel/host-half.js` + `panel/client-half.js`; see §14 | `settings.section` - a read-only section inside the settings page | **process memory only** - a restart makes it disappear, nothing is written to disk, so there is nothing to uninstall |
+| 2 | **persistent plugin package** (`plugin/`, published) - the settings-page **section** | `plugin/package.json` (`type: module`, `main: ./lib/index.js`, `exports["./client"]` → `./lib/client.js`, a `dsh.client` block, `dsh.bundle.patch`) plus the mount row in `plugin/cordis.patch.yml`; see §15 | `settings.section` (id `remote-tailnet-guard`, order 100, label `Remote access link (read-only posture)`) | on disk: it survives a restart until the row is removed |
+| 3 | the same persistent package - the **card** on DSH's "Settings → Plugins" page | the same package, the same mount row, the same client half | `settings.plugin.item`, **keyed** by `SETTINGS_NS` = `'remote-tailnet-guard'` = the package name; the host half registers a settings namespace with that same name (an **empty** schema) so the seat owner renders the card | on disk, exactly like form 2 |
+
+Form 1's registration is in `panel/client-half.js`:
+`ctx.slots.register({ name:'settings.section', id:'remote-tailnet-guard', order:100, label:'Remote access link (read-only posture)' }, …)` inside `ctx.slots.inject('settings.section', …)`. Forms 2 and 3 come from one client half (`plugin/lib/client.js`, duplicated byte-for-byte in `plugin/lib/client/index.js`) plus the host half `plugin/lib/index.js`: the section seat is the same one form 1 registers, and the card seat is registered beside it as `ctx.slots.register({ name:'settings.plugin.item', key: SETTINGS_NS, order: 100 }, …)` inside `ctx.slots.inject('settings.plugin.item', …)` (`plugin/lib/client.js:251-256`, section at `:242-247`).
+
+**The card is a seat, not an entitlement - it is implemented, and still unverified.** The card seat
+ships inside the package (t46), but **nobody has loaded this package in a real DSH** (see §19.2 and the
+unverified list in [`docs/install/plugin-package.md`](docs/install/plugin-package.md) §9). It has one
+gate that is easy to trip: the card `key` is **not** an arbitrary string - the owner renders one card
+per **served** settings namespace, so the key must equal a settings namespace the host half actually
+**registered** (`ctx.settings.register`), which is why both halves declare `SETTINGS_NS` =
+`'remote-tailnet-guard'` = the package name. When that registration does not happen (sharpest case: a
+`link:` install where the schema library cannot be resolved at run time) the package logs a warning,
+the card simply **does not appear**, and **everything else keeps working**. Recorded failure modes and
+what they look like: `docs/install/plugin-package.md` §9 item 7.
+
+**All three forms are inert until you say so.** Forms 2 and 3 are one package behind one mount row,
+and that row ships **`disabled: true`** - the only `- insert:` block in `plugin/cordis.patch.yml`
+holds exactly one row, so neither the section nor the card can appear before you enable it.
+
+**Why form 2 is a second, opt-in step and ships `disabled: true`.** Installing it writes into **your
+own** DSH profile (`dsh plugin --profile <name> add <the package>` installs the package and reconciles
+it into the profile's bundle list) and that one row affects **every session** of that profile; a wrong
+client entry parks the whole GUI in "Failed to load plugins" recovery mode (a real trap recorded in
+this machine's `AGENTS.md`, not a theoretical risk). So the single mount row in
+`plugin/cordis.patch.yml` is **disabled by default**: while it stays disabled the loader never starts
+the row and the client-module scan skips disabled entries - both anchors are recorded in that file's
+own comment (`cordis-plugin-loader/lib/index.js:391`, `dsh-client-modules/lib/index.js:778`) - so
+installing the package **does nothing at all** until you enable it. Enable it only after the read-only
+preflight is green (`panel/plugin-preflight.ps1`, exit codes 0/1/2), and prefer a **throwaway profile**
+for the first run.
+
+**The preflight, measured (this revision).** `panel/plugin-preflight.ps1` is the read-only gate for
+forms 2 and 3. These numbers come from re-running it on 2026-09-24, not from an earlier README:
+
+```powershell
+# the gate: 66 assertions, 0 failed, 3 skipped (node is not on PATH on this machine), exit 0
+powershell -NoProfile -ExecutionPolicy Bypass -File panel/plugin-preflight.ps1
+#   checks: 66  passed: 66  failed: 0 (blocking: 0, advisory: 0)  skipped: 3
+#   exit code: 0   contract: 0 = all blocking checks passed (skips allowed) | 1 = advisory findings only | 2 = blocking finding or nothing judged
+
+# the fault-injection self-test: 7 injected faults, all 7 matched, exit 0
+powershell -NoProfile -ExecutionPolicy Bypass -File panel/plugin-preflight.ps1 -SelfTest
+#   self-test: 7 cases  matched: 7  mismatched: 0
+
+# the release-set hygiene gate: CLEAN, 116 files under the default roots, exit 0
+powershell -NoProfile -ExecutionPolicy Bypass -File .github/scripts/repo-hygiene.ps1 -Json
+#   files     : 116 under those roots (release set by default)
+#   verdict: CLEAN (0 blocking finding(s))
+```
+
+**The exit-code contract, and the calling convention it depends on**: `0` = every blocking check
+passed (registered skips are printed, never silent, and do not change the code), `1` = advisory
+findings only, `2` = a blocking finding **or nothing could be judged** (fail closed: an unreadable or
+unparsable input ends as `2`, and an internal `trap` converges any unexpected exception to `2`).
+**Always call the script with `-File`**: it sets its code with `exit N`, and PowerShell only preserves
+that under `-File` - `-Command "& '<script>'"` and dot-sourcing were measured to rewrite the code to
+**`1`**, which would hide a real `2`.
+
+**First action when it goes wrong**: put the row back to `disabled: true` (or delete those three lines)
+and restart DSH from its own menu; if the GUI is already broken, restore the whole `cordis.patch.yml`
+from the step-1 backup. That is [`docs/install/plugin-package.md`](docs/install/plugin-package.md) §6
+(four-step rollback) and §7 (the first action); §5 of the same file is the three-step enable and §4 the
+read-only preflight.
+
+**What is verified and what is not**: the package's shape, encodings, single disabled row, both seat
+registrations and the byte-identical client shared body are covered by the offline preflight (66
+assertions, above) and by the static case `tests/cases/plugin-package-shape/`; **loading it in a real
+DSH has not been verified**, and neither has the card rendering - that needs you to enable the row
+(§15, or the throwaway-profile route in `docs/install/plugin-package.md` §8). Keep the three sightings
+apart, exactly as `docs/install/plugin-package.md` §9 does: **the section appearing** = the skeleton
+loaded; **the row appearing in the plugin inventory** = the row really landed in the profile (a
+disabled row is listed there too); **the card appearing** = the host half successfully registered the
+settings namespace the card is keyed by.
+
+Activation, observation points, success/failure criteria and rollback: §14 (form 1, the default) and
+§15 (forms 2 and 3, which need your explicit authorisation).
+
 ## 16. The four Windows combinations — prerequisites and traps
 
 The detector never infers a capability from the OS label: it reads the build, the firewall state and
@@ -1165,8 +1170,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-fixtures.ps1
   window (18:33:16–18:38:18), rounds at 190 / 197 / 188 / 199 / 186 / 199 / 185 / 191 / 189 / 194 /
   186 ms, `VERDICT 全通:窗口内全部 connected`, **EXIT 0**. Cited as a window-limited observation,
   exactly like the 15-second run above - neither says the link is "stable".
-- Check inventory: `New-Check` occurrences = **25** in `src/collect.ps1` (24 items + one
-  post-processing branch), and `panel/prereq-manifest.json` `items` = **13**.
+- Check inventory: `New-Check` occurrences = **26** in `src/collect.ps1` (26 items), and
+  `panel/prereq-manifest.json` `items` = **13**.
 - Release-set inventory: the gate's default roots cover the code directories (`src/`, `i18n/`, `tests/`,
   `panel/`, `tools/`) plus the published docs and root files; it prints the live file count, so this
   line does not freeze one. `plugin/package.json` is present (that is the persistent package, §15); the
@@ -1211,7 +1216,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-fixtures.ps1
 
 Between 17:44 and ~18:30 the peer was unreachable, so the two-machine items could not be re-measured
 in that window. **Nothing was failed because of it and nothing was papered over**: with the peer
-absent, the offline layer (the 24-check collector on fixtures, the 13-item prerequisite checker, the
+absent, the offline layer (the 26-check collector on fixtures, the 13-item prerequisite checker, the
 `run-fixtures` suite, the hygiene gate) was still fully measurable — that is the point of the
 offline seam — and the two-machine items were recorded as `timeout` rather than as a verdict. At
 18:30 the peer answered again and the tri-state plus a short soak were measured directly (§18.1).
@@ -1268,16 +1273,16 @@ means the operator runs it again (§17.5).
 here, in `CONTRIBUTING.md` and in `CHANGELOG.md` were refreshed (t24 for `CONTRIBUTING.md`, t28 for
 the other three places). Nothing in the publish set quotes a frozen pass count any more - the suite
 prints its own header and its case count is simply the number of directories under `tests/cases/`
-(64 on 2026-09-24, 0 `xfail` held). Run the command in §20 and read the header rather than this line.
+(70 on 2026-09-24, 0 `xfail` held). Run the command in §20 and read the header rather than this line.
 
 ## 20. Delivery checklist and the three commands a stranger needs
 
 | item | path | state |
 |---|---|---|
-| offline regression entry | `tests/run-tests.ps1` (64 cases) | present |
+| offline regression entry | `tests/run-tests.ps1` (70 cases) | present |
 | offline fixture entry (deterministic, no probes) | `tests/run-fixtures.ps1` (7 cases) | present, `ALL PASS / 0 failed / exit 0` |
 | offline smoke entry (one command, one exit code) | `tests/run-smoke.ps1` | present; exit `0` all green, `1` degraded (a SKIP but no FAIL), `2` broken |
-| collector | `src/collect.ps1` (24 checks) | present |
+| collector | `src/collect.ps1` (26 checks) | present |
 | prerequisite checker + manifest | `panel/prereq.ps1`, `panel/prereq-manifest.json` (13 items) | present |
 | plugin halves | `src/host-half.js`, `panel/host-half.js`, `panel/client-half.js` | present |
 | persistent plugin package | `plugin/package.json`, `plugin/cordis.patch.yml`, `plugin/lib/index.js`, `plugin/lib/client.js`, `plugin/lib/client/index.js` | present, published; the mount row is `disabled: true`, so it is inert until enabled (§15) |
@@ -1295,7 +1300,7 @@ Clone → self-proof, three commands:
 # 1) deterministic, offline, no machine probes at all - expect: ALL PASS: 7 cases, 0 failed assertions
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-fixtures.ps1
 
-# 2) the full offline suite - expect: 64 cases, 64 passed, 0 failed, 0 xfail held, 0 xpass (exit 0)
+# 2) the full offline suite - expect: 70 cases, 70 passed, 0 failed, 0 xfail held, 0 xpass (exit 0)
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-tests.ps1
 
 # 3) the release-set gate - expect: verdict: CLEAN (0 blocking finding(s)), unclassified=0 (exit 0)

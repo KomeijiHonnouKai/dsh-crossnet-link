@@ -1,8 +1,9 @@
 # Changelog
 
-LAST UPDATED  : 2026-09-24 (task t39 - the uninstaller is recorded and `tools/` joined the published
-                release set, with the read-only promise boundary spelled out; t28 relativeised the last
-                stale case count and t24 settled the MIT licence and the repository name)
+LAST UPDATED  : 2026-09-24 (task t4 - documentation calibration: the shipped docs now state the measured
+                counts; task t39 recorded the uninstaller and `tools/` joining the published release set;
+                t28 relativeised the last stale case count and t24 settled the MIT licence and the
+                repository name)
 COMMANDS USED : powershell -NoProfile -ExecutionPolicy Bypass -File .github/scripts/repo-hygiene.ps1 -Json
                 powershell -NoProfile -ExecutionPolicy Bypass -File .github/scripts/repo-hygiene.ps1 -SelfTest
                 powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-tests.ps1
@@ -57,6 +58,13 @@ should be read as a provisional grant.
 
 ### Changed
 
+- **Documentation calibration** - `docs/collect.md` and `docs/install/install.md` now state the measured
+  counts. The collector reports **26 checks** (the 24 already documented plus two server-side checks,
+  `SERVER_PROXY_STATE` - WinINET system-proxy state, reported `degraded/proxy_active_route_intact` when
+  enabled because a WinINET proxy never changes the inbound path - and `TAILNET_ROUTE_PRESENT` - a
+  destination inside `100.64.0.0/10` in `route print -4`, reported `blocked/route_tailnet_missing` when
+  absent). The offline suite runs **70 cases** (was 64) and the release set is **116 files** (was 110).
+  No verdict logic, history or fixtures were changed.
 - **`tools/` joined the published release set**: the hygiene gate's `$PublishRoots`, README §8, the CI
   workflow's scope note and section 1 of `.gitignore` now list it, so a clone contains the uninstaller
   and the gate scans it. Without this, "complete, clean uninstall" could not be true for anybody who

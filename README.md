@@ -22,11 +22,11 @@
 
 ## 目录
 
-**开篇**: [目的:它解决什么问题](#目的它解决什么问题what-it-is-for) · [插件界面(GUI):它以三种形态交付](#插件界面gui它以三种形态交付) · [实现方式与作者](#实现方式与作者) · [三分钟上手](#三分钟上手下面每条都是只读的唯一会写东西的是最后那条而它默认干跑)
+**开篇**: [目的:它解决什么问题](#目的它解决什么问题what-it-is-for) · [实现方式与作者](#实现方式与作者) · [三分钟上手](#三分钟上手下面每条都是只读的唯一会写东西的是最后那条而它默认干跑)
 
 **Part I —— 体检器**: [1. 这是什么](#1-这是什么) · [2. 检查哪些项](#2-检查哪些项) · [3. 刻意不做什么](#3-刻意不做什么) · [4. 安装](#4-安装) · [5. 用法](#5-用法) · [6. 支持矩阵](#6-支持矩阵四种-windows-组合) · [7. 安全姿态](#7-安全姿态) · [8. 仓库布局与发布集](#8-仓库布局与发布集) · [9. CI 与仓库卫生](#9-ci-与仓库卫生) · [10. 残留标识符](#10-发布集里的残留标识符) · [11. 版本号与发布](#11-版本号标签与发布步骤) · [12. 贡献与许可](#12-贡献与许可)
 
-**Part II —— 激活、证据与收尾**: [Part II 抬头](#part-ii--检测契约激活待办与证据链任务-t9) · [13. 检测项](#13-检测项与每一项到底判什么) · [14. 路径 A](#14-激活插件--路径-a动态-cordis-包的默认路径) · [15. 路径 B](#15-路径-b--常驻插件包可选需要你显式授权) · [16. 四种 Windows 组合](#16-四种-windows-组合--前置件与坑) · [17. 待办](#17-待办--只能由人来做的事) · [18. 证据链](#18-证据链本任务实测引用自其它任务仍未验证) · [19. 未决项](#19-未决项与刻意的决定请不要顺手修) · [20. 交付清单](#20-交付清单与陌生人需要的三条命令) · [21. 卸载与残留](#21-卸载与残留--完整干净且从不静默)
+**Part II —— 激活、证据与收尾**: [Part II 抬头](#part-ii--检测契约激活待办与证据链任务-t9) · [13. 检测项](#13-检测项与每一项到底判什么) · [14. 路径 A](#14-激活插件--路径-a动态-cordis-包的默认路径) · [15. 路径 B](#15-路径-b--常驻插件包可选需要你显式授权) · [插件界面(GUI)](#插件界面gui它以三种形态交付) · [16. 四种 Windows 组合](#16-四种-windows-组合--前置件与坑) · [17. 待办](#17-待办--只能由人来做的事) · [18. 证据链](#18-证据链本任务实测引用自其它任务仍未验证) · [19. 未决项](#19-未决项与刻意的决定请不要顺手修) · [20. 交付清单](#20-交付清单与陌生人需要的三条命令) · [21. 卸载与残留](#21-卸载与残留--完整干净且从不静默)
 
 ---
 
@@ -48,58 +48,14 @@
 | 环 | 在哪 |
 | --- | --- |
 | 「怎么把链路打通」的操作手册 | 是 skill `dsh-remote-tailnet`,**不在本仓库** |
-| 链路当前姿态的**只读判定**(四态 + 退出码 fail-closed) | 本仓库 `src/collect.ps1`(24 项检查) |
+| 链路当前姿态的**只读判定**(四态 + 退出码 fail-closed) | 本仓库 `src/collect.ps1`(26 项检查) |
 | **前置件检查**(装没装、签没签、要不要人工做) | 本仓库 `panel/prereq.ps1` + `panel/prereq-manifest.json`(13 项) |
-| DSH **设置页里的只读面板** | 本仓库 `panel/client-half.js` + `panel/host-half.js`(见下一节) |
+| DSH **设置页里的只读面板** | 本仓库 `panel/client-half.js` + `panel/host-half.js`(见 §15 之后的〈插件界面(GUI)〉一节) |
 | **可完整干净卸载**的卸载器(默认干跑) | 本仓库 `tools/uninstall.ps1`(§21) |
 
 **边界(一句话)**:它**不是**远控软件、**不做**代理、**不转发**任何流量、**不改**你的配置。它只读、只报,修不修、怎么修由你决定,每条建议都附回滚。
 
-## 插件界面(GUI):它以三种形态交付
-
-**GUI 已经做了**:一个只读面板,标题 `Remote access link (read-only posture)`,内容 = 只读姿态(四态 `pass / degraded / blocked / unknown`)+ 凭据纪律提示 + 「这里不会改动任何东西」的承诺。面板是**只读展示**,没有任何写入按钮。
-
-它以**三种形态**交付;三种渲染的是**同一个**只读面板,差别只在**注册到哪个座位**与**活多久**:
-
-| # | 形态 | 怎么装载 | 注册的座位 | 活多久 |
-|---|---|---|---|---|
-| 1 | **动态 Cordis 包**(默认) | `cordis_define` + `cordis_run`,代码来自 `panel/host-half.js` + `panel/client-half.js`;见 §14 | `settings.section` —— 设置页里的一个只读分区 | **只在进程内存** —— 重启进程就消失,不落盘,所以没有东西需要卸载 |
-| 2 | **常驻插件包**(`plugin/`,随发布集发布)—— 设置页的**分区** | `plugin/package.json`(`type: module`、`main: ./lib/index.js`、`exports["./client"]` → `./lib/client.js`、`dsh.client` 块、`dsh.bundle.patch`)**加上** `plugin/cordis.patch.yml` 里那一行挂载行;见 §15 | `settings.section`(id `remote-tailnet-guard`、order 100、label `Remote access link (read-only posture)`) | 在磁盘上:重启也还在,直到那一行被移除 |
-| 3 | 同一个常驻包 —— 「设置 → 插件」页里的**卡片** | 同一个包、同一行挂载行、同一份 client 半边 | `settings.plugin.item`,由 `SETTINGS_NS` = `'remote-tailnet-guard'` = 包名**作 key**;host 半边注册**同名**的、**空 schema** 的设置命名空间,座位 owner 才会渲染这张卡片 | 在磁盘上,与形态 2 完全相同 |
-
-形态 1 的注册在 `panel/client-half.js`:`ctx.slots.inject('settings.section', …)` + `ctx.slots.register({ name:'settings.section', id:'remote-tailnet-guard', order:100, label:'Remote access link (read-only posture)' })`。形态 2 与 3 来自同一份 client 半边(`plugin/lib/client.js`,与 `plugin/lib/client/index.js` 逐字节一致)加上 host 半边 `plugin/lib/index.js`:分区座位就是形态 1 那一个,卡片座位是紧挨着它注册的 `ctx.slots.register({ name:'settings.plugin.item', key: SETTINGS_NS, order: 100 }, …)`,包在 `ctx.slots.inject('settings.plugin.item', …)` 里(`plugin/lib/client.js:251-256`,分区在 `:242-247`)。
-
-**卡片是座位,不是既得权利 —— 已实现,但仍未验证。** 卡片座位随包一起交付(t46),但**没有任何一次真实 DSH 装载记录**(见 §19.2 与 [`docs/install/plugin-package.md`](docs/install/plugin-package.md) §9 的未验证清单)。它有一道很容易踩的门槛:卡片的 `key` **不是任意字符串** —— owner 只对**已被服务(served)**的设置命名空间逐个渲染卡片,所以 key 必须等于 host 半边**真的注册过**(`ctx.settings.register`)的那个命名空间,这正是本包两个半边都用 `SETTINGS_NS ===` 包名的原因。注册没发生时(最尖锐的一种是 `link:` 装法下运行时解析不到 schema 库),包只打一条 warning,卡片**不出现**,而**其余功能照常**。已记录的失败形态与预期表现:`docs/install/plugin-package.md` §9 第 7 条。
-
-**三种形态在你表态之前都是惰性的。** 形态 2 与 3 是同一个包、同一行挂载行,而那一行**默认 `disabled: true`** —— `plugin/cordis.patch.yml` 里唯一的 `- insert:` 块只装一行,所以在你启用它之前,分区与卡片都不可能自己冒出来。
-
-**为什么形态 2 是第二步、并且默认 `disabled: true`**:安装它会写进**你自己的** DSH profile(`dsh plugin --profile <name> add <这个包>` 会把包装进 profile 并调整 profile 的 bundle 列表),而那一行会影响该 profile 的**全部会话**;client 入口一旦写错,整个 GUI 会卡在「Failed to load plugins」的恢复模式(这是本机 `AGENTS.md` 里记录过的真实坑,不是理论风险)。所以 `plugin/cordis.patch.yml` 里那一行挂载行**默认 `disabled: true`**:只要它还是禁用状态,loader 就不会启动这一行、client 模块扫描也会跳过禁用项 —— 两条锚点都记在该文件自己的注释里(`cordis-plugin-loader/lib/index.js:391`、`dsh-client-modules/lib/index.js:778`)—— 因此在**你启用它之前,装上这个包什么都不做**。启用前先跑只读预检(`panel/plugin-preflight.ps1`,退出码 0/1/2),并且首次启用建议用**一次性 profile**。
-
-**预检,本修订版实测。** `panel/plugin-preflight.ps1` 是形态 2 与 3 的只读门禁。下面这些数字是 2026-09-24 重跑得到的,不是从旧版 README 抄来的:
-
-```powershell
-# 门禁:66 条断言、0 条失败、3 条跳过(本机 node 不在 PATH),退出 0
-powershell -NoProfile -ExecutionPolicy Bypass -File panel/plugin-preflight.ps1
-#   checks: 66  passed: 66  failed: 0 (blocking: 0, advisory: 0)  skipped: 3
-#   exit code: 0   contract: 0 = all blocking checks passed (skips allowed) | 1 = advisory findings only | 2 = blocking finding or nothing judged
-
-# 故障注入自证:注入 7 种故障,7 种全部命中预期退出码,退出 0
-powershell -NoProfile -ExecutionPolicy Bypass -File panel/plugin-preflight.ps1 -SelfTest
-#   self-test: 7 cases  matched: 7  mismatched: 0
-
-# 发布集卫生门禁:CLEAN,默认根下 110 个文件,退出 0
-powershell -NoProfile -ExecutionPolicy Bypass -File .github/scripts/repo-hygiene.ps1 -Json
-#   files     : 110 under those roots (release set by default)
-#   verdict: CLEAN (0 blocking finding(s))
-```
-
-**退出码契约,以及它依赖的调用方式**:`0` = 全部**阻断项**通过(已登记的 skip 会被打印出来、绝不静默,也不改变退出码);`1` = 只有**非阻断告警**;`2` = **有阻断项**,或**根本判不了**(fail closed:读不到、解析不了都以 `2` 收场,脚本内的 `trap` 会把任何意外异常收敛成 `2`)。**一律用 `-File` 调用这个脚本**:它用 `exit N` 设码,而 PowerShell **只在 `-File` 下保留它** —— `-Command "& '<脚本>'"` 与点源实测都会被改写成 **`1`**,那会把真正的 `2` 藏起来。
-
-**出问题时的第一动作**:把那一行改回 `disabled: true`(或直接删掉那三行),然后从 DSH 自带菜单重启;如果 GUI 已经坏了,就用第 1 步的备份**整文件还原** `cordis.patch.yml`。这就是 [`docs/install/plugin-package.md`](docs/install/plugin-package.md) §6(四步回滚)与 §7(第一动作);同一份文件的 §5 是三步启用、§4 是只读预检。
-
-**哪些已验证、哪些没有**:包的形状、编码、唯一一行禁用挂载、两个座位的注册、以及 client 共享正文逐字节一致,由离线预检(见上面的 66 条断言)与静态用例 `tests/cases/plugin-package-shape/` 覆盖;**在真实 DSH 里装载过没有做到**,卡片能否渲染也没有做到 —— 那需要你启用那一行(§15,或 `docs/install/plugin-package.md` §8 的一次性 profile 路线)。三种「看到」的含义请分开读,口径与 `docs/install/plugin-package.md` §9 一致:**分区出现** = 骨架加载成功;**插件清单里出现该行** = 那一行真的被装进了 profile(禁用状态的行也在清单里);**卡片出现** = host 半边成功注册了卡片所 key 的那个设置命名空间。
-
-激活、观察点、成功/失败判据与回滚:见本文 §14(形态 1,默认)与 §15(形态 2 与 3,需你显式授权)。
+> **想看面板 / GUI?** 三种形态的只读面板,连同它的激活、判据与回滚说明,已移到后部 —— 见 §15 之后的〈插件界面(GUI):它以三种形态交付〉,以及 §14(形态 1,默认)与 §15(形态 2 与 3)。
 
 ## 实现方式与作者
 
@@ -150,7 +106,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\uninstall.ps1 -Plan
 | --- | --- |
 | 装什么、怎么装、每步怎么回滚 | [`docs/install/prerequisites.md`](docs/install/prerequisites.md)、[`docs/install/install.md`](docs/install/install.md)、[`docs/install/rollback.md`](docs/install/rollback.md) |
 | **完整卸载**(保留清单 / 备份保留或清空 / 残留自查) | [`docs/install/uninstall.md`](docs/install/uninstall.md) |
-| 采集器 24 项判据与实现说明 | [`docs/collect.md`](docs/collect.md) |
+| 采集器 26 项判据与实现说明 | [`docs/collect.md`](docs/collect.md) |
 | 谁能看到什么、边界在哪 | [`docs/threat-model.md`](docs/threat-model.md) |
 | 安全承诺 P1–P8 与逐条复核命令 | [`SECURITY.md`](SECURITY.md) |
 | 本 README 的英文原文 | [`README.en.md`](README.en.md) |
@@ -169,7 +125,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\uninstall.ps1 -Plan
 
 | 件 | 入口 | 是什么 |
 |---|---|---|
-| 采集器 / 判定器 | `src/collect.ps1` | 24 项检查、四种判定、退出码 0/1/2,可注入夹具(fixture) |
+| 采集器 / 判定器 | `src/collect.ps1` | 26 项检查、四种判定、退出码 0/1/2,可注入夹具(fixture) |
 | 前置件检查器 | `panel/prereq.ps1` + `panel/prereq-manifest.json` | 13 项前置件,每项带角色、检测方式、**只打印不执行**的安装命令、验证与回滚 |
 | DSH 插件(动态 Cordis 包) | `src/host-half.js`、`panel/host-half.js`、`panel/client-half.js` | host 半边暴露一个有边界的姿态读取;设置页面板是**只读展示** |
 | 常驻插件包 | `plugin/package.json`、`plugin/cordis.patch.yml`、`plugin/lib/index.js`(host 半边)、`plugin/lib/client.js`(loader bundle)、`plugin/lib/client/index.js`(ESM 孪生源) | 同一个只读设置页分区,做成可安装的包;它唯一那行挂载行默认 `disabled: true`,所以装上之后在你启用之前什么都不做 |
@@ -184,7 +140,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\uninstall.ps1 -Plan
 | Link | `TAILNET_ADDRESS`、`MAGICDNS_RESOLVE`、`PEER_TCP_443`(connected / refused / timeout)、`PEER_ISOLATION_PROBES`(135、5357 与 DSH 端口都**不得**应答)、`SERVE_PRESENT` |
 | Exposure | `DSH_LOOPBACK_ONLY`、`WILDCARD_LISTENER_INVENTORY`、`DSH_NETWORK_EXPOSURE`、`TRUSTED_HOSTS_PATCH`、`NO_NEW_WILDCARD_LISTENER`(前后自证) |
 | Tailscale | `TAILSCALE_CLI_LAYER`、`TAILSCALE_SERVICE`、`TAILSCALE_PROCESS_EDGE_DB`、`TAILSCALE_IN_RULES` |
-| Windows 姿态 | `FIREWALL_PROFILES`、`NIC_PROFILE_ATTRIBUTION`、`POWER_STANDBY_IDLE_AC_DC`、`POWER_S0_CAPABILITY`、`BROWSER_PROXY_TSNET` |
+| Windows 姿态 | `FIREWALL_PROFILES`、`NIC_PROFILE_ATTRIBUTION`、`POWER_STANDBY_IDLE_AC_DC`、`POWER_S0_CAPABILITY`、`BROWSER_PROXY_TSNET`、`SERVER_PROXY_STATE`(服务端系统代理姿态)、`TAILNET_ROUTE_PRESENT`(tailnet 路由是否仍在;缺了报 `blocked`,归因不可判定) |
 | 仅客户端 | `HTTPS_CLIENT_ONLY`(需要 Node/OpenSSL 探测;schannel 下的 `curl` 会误报) |
 | 自审计 | `CREDENTIAL_DISCIPLINE`(把它本轮执行过的每一条探测命令字符串重新审一遍) |
 
@@ -249,7 +205,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File src/collect.ps1 -CheckOnly -
 在参考机器上实测(2026-09-24,Windows 10 Pro 19045,Windows PowerShell 5.1.19041,未给 `-Peer`,约 12 秒):
 
 ```text
-total=24  pass=15  degraded=2  blocked=1  unknown=6   exit=2
+total=26  pass=15  degraded=4  blocked=1  unknown=6   exit=2
 ```
 
 请如实读这行数据:`blocked` 那一项是本机 DSH 的 `trustedHosts` 补丁(本机没打),6 个 `unknown` 是需要对端地址、或需要一个普通(非沙箱)终端窗口才能问到的项。在一对**配置齐全**的机器上,同一条命令不会报 unknown;这个工具的意义就在于:这两种情况都不靠猜。
@@ -275,7 +231,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-tests.ps1 -Filter 
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-tests.ps1 -Only isolation
 ```
 
-`tests/cases/` 下每个目录一个用例(2026-09-24 是 **64** 个),每个用例都拿真实的采集器去跑注入的夹具:对端离线/拒绝/超时、serve 被挪走或不存在、DSH 端口被改、cookie 过期(401)、缺 `trustedHosts` 键、非管理员探测、Tailscale 不存在/未登录/读不到、带空格和中文的路径、本地化陷阱(包含「中文工具输出 + culture 设成 `en-US`」这一种)、写隔离与零硬编码扫描 —— 再加上它们自己的**正对照**。其中有**一个**用例不跑采集器,而是对常驻插件包做静态形状检查:`tests/cases/plugin-package-shape/` 断言 37 条静态事实(`plugin/lib/*.js` 的解析、编码与「经典脚本」形态,`package.json` 的字段,唯一一个 `- insert:` 块与它的 `disabled` 键,以及被标记的 SHARED BODY 区段在 `plugin/lib/client.js` 与 `plugin/lib/client/index.js` 里逐字节相同)。要求:`tests/run-tests.ps1` 只需要 Windows PowerShell 5.1。
+`tests/cases/` 下每个目录一个用例(2026-09-24 是 **70** 个),每个用例都拿真实的采集器去跑注入的夹具:对端离线/拒绝/超时、serve 被挪走或不存在、DSH 端口被改、cookie 过期(401)、缺 `trustedHosts` 键、非管理员探测、Tailscale 不存在/未登录/读不到、带空格和中文的路径、本地化陷阱(包含「中文工具输出 + culture 设成 `en-US`」这一种)、写隔离与零硬编码扫描 —— 再加上它们自己的**正对照**。其中有**一个**用例不跑采集器,而是对常驻插件包做静态形状检查:`tests/cases/plugin-package-shape/` 断言 37 条静态事实(`plugin/lib/*.js` 的解析、编码与「经典脚本」形态,`package.json` 的字段,唯一一个 `- insert:` 块与它的 `disabled` 键,以及被标记的 SHARED BODY 区段在 `plugin/lib/client.js` 与 `plugin/lib/client/index.js` 里逐字节相同)。要求:`tests/run-tests.ps1` 只需要 Windows PowerShell 5.1。
 
 套件是自己数字的唯一出处:它在表头打印 `cases run / passed / failed / xfail held / xpass`,退出码就是结论,所以请读那些数字,不要读某份冻结的快照(用例数就是 `tests/cases/` 下的目录数)。`xfail` 标记是「已知规格缺口」的携带方式,用了它就不会把缺口藏起来;本套件当前一个都没挂。要求:只要 Windows PowerShell 5.1 —— 不需要 Pester、不需要模块、不需要网络。
 
@@ -345,9 +301,11 @@ Network Destination        Netmask          Gateway       Interface  Metric
 [DEGRADED] BROWSER_PROXY_TSNET (client) - 浏览器代理是否劫持 tailnet
     系统代理已启用,且 bypass 列表里没有 ts.net / 100.64.0.0/10 ⇒ 浏览器可能走代理而超时(脚本探测却是通的)。
     fix: 把 tailnet 域名/100.64.0.0/10 加入代理绕过列表,或使用链路时关闭系统代理。
+    cmd: Add the tailnet name/range to the proxy bypass list, or disable the system proxy while using the link
     rollback: remove the bypass entry you added
-[DEGRADED] SERVER_PROXY_STATE (server) - server_proxy_state
-    proxy_active_route_intact
+[DEGRADED] SERVER_PROXY_STATE (server) - 服务端系统代理姿态(入向链路无关)
+    服务端系统代理已启用(ProxyServer=127.0.0.1:7897)。WinINET 代理只作用于本机浏览的出向流量,不影响 tailnet 的入向链路,故路由仍保持完好;本项记为降级只是提示:若此时客户端仍超时,应排查 TUN 模式代理并核对 100.64.0.0/10 路由(见 TAILNET_ROUTE_PRESENT)。
+    fix: 人工核对:服务端系统代理不会打开或关闭入向链路;若此代理开启时客户端仍超时,请排查 TUN 模式代理并核对 100.64.0.0/10 路由(TAILNET_ROUTE_PRESENT)。无需回滚:本采集器不改动任何代理设置。
     cmd: A system proxy on the server does not open or close the inbound path; if the client times out while this is on, look for a TUN-mode proxy and check the tailnet route (TAILNET_ROUTE_PRESENT)
     rollback: nothing to roll back: this collector changes no proxy setting
 ```
@@ -439,7 +397,7 @@ LICENSE  README.md  README.en.md  CHANGELOG.md  SECURITY.md  CONTRIBUTING.md  .g
 3. 完整测试套件 `tests/run-tests.ps1`,在 Windows PowerShell 5.1 下运行;
 4. 用 **PSScriptAnalyzer 1.22.0**(按钉定版本安装)做静态分析;error 级别失败即构建失败,warning 级别只打印供参考。
 
-卫生门禁刻意严格:**被挡标识符、私网段与节点后缀命中 0**、凭据值形态 **0**、**未分类 token 0** —— 一个没有任何允许规则能解释的 token 本身就是一条阻断性发现,所以允许清单永远不能变成眼罩。它在发布集上报 `verdict: CLEAN`,发布集包含 `panel/` 下的全部四个文件,并在表头打印**实时文件数**(第一次写这一行时是 85;在 `tools/`、`README.en.md` 与 `plugin/` 都成为默认扫描根之后是 **109**;本修订版(t48)实测为 **110**);CI job 不传任何扫描根参数,因为发布集**就是**默认范围。门禁**不**当作阻断的一切,其分类见第 10 节。本地跑同一套门禁:
+卫生门禁刻意严格:**被挡标识符、私网段与节点后缀命中 0**、凭据值形态 **0**、**未分类 token 0** —— 一个没有任何允许规则能解释的 token 本身就是一条阻断性发现,所以允许清单永远不能变成眼罩。它在发布集上报 `verdict: CLEAN`,发布集包含 `panel/` 下的全部四个文件,并在表头打印**实时文件数**(第一次写这一行时是 85;在 `tools/`、`README.en.md` 与 `plugin/` 都成为默认扫描根之后是 **109**;本修订版(t48)实测为 **116**);CI job 不传任何扫描根参数,因为发布集**就是**默认范围。门禁**不**当作阻断的一切,其分类见第 10 节。本地跑同一套门禁:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .github/scripts/repo-hygiene.ps1
@@ -459,7 +417,7 @@ python .github/scripts/check-workflows.py --selftest
 | 作为字段名的凭据词、「从不读取」声明、夹具词汇 | 运行时会按文件报出来(几百条量级) | 在允许清单内;报出来供人工确认,本身从不致命(门禁打印实时数字与逐文件分布,文档里提到那五个词之一就会让它动) |
 | 产品常量与净化后的替换值 | 12 个不同 token、135 次出现(`README.en.md` 加入发布集之前是 119 次) | 按 **token** 由 `.github/scripts/repo-hygiene.ps1` 顶部那份共享允许清单放行;**未分类 token 0**,而出现未分类 token 就会让门禁失败 |
 | 未批准的 token(允许清单里没有任何规则能解释) | 0 | 必须为 0 —— 门禁的 self-test 会种一个进去,并证明它单独一个就能把判定翻成 FAIL |
-| 已被移除的 client-runtime 包 | 代码引用 0、文档提及 2 | 代码必须为 0;文档是刻意引用这条禁令与检查命令 |
+| 已被移除的 client-runtime 包 | 代码引用 0、文档提及 3 | 代码必须为 0;文档是刻意引用这条禁令与检查命令 |
 | 编码、二进制产物、内部材料排除、文档标记 | 0 | 必须为 0 |
 | 行尾 | 全仓 LF;今天 2 个 CRLF 文件 | 两个都是 `tests/fixtures/` 下**故意**保留 CRLF 的抓取输出夹具,而且门禁现在**一条行尾备注都不报**了 —— 最后那一条(`tests/cases/README.md`)已经转成 LF;`repo-hygiene.ps1 -StrictLineEndings` 仍会把任何非夹具的 CRLF 文件升级成阻断性发现 |
 
@@ -523,9 +481,9 @@ python remote-tailnet-plugin/.github/scripts/check-workflows.py --selftest
 
 ## 13. 检测项与每一项到底判什么
 
-这里随仓库发布的是**两套互相独立的检查项**:采集器(24 项检查、一份 JSON 报告、退出码 0/1/2)与前置件检查器(13 项,面向安装计划)。它们共用词汇,但**不共用阈值**。
+这里随仓库发布的是**两套互相独立的检查项**:采集器(26 项检查、一份 JSON 报告、退出码 0/1/2)与前置件检查器(13 项,面向安装计划)。它们共用词汇,但**不共用阈值**。
 
-### 13.1 采集器的检查项(24)
+### 13.1 采集器的检查项(26)
 
 `role` 是这一项属于哪一侧;报告会给每一项打上这个标记,这样一次纯客户端运行不会因为缺了服务端项而看起来「坏了」。`evidence` 是判定的读取来源 —— **绝不是**某个配置文件,也绝不是一条没有 `confidence: low` 降级的本地化字符串。
 
@@ -552,9 +510,11 @@ python remote-tailnet-plugin/.github/scripts/check-workflows.py --selftest
 | 19 | `PEER_ISOLATION_PROBES` | client | 对端非 443 端口**不得**应答 | 全部探测无应答 ⇒ pass;任一端口应答 ⇒ degraded(ACL 不够窄) | `[Net.Sockets.TcpClient]` |
 | 20 | `MAGICDNS_RESOLVE` | client | 对端 MagicDNS 名能解析 | 解析成功 ⇒ pass;失败 ⇒ blocked/unknown,按原因分开 | DNS |
 | 21 | `BROWSER_PROXY_TSNET` | client | 浏览器代理劫持 tailnet | 存在代理绕行 ⇒ pass;症状是「脚本一切正常、浏览器超时」的劫持 ⇒ degraded | `HKCU:\...\Internet Settings` |
-| 22 | `HTTPS_CLIENT_ONLY` | client | HTTPS/证书判定 | 需要 Node/OpenSSL 探测:schannel 下的 `curl` 会误报,所以它的 `000` **不是**证据(见 skill 的探测能力表) | `rejectUnauthorized:true` 的 https 请求 |
-| 23 | `CREDENTIAL_DISCIPLINE` | both | 自审计 | 把本轮执行过的每一条探测命令字符串重新扫一遍;出现任何凭据形态 ⇒ blocked | 它自己的报告 |
-| 24 | `NO_NEW_WILDCARD_LISTENER` | both | 只读自证 | 运行前后的通配监听集合必须完全一致;探测答不出来 ⇒ `unknown`(`ro_probe_unavailable`) | 它自己的前后快照 |
+| 22 | `SERVER_PROXY_STATE` | server | 服务端系统代理(仅浏览设置,不改入站路径) | 注册表读不到 ⇒ `unknown`(`proxy_unavailable`);`ProxyEnable=0` ⇒ `pass`(`proxy_ok`);`ProxyEnable=1` ⇒ `degraded`(`proxy_active_route_intact`,`confidence: low`) | 注册表 `HKCU:\...\Internet Settings`(`ProxyEnable`/`ProxyServer`/`ProxyOverride`) |
+| 23 | `TAILNET_ROUTE_PRESENT` | server | tailnet 路由(路由表里 `100.64.0.0/10` 段内的目的地) | `route` 读不到 ⇒ `unknown`(`route_probe_unavailable`);有聚合行或该段内任一目的地 ⇒ `pass`(`route_ok`);都没有 ⇒ `blocked`(`route_tailnet_missing`) | `route print -4`(目的 `100.64.0.0/10`、掩码 `255.192.0.0`) |
+| 24 | `HTTPS_CLIENT_ONLY` | client | HTTPS/证书判定 | 需要 Node/OpenSSL 探测:schannel 下的 `curl` 会误报,所以它的 `000` **不是**证据(见 skill 的探测能力表) | `rejectUnauthorized:true` 的 https 请求 |
+| 25 | `CREDENTIAL_DISCIPLINE` | both | 自审计 | 把本轮执行过的每一条探测命令字符串重新扫一遍;出现任何凭据形态 ⇒ blocked | 它自己的报告 |
+| 26 | `NO_NEW_WILDCARD_LISTENER` | both | 只读自证 | 运行前后的通配监听集合必须完全一致;探测答不出来 ⇒ `unknown`(`ro_probe_unavailable`) | 它自己的前后快照 |
 
 权威措辞住在 `i18n/labels.{en,zh}.json`(每个 id、每种判定对应的 `title` / `reason`),每个注入故障的期望判定住在 `tests/cases/<name>/case.json`。上表是**阅读指南,不是第二处真相**:万一两者不一致,以 labels 与用例期望为准。
 
@@ -678,6 +638,52 @@ Copy-Item -LiteralPath $backup -Destination $patch -Force   # 只有上面这步
 
 前置件侧的回滚住在 `docs/install/rollback.md`。其中曾经写错、现在已修的那一条:撤销一次 `serve` 发布要用 **`tailscale serve reset`**(它会清掉那台机器上的**整份** serve 配置 —— 它不是按端口停用);用 `tailscale serve status` 验证。证据台账(`tailscale serve --help`,退出 0:USAGE 只列 `<target>` / `status [--json]` / `reset`,**没有** `off`)记录在 `docs/install/rollback.md` §3.1。
 
+## 插件界面(GUI):它以三种形态交付
+
+**GUI 已经做了**:一个只读面板,标题 `Remote access link (read-only posture)`,内容 = 只读姿态(四态 `pass / degraded / blocked / unknown`)+ 凭据纪律提示 + 「这里不会改动任何东西」的承诺。面板是**只读展示**,没有任何写入按钮。
+
+它以**三种形态**交付;三种渲染的是**同一个**只读面板,差别只在**注册到哪个座位**与**活多久**:
+
+| # | 形态 | 怎么装载 | 注册的座位 | 活多久 |
+|---|---|---|---|---|
+| 1 | **动态 Cordis 包**(默认) | `cordis_define` + `cordis_run`,代码来自 `panel/host-half.js` + `panel/client-half.js`;见 §14 | `settings.section` —— 设置页里的一个只读分区 | **只在进程内存** —— 重启进程就消失,不落盘,所以没有东西需要卸载 |
+| 2 | **常驻插件包**(`plugin/`,随发布集发布)—— 设置页的**分区** | `plugin/package.json`(`type: module`、`main: ./lib/index.js`、`exports["./client"]` → `./lib/client.js`、`dsh.client` 块、`dsh.bundle.patch`)**加上** `plugin/cordis.patch.yml` 里那一行挂载行;见 §15 | `settings.section`(id `remote-tailnet-guard`、order 100、label `Remote access link (read-only posture)`) | 在磁盘上:重启也还在,直到那一行被移除 |
+| 3 | 同一个常驻包 —— 「设置 → 插件」页里的**卡片** | 同一个包、同一行挂载行、同一份 client 半边 | `settings.plugin.item`,由 `SETTINGS_NS` = `'remote-tailnet-guard'` = 包名**作 key**;host 半边注册**同名**的、**空 schema** 的设置命名空间,座位 owner 才会渲染这张卡片 | 在磁盘上,与形态 2 完全相同 |
+
+形态 1 的注册在 `panel/client-half.js`:`ctx.slots.inject('settings.section', …)` + `ctx.slots.register({ name:'settings.section', id:'remote-tailnet-guard', order:100, label:'Remote access link (read-only posture)' })`。形态 2 与 3 来自同一份 client 半边(`plugin/lib/client.js`,与 `plugin/lib/client/index.js` 逐字节一致)加上 host 半边 `plugin/lib/index.js`:分区座位就是形态 1 那一个,卡片座位是紧挨着它注册的 `ctx.slots.register({ name:'settings.plugin.item', key: SETTINGS_NS, order: 100 }, …)`,包在 `ctx.slots.inject('settings.plugin.item', …)` 里(`plugin/lib/client.js:251-256`,分区在 `:242-247`)。
+
+**卡片是座位,不是既得权利 —— 已实现,但仍未验证。** 卡片座位随包一起交付(t46),但**没有任何一次真实 DSH 装载记录**(见 §19.2 与 [`docs/install/plugin-package.md`](docs/install/plugin-package.md) §9 的未验证清单)。它有一道很容易踩的门槛:卡片的 `key` **不是任意字符串** —— owner 只对**已被服务(served)**的设置命名空间逐个渲染卡片,所以 key 必须等于 host 半边**真的注册过**(`ctx.settings.register`)的那个命名空间,这正是本包两个半边都用 `SETTINGS_NS ===` 包名的原因。注册没发生时(最尖锐的一种是 `link:` 装法下运行时解析不到 schema 库),包只打一条 warning,卡片**不出现**,而**其余功能照常**。已记录的失败形态与预期表现:`docs/install/plugin-package.md` §9 第 7 条。
+
+**三种形态在你表态之前都是惰性的。** 形态 2 与 3 是同一个包、同一行挂载行,而那一行**默认 `disabled: true`** —— `plugin/cordis.patch.yml` 里唯一的 `- insert:` 块只装一行,所以在你启用它之前,分区与卡片都不可能自己冒出来。
+
+**为什么形态 2 是第二步、并且默认 `disabled: true`**:安装它会写进**你自己的** DSH profile(`dsh plugin --profile <name> add <这个包>` 会把包装进 profile 并调整 profile 的 bundle 列表),而那一行会影响该 profile 的**全部会话**;client 入口一旦写错,整个 GUI 会卡在「Failed to load plugins」的恢复模式(这是本机 `AGENTS.md` 里记录过的真实坑,不是理论风险)。所以 `plugin/cordis.patch.yml` 里那一行挂载行**默认 `disabled: true`**:只要它还是禁用状态,loader 就不会启动这一行、client 模块扫描也会跳过禁用项 —— 两条锚点都记在该文件自己的注释里(`cordis-plugin-loader/lib/index.js:391`、`dsh-client-modules/lib/index.js:778`)—— 因此在**你启用它之前,装上这个包什么都不做**。启用前先跑只读预检(`panel/plugin-preflight.ps1`,退出码 0/1/2),并且首次启用建议用**一次性 profile**。
+
+**预检,本修订版实测。** `panel/plugin-preflight.ps1` 是形态 2 与 3 的只读门禁。下面这些数字是 2026-09-24 重跑得到的,不是从旧版 README 抄来的:
+
+```powershell
+# 门禁:66 条断言、0 条失败、3 条跳过(本机 node 不在 PATH),退出 0
+powershell -NoProfile -ExecutionPolicy Bypass -File panel/plugin-preflight.ps1
+#   checks: 66  passed: 66  failed: 0 (blocking: 0, advisory: 0)  skipped: 3
+#   exit code: 0   contract: 0 = all blocking checks passed (skips allowed) | 1 = advisory findings only | 2 = blocking finding or nothing judged
+
+# 故障注入自证:注入 7 种故障,7 种全部命中预期退出码,退出 0
+powershell -NoProfile -ExecutionPolicy Bypass -File panel/plugin-preflight.ps1 -SelfTest
+#   self-test: 7 cases  matched: 7  mismatched: 0
+
+# 发布集卫生门禁:CLEAN,默认根下 116 个文件,退出 0
+powershell -NoProfile -ExecutionPolicy Bypass -File .github/scripts/repo-hygiene.ps1 -Json
+#   files     : 116 under those roots (release set by default)
+#   verdict: CLEAN (0 blocking finding(s))
+```
+
+**退出码契约,以及它依赖的调用方式**:`0` = 全部**阻断项**通过(已登记的 skip 会被打印出来、绝不静默,也不改变退出码);`1` = 只有**非阻断告警**;`2` = **有阻断项**,或**根本判不了**(fail closed:读不到、解析不了都以 `2` 收场,脚本内的 `trap` 会把任何意外异常收敛成 `2`)。**一律用 `-File` 调用这个脚本**:它用 `exit N` 设码,而 PowerShell **只在 `-File` 下保留它** —— `-Command "& '<脚本>'"` 与点源实测都会被改写成 **`1`**,那会把真正的 `2` 藏起来。
+
+**出问题时的第一动作**:把那一行改回 `disabled: true`(或直接删掉那三行),然后从 DSH 自带菜单重启;如果 GUI 已经坏了,就用第 1 步的备份**整文件还原** `cordis.patch.yml`。这就是 [`docs/install/plugin-package.md`](docs/install/plugin-package.md) §6(四步回滚)与 §7(第一动作);同一份文件的 §5 是三步启用、§4 是只读预检。
+
+**哪些已验证、哪些没有**:包的形状、编码、唯一一行禁用挂载、两个座位的注册、以及 client 共享正文逐字节一致,由离线预检(见上面的 66 条断言)与静态用例 `tests/cases/plugin-package-shape/` 覆盖;**在真实 DSH 里装载过没有做到**,卡片能否渲染也没有做到 —— 那需要你启用那一行(§15,或 `docs/install/plugin-package.md` §8 的一次性 profile 路线)。三种「看到」的含义请分开读,口径与 `docs/install/plugin-package.md` §9 一致:**分区出现** = 骨架加载成功;**插件清单里出现该行** = 那一行真的被装进了 profile(禁用状态的行也在清单里);**卡片出现** = host 半边成功注册了卡片所 key 的那个设置命名空间。
+
+激活、观察点、成功/失败判据与回滚:见本文 §14(形态 1,默认)与 §15(形态 2 与 3,需你显式授权)。
+
 ## 16. 四种 Windows 组合 —— 前置件与坑
 
 检测器从不从 OS 标签推断能力:它结构化地读 build、防火墙状态与电源能力。证据等级刻意分开列。
@@ -782,7 +788,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-fixtures.ps1
 
 - 对端探测,5 秒超时,`[Net.Sockets.TcpClient]`:**18:25 timeout**、**18:30 connected**(两次都引在 §17.5)。
 - 11 轮 soak,在短 soak 之后跑:**11/11 connected、failed=0**,窗口 **305 秒**(18:33:16–18:38:18),各轮 190 / 197 / 188 / 199 / 186 / 199 / 185 / 191 / 189 / 194 / 186 ms,`VERDICT 全通:窗口内全部 connected`,**EXIT 0**。与上面那次 15 秒运行一样,按**窗口有限的观测**引用 —— 两者都没有说链路「稳定」。
-- 检查项清单:`src/collect.ps1` 里 `New-Check` 出现 **25** 次(24 个检查项 + 一个后处理分支),`panel/prereq-manifest.json` 的 `items` = **13**。
+- 检查项清单:`src/collect.ps1` 里 `New-Check` 出现 **26** 次(26 个检查项),`panel/prereq-manifest.json` 的 `items` = **13**。
 - 发布集清单:门禁的默认根覆盖代码目录(`src/`、`i18n/`、`tests/`、`panel/`、`tools/`、`plugin/`)加上已发布的文档与根文件;它会打印实时文件数,所以这一行不冻结任何一个数字。`plugin/package.json` **存在**(那就是常驻插件包,§15);而仓库**根**没有 `package.json`(测试路径上没有任何东西需要它 —— 见 §19)。
 - §17.1 用到的 skill 文件状态(两份副本逐文件比 SHA256:11 对 11 个文件,9 个相同,本任务改过的 `references/verify.md`、`references/troubleshooting.md` 不同 ⇒ 正好是同步命令要补的缺口)。
 - §17 时代的编辑之后重新解析了 skill 脚本:`verify.ps1` 与 `server-setup.ps1` 都报 `errors=0`(`Parser::ParseFile`)。
@@ -812,7 +818,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-fixtures.ps1
 
 ### 18.4 连通性:那次对端掉线影响了什么、没影响什么
 
-17:44 到约 18:30 之间对端不可达,所以那个窗口里两项「双机」检查没法重测。**没有任何一项因此被判失败,也没有任何一项被糊过去**:对端不在时,离线那一层(拿夹具跑的 24 项采集器、13 项前置件检查器、`run-fixtures` 套件、卫生门禁)仍然完全可测 —— 这正是离线接缝的意义 —— 两项双机检查被如实记为 `timeout`,而不是记成某个判定。18:30 对端恢复应答,三态与一次短 soak 被直接实测(§18.1)。仍然开着的是:本机之外的机器上的客户端侧 MagicDNS/HTTPS 两项(§17.5、§18.3)。11 轮 soak 现在**不在**这个清单里了 —— 它已实测(§18.1)—— 但链路观测属于它被测的那台机器与那个环境,所以重置、换客户端或换 tailnet 都意味着操作者要重跑一遍(§17.5)。
+17:44 到约 18:30 之间对端不可达,所以那个窗口里两项「双机」检查没法重测。**没有任何一项因此被判失败,也没有任何一项被糊过去**:对端不在时,离线那一层(拿夹具跑的 26 项采集器、13 项前置件检查器、`run-fixtures` 套件、卫生门禁)仍然完全可测 —— 这正是离线接缝的意义 —— 两项双机检查被如实记为 `timeout`,而不是记成某个判定。18:30 对端恢复应答,三态与一次短 soak 被直接实测(§18.1)。仍然开着的是:本机之外的机器上的客户端侧 MagicDNS/HTTPS 两项(§17.5、§18.3)。11 轮 soak 现在**不在**这个清单里了 —— 它已实测(§18.1)—— 但链路观测属于它被测的那台机器与那个环境,所以重置、换客户端或换 tailnet 都意味着操作者要重跑一遍(§17.5)。
 
 ## 19. 未决项与刻意的决定(请不要顺手「修」)
 
@@ -837,16 +843,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-fixtures.ps1
 | 两份卫生小结的文件数口径(本文件的默认根 vs t23 的扫描范围) | t24/t39 | 差别就在默认根范围(`panel/`,之后是 `tools/`、`plugin/`);两份都报 **0** 条非允许清单命中,且都没有冻结文件数 |
 | 「设置 → 插件」页里的插件卡片座位(`settings.plugin.item`) | t46 | **座位已在包内实现,真实加载仍未验证**:client 半边在设置页分区旁边注册了这张卡片,key 用 `SETTINGS_NS` = `'remote-tailnet-guard'`;host 半边注册**同名**的设置命名空间(空 schema)—— 这次注册就是卡片的门槛,因为座位 owner 只对**已被服务**的命名空间渲染卡片。注册没发生时,卡片**不出现**、其余功能照常(`docs/install/plugin-package.md` §9 第 7 条)。这个包还没有在任何真实 DSH 里被装载过(见〈插件界面(GUI)〉一节与 §15) |
 
-**自本表初稿以来已关闭的项:** 过去出现在 §1/§5、`CONTRIBUTING.md` 与 `CHANGELOG.md` 里的过期用例数已刷新(t24 管 `CONTRIBUTING.md`,t28 管另外三处)。发布集里已经没有任何地方再引用一个冻结的通过数 —— 套件自己打印表头,而它的用例数就是 `tests/cases/` 下的目录数(2026-09-24 为 64,持有的 `xfail` 为 0)。请跑 §20 的命令并读表头,而不是读这一行。
+**自本表初稿以来已关闭的项:** 过去出现在 §1/§5、`CONTRIBUTING.md` 与 `CHANGELOG.md` 里的过期用例数已刷新(t24 管 `CONTRIBUTING.md`,t28 管另外三处)。发布集里已经没有任何地方再引用一个冻结的通过数 —— 套件自己打印表头,而它的用例数就是 `tests/cases/` 下的目录数(2026-09-24 为 70,持有的 `xfail` 为 0)。请跑 §20 的命令并读表头,而不是读这一行。
 
 ## 20. 交付清单与陌生人需要的三条命令
 
 | 项 | 路径 | 状态 |
 |---|---|---|
-| 离线回归入口 | `tests/run-tests.ps1`(64 用例) | 在位 |
+| 离线回归入口 | `tests/run-tests.ps1`(70 用例) | 在位 |
 | 离线夹具入口(确定性、无探测) | `tests/run-fixtures.ps1`(7 用例) | 在位,`ALL PASS / 0 failed / exit 0` |
 | 离线冒烟入口(一条命令、一个退出码) | `tests/run-smoke.ps1` | 在位;退出 `0` 全绿、`1` degraded(有 SKIP 但无 FAIL)、`2` 坏了 |
-| 采集器 | `src/collect.ps1`(24 项) | 在位 |
+| 采集器 | `src/collect.ps1`(26 项) | 在位 |
 | 前置件检查器 + 清单 | `panel/prereq.ps1`、`panel/prereq-manifest.json`(13 项) | 在位 |
 | 插件两个半边 | `src/host-half.js`、`panel/host-half.js`、`panel/client-half.js` | 在位 |
 | 常驻插件包 | `plugin/package.json`、`plugin/cordis.patch.yml`、`plugin/lib/index.js`、`plugin/lib/client.js`、`plugin/lib/client/index.js` | 在位、随发布集发布;挂载行是 `disabled: true`,所以启用之前它是惰性的(§15) |
@@ -864,7 +870,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-fixtures.ps1
 # 1) 确定性、离线、完全不做机器探测 —— 期望:ALL PASS: 7 cases, 0 failed assertions
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-fixtures.ps1
 
-# 2) 完整的离线套件 —— 期望:64 cases, 64 passed, 0 failed, 0 xfail held, 0 xpass (exit 0)
+# 2) 完整的离线套件 —— 期望:70 cases, 70 passed, 0 failed, 0 xfail held, 0 xpass (exit 0)
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/run-tests.ps1
 
 # 3) 发布集门禁 —— 期望:verdict: CLEAN (0 blocking finding(s)), unclassified=0 (exit 0)
@@ -934,7 +940,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File src/collect.ps1 -CheckOnly
 | 头部 `LAST UPDATED` / `COMMANDS USED` 引用块 | 全文翻译 | 日期、任务号、命令原样 |
 | 英文原文里的中文段落(`## 中文说明(先读这一段)`、`**中文摘要**`) | 不重复照搬 | 这两节现在**已不在**英文原文里(它只剩语言指引行与原始输出中的中文);本文件已把相关内容吸收进〈目的〉〈三分钟上手〉〈中文文档在哪〉,事实口径以英文原文 §1 / §5 / §21 为准 |
 | `## 目的:它解决什么问题` / `What it is for` | 全文翻译(两份 README 同名节) | 见 `README.en.md` 的 `## What it is for` |
-| `## 插件界面(GUI):它以三种形态交付` | 全文翻译(两份 README 同名节) | 见 `README.en.md` 的 `## Plugin GUI: the three forms it ships in` |
 | `## 实现方式与作者` | 全文翻译(两份 README 同名节) | 见 `README.en.md` 的 `## How it was built, and by whom` |
 | §1 这是什么 | 全文翻译 | 三件交付物表逐行 |
 | §2 检查哪些项 | 全文翻译 | 分组表 6 行 + 四态表 + 退出码 |
@@ -950,9 +955,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File src/collect.ps1 -CheckOnly
 | §12 贡献与许可 | 全文翻译 | MIT 与版权行 |
 | 本文件的 `Verification commands`(英文原文 2026-09-24 / task t12 那一块) | 全文翻译 | 见英文原文 §12 之后的同名小节 |
 | `# Part II — detection contract, activation, wake-up to-dos and evidence chain (task t9)` | 全文翻译 | Part II 抬头与它的 `LAST UPDATED` / `COMMANDS USED` 引用块 |
-| §13 检测项与每一项到底判什么 | 全文翻译 | 13.1 的 24 行表、13.2 的 13 行表、13.3 的 10 条不支持清单全部逐行 |
+| §13 检测项与每一项到底判什么 | 全文翻译 | 13.1 的 26 行表、13.2 的 13 行表、13.3 的 10 条不支持清单全部逐行 |
 | §14 激活插件 —— 路径 A | 全文翻译 | 14.1 的会话归属坑与实测文本逐字 |
 | §15 路径 B —— 常驻插件包 | 全文翻译 | 15.1/15.2/15.3 含备份与回滚代码块 |
+| `## 插件界面(GUI):它以三种形态交付` | 全文翻译(两份 README 同名节) | 见 `README.en.md` 的 `## Plugin GUI: the three forms it ships in`;本修订版已把它从前部移到 §15 之后 |
 | §16 四种 Windows 组合的前置件与坑 | 全文翻译 | 4 行矩阵表逐行 |
 | §17 只能由人来做的待办 | **忠实压缩** | 见 `README.en.md` §17:17.1–17.6 每条的 what / how / why-the-machine-cannot 全部保留;逐次时间线、逐轮毫秒数、skill 文件逐文件对比过程压成结论。§17.2 的实测失败文本与 §17.4 的发布状态逐字保留 |
 | §18 证据链(实测 / 引用 / 未验证) | **忠实压缩** | 见 `README.en.md` §18:18.1 的原始命令块、18.3 的未验证清单逐条保留;18.2 的「引用自其它任务」表按来源任务归并(任务号全部保留),18.4 压成两句 |

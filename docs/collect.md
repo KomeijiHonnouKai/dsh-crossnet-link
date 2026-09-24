@@ -69,20 +69,19 @@ powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/co
 
 | 命令 | 退出码 | 结果 |
 | --- | --- | --- |
-| `-CheckOnly` | **2** | 24 项:pass 15 / **degraded 2** / **blocked 1** / unknown 6;`overall: blocked -> exit 2` |
-| `-CheckOnly -AsJson` | **2** | 单一 JSON 对象,**315,260 字节**(2026-09-24 t25 快照),`ConvertFrom-Json` 可解析,24 项判定(每项含 `id`/`role`/`title`/`status`/`verdict`/`verdictLabel`/`severity`/`reasonKey`/`reason`/`commands[]`/`raw`/`evidence{command,commands,exitCode,source,confidence,window,confidenceDowngrade,confidenceNote}`/`remediation`/`manualReview`/`manualQuestion`) |
-| `-CheckOnly -Role server` | 2 | 19 项:14/2/1/2(客户端项按角色不输出) |
-| `-CheckOnly -Role client` | **1** | 14 项:9 pass / 5 unknown(无 `-Peer` + HTTPS 恒 unknown)⇒ **`verdict=degraded exit=1`**,演示了「无阻断但有 unknown」这一档 |
+| `-CheckOnly` | **2** | 26 项:pass 15 / **degraded 4** / **blocked 1** / unknown 6;`overall: blocked -> exit 2` |
+| `-CheckOnly -AsJson` | **2** | 单一 JSON 对象,`-Lang zh` **168,771 字节** / `-Lang en` **169,277 字节**(2026-09-24 23:13 复测;字节数随原始探测输出如 netstat 行数小幅波动、非恒定常量),`ConvertFrom-Json` 可解析,26 项判定(每项含 `id`/`role`/`title`/`status`/`verdict`/`verdictLabel`/`severity`/`reasonKey`/`reason`/`commands[]`/`raw`/`evidence{command,commands,exitCode,source,confidence,window,confidenceDowngrade,confidenceNote}`/`remediation`/`manualReview`/`manualQuestion`) |
+| `-CheckOnly -Role server` | 2 | 21 项:15/3/1/2(客户端项按角色不输出) |
+| `-CheckOnly -Role client` | **1** | 14 项:8 pass / 1 degraded / 5 unknown(无 `-Peer` + HTTPS 恒 unknown)⇒ **`verdict=degraded exit=1`**,演示了「无阻断但有 degraded + unknown」这一档 |
 | `-CheckOnly -Strictness strict` | 2 | unknown 提升为阻断 |
 | `-Describe` | 0 | 打印配置面 / 退出码契约 / 明确不支持清单(**26 行非空输出**,不探测) |
-| 夹具 `zh.json -NoNative` | 2 | 与真跑**逐项一致**(默认 `role=both`:24 项 15/2/1/6;加 `-Role server`:19 项 14/2/1/2)⇒ 离线可复现、无隐藏本机依赖 |
+| 夹具 `zh.json -NoNative` | 2 | 26 项:16 pass / 2 degraded / 1 blocked / 7 unknown(默认 `role=both`;加 `-Role server`:21 项 15/2/1/3);与真跑只差 3 项 —— 夹具 `ProxyEnable=0`(`BROWSER_PROXY_TSNET`/`SERVER_PROXY_STATE` 报 pass)、夹具缺 `route_print4`(`TAILNET_ROUTE_PRESENT` 报 unknown)⇒ 离线可复现、无隐藏本机依赖 |
 | 夹具 `en.json -NoNative` | 2 | 与 zh 夹具**逐项一致**(证明中英双语模式等价) |
 | 夹具 `win11-server.json -Role server` | **1** | 21 项:**19 pass** / **2 degraded** / 0 blocked / **0 unknown** ⇒ `verdict=degraded exit=1`;`OS_BUILD.raw.branch=win11`;`POWER…DC=3600 s → power_dc_only`;`SERVE_PRESENT=pass/serve_ok`(可读 serve status 目标 = `43120` = 实测 DSH 端口,且 443 上有 2 条 tailscaled 监听 —— 按 t23 新语义的通过路径) |
 | `tests/run-fixtures.ps1` | **0** | `ALL PASS: 7 cases, 0 failed assertions` |
 
-> 本机 2 条 degraded 的来源是**同一类**:判定只能靠本地化文本(§13.1 的「不把本地化工具文本当安全判据」规则允许这种路径存在,但只允许报 **degraded**,不允许报 pass)⇒
-> `NIC_PROFILE_ATTRIBUTION`(netsh 文本,`confidence=low`)与 `POWER_S0_CAPABILITY`(powercfg /a 段落结构)。
-> 两者都**不伪装成 pass**:`evidence.confidence=low` + `confidenceDowngrade=true` + `confidenceNote` 都在 JSON 里。
+> 本机 4 条 degraded 的来源是**两类**:①文本解析路径 —— `NIC_PROFILE_ATTRIBUTION`(netsh 文本,`confidence=low`)与 `POWER_S0_CAPABILITY`(powercfg /a 段落结构),按 §13.1 的「不把本地化工具文本当安全判据」规则只允许报 **degraded**、不允许报 pass;②系统代理开着 —— `BROWSER_PROXY_TSNET`(客户端侧 `proxy_hijack`)与 `SERVER_PROXY_STATE`(服务端侧 `proxy_active_route_intact`,WinINET 代理不改变入向,只报 degraded 不报 blocked)。
+> 文本路径那两条**不伪装成 pass**:`evidence.confidence=low` + `confidenceDowngrade=true` + `confidenceNote` 都在 JSON 里。
 | `-Apply` | **2** | 拒绝执行并打印「本采集器只读、没有写路径」 |
 
 本机那条唯一的 **blocked** 是 `TRUSTED_HOSTS_PATCH`:**实际加载的 patch 里 `trustedHosts: []`**。
@@ -100,7 +99,7 @@ unknown 6 项全部带原因,且**没有任何一项是猜的**:
 | --- | --- | --- |
 | `-CheckOnly` | 关 | **只读本来就是默认行为**,这个开关只是把它写明;所有处置都只打印给人执行,绝不代执行 |
 | `-AsJson` | 关 | 在 stdout 输出单一 JSON 报告(该模式下 stdout 不再有人读文本) |
-| `-Role` | `both` | `server` / `client` / `both`:决定输出哪些判定项(server 19 项 / client 14 项 / both 24 项) |
+| `-Role` | `both` | `server` / `client` / `both`:决定输出哪些判定项(server 21 项 / client 14 项 / both 26 项) |
 | `-Lang` | `auto` | `auto` / `zh` / `en`:人选用的**文案**语言;模式串**始终合并加载**,与解析能力无关 |
 | `-LabelsDir` | `<脚本>\..\i18n` | 标签目录(换语言只需往这里丢 `labels.<lang>.json`) |
 | `-Port` | 空 | DSH loopback 端口;空 ⇒ `$env:DSH_WEB_URL` ⇒ 内置 43120(并标注「用的是默认值」);非法值拒收并记 `config.dshPort.invalidParam` |
@@ -139,7 +138,7 @@ unknown 6 项全部带原因,且**没有任何一项是猜的**:
 
 ---
 
-## 4. 检测项清单(24 项)
+## 4. 检测项清单(26 项)
 
 `role` 列:S=服务端候选,C=客户端候选,B=两端都跑。每项的 JSON 里都有 `id`/`role`/`title`/`status`/`verdict`/`verdictLabel`/`severity`/`informational`/`reasonKey`(稳定机器可读)/`reason`(本地化人读)、`commands[]`(检测命令)、`raw{}`(原始值)、`evidence{command,commands,exitCode,source,confidence,window,confidenceDowngrade,confidenceNote}`、`remediation{action,actionKey,command,rollback,needsElevation,applied:false}`、`manualReview`/`manualQuestion`。
 
@@ -166,6 +165,8 @@ unknown 6 项全部带原因,且**没有任何一项是猜的**:
 | `PEER_ISOLATION_PROBES` | C | 135/5357/DSH端口 | 全部不可达 | DSH 端口可达 → 阻断;135/5357 可达 → 降级 |
 | `MAGICDNS_RESOLVE` | C | ≤4s DNS | 解析进 tailnet 段 | 不在 tailnet 段 → 降级;HostNotFound → 阻断 |
 | `BROWSER_PROXY_TSNET` | C | `Internet Settings` | 未启用或已绕过 | 启用且未绕过 → 降级 |
+| `SERVER_PROXY_STATE` | S | `HKCU\...\Internet Settings` 的 `ProxyEnable`/`ProxyServer`/`ProxyOverride`(WinINET 系统代理) | `ProxyEnable=0` → pass(`proxy_ok`) | `ProxyEnable=1` → 降级(`proxy_active_route_intact`,`confidence=low`:WinINET 代理不改变入向,能抢 tailnet 路由的 TUN 类代理本机读不到 ⇒ 只报 degraded 不报 blocked);注册表读不到 → unknown(`proxy_unavailable`) |
+| `TAILNET_ROUTE_PRESENT` | S | `route.exe print -4`(`100.64.0.0/10` 段内目的地;前缀拼写与「目的+掩码」两列都接受) | 段内有目的地 → pass(`route_ok`) | 段内无目的地 → **阻断**(`route_tailnet_missing`,带 command + rollback);探针不可用 → unknown(`route_probe_unavailable`) |
 | `HTTPS_CLIENT_ONLY` | C | 只做能力声明 | — | **恒 unknown**,附可人工执行的 Node 命令 |
 | `CREDENTIAL_DISCIPLINE` | B | 自审所有已执行探针命令串 | 无凭据类访问痕迹 | 有 → 阻断 |
 | `NO_NEW_WILDCARD_LISTENER` | B | 采集前后 netstat 快照差集 | 无新增通配监听 | 有新增 → 阻断 |
@@ -273,16 +274,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/co
 
 ---
 
-## 10. 关于「113 KB 单文件是否拆 `src/data/*.psd1`」的判断
+## 10. 关于「116 KB 单文件是否拆 `src/data/*.psd1`」的判断
 
 **建议:暂不拆,理由是拆分在这里会降低而不是提高可读性/可测性。**
 
-1. 体积来源不是内嵌表格,而是 24 个检测项**各自的内联判定逻辑**(每项 10–30 行:探针 → 结构解析 → 判定 → 原始值装箱)。拆成 `data/*.psd1` 只能搬走「标题/原因文案」这类数据,而那部分**已经在 `i18n/labels.*.json` 里**(t25 快照:**89 个 `reason.*` 键**,其中 11 条 `rem_*` 处置文案;外加 **12 个本地化模式**与 24 个 `title.*` 键),`src/` 里本来就没有大块数据表。
+1. 体积来源不是内嵌表格,而是 26 个检测项**各自的内联判定逻辑**(每项 10–30 行:探针 → 结构解析 → 判定 → 原始值装箱)。拆成 `data/*.psd1` 只能搬走「标题/原因文案」这类数据,而那部分**已经在 `i18n/labels.*.json` 里**(t25 快照:**89 个 `reason.*` 键**,其中 11 条 `rem_*` 处置文案;外加 **12 个本地化模式**与 24 个 `title.*` 键;t4 复测:95 个 `reason.*` 键、其中 13 条 `rem_*`、12 个本地化模式、26 个 `title.*` 键),`src/` 里本来就没有大块数据表。
 2. 真正该外置的「易变数据」(本地化模式、人读文案、夹具)已经全部外置,并且是**可注入 + 双语夹具验证**的形态。
 3. 拆文件会新增「PS 5.1 下 dot-source 路径/编码/`$PSScriptRoot`」这一类新的可移植性面,与本文遵循的「显式编码、少依赖」原则相冲突。
 4. 若以后要拆,最小收益的拆法是:`src/collect.ps1`(框架+CLI) + `src/checks/*.ps1`(每组检测项一个文件,dot-source)。**不建议**拆成 `data/*.psd1`:psd1 的默认编码与解析器行为和 JSON 不同,会再引入一处编码坑。
 
-单文件 + 外置 labels/fixtures 的代价是「约 **111 KB**(113,577 字节,纯 ASCII、无 BOM、`Parser::ParseFile` errors=0)的脚本要靠分节注释导航」,已用 `# section 1..6` 分节 + 每项一段的方式缓解。
+单文件 + 外置 labels/fixtures 的代价是「约 **116 KB**(118,801 字节,纯 ASCII、无 BOM、`Parser::ParseFile` errors=0)的脚本要靠分节注释导航」,已用 `# section 1..6` 分节 + 每项一段的方式缓解。
 
 ---
 
@@ -380,7 +381,7 @@ remote_tailnet_posture(role="both", fixture="remote-tailnet-plugin/tests/fixture
 | --- | --- | --- |
 | 夹具按**探针粒度**命名(每个探针一份 `<probe>.zh-CN.txt` + `<probe>.en-US.txt`) | 改用「场景级 JSON 夹具」(zh / en / unmatched / edge-false / win11) | 内容上等价(双语等价 + unknown case 都已断言),命名不同;要按探针粒度采集,可用 `-DumpFixture` 直接产出,不必改脚本 |
 | 写操作配一对显式开关(`-AllowWrite` + `-Yes`) | 未实现 | 本版**没有任何**写路径,给一个默认关闭的写开关没有收益;真要做写动作时,按 §13.1 的「写操作四道门槛」规则实现 |
-| 除行为断言外,还要有**扫描 / 单元 / 变异**三类测试脚本 | **已落地在测试套件里**:`tests/run-tests.ps1` + `tests/cases/`(**52 个用例:52 pass / 0 fail / 0 xfail / 0 xpass**),含零硬编码扫描 + 正向对照、locale 矩阵、隔离与可移植性用例 | 套件与采集器脚本分开维护;本文件自带的 `tests/run-fixtures.ps1` 仍是 7 条离线行为断言。本文只描述采集器行为,不把套件实现细节抄进来 |
+| 除行为断言外,还要有**扫描 / 单元 / 变异**三类测试脚本 | **已落地在测试套件里**:`tests/run-tests.ps1` + `tests/cases/`(**70 个用例:70 pass / 0 fail / 0 xfail / 0 xpass**),含零硬编码扫描 + 正向对照、locale 矩阵、隔离与可移植性用例 | 套件与采集器脚本分开维护;本文件自带的 `tests/run-fixtures.ps1` 仍是 7 条离线行为断言。本文只描述采集器行为,不把套件实现细节抄进来 |
 | tailnet 地址发现可以走 `tailscale status --json` | 未采用 | 本机实测该命令必被命名管道拒(agent 沙箱边界)⇒ 走它只会多一个 unknown;留作「提权 / 普通窗口」下的可选增强 |
 | 仓库层文件(`README.md` / `LICENSE` / `.github/`)的写法 | 本文件未涉及 | 它们属仓库层,与采集器行为无关(边界裁定见 §14.1) |
 

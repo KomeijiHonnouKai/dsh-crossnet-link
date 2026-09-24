@@ -53,6 +53,8 @@
     "peer_isolation_probes": "Peer isolation probes",
     "magicdns_resolve": "Peer MagicDNS name resolution",
     "browser_proxy_tsnet": "Browser proxy hijacking the tailnet",
+    "server_proxy_state": "Server system-proxy posture (unrelated to the inbound path)",
+    "tailnet_route_present": "100.64.0.0/10 tailnet route still present",
     "https_client_only": "HTTPS/certificate verdict (client-side only)",
     "credential_discipline": "Credential-discipline self-audit",
     "no_new_wildcard_listener": "Read-only self-proof: no new wildcard listener"
@@ -130,6 +132,10 @@
     "proxy_ok": "System proxy is not in the way ({0}) - the browser will not bypass the direct path.",
     "proxy_hijack": "A system proxy is enabled and the bypass list has no entry for {0} / 100.64.0.0/10 - the browser may time out while scripted probes succeed.",
     "proxy_unavailable": "Internet Settings unreadable ({0}) - not judged.",
+    "proxy_active_route_intact": "A system proxy is enabled on the server (ProxyServer={0}). A WinINET proxy only shapes this machine's outbound browsing and never touches the inbound tailnet path, so the route stays intact. This degraded heads-up means: if the client still times out, look for a TUN-mode proxy and verify the 100.64.0.0/10 route (see TAILNET_ROUTE_PRESENT).",
+    "route_ok": "route print -4 shows the tailnet destination {0}, so this server still routes into 100.64.0.0/10 and the inbound link is intact. (The Windows client ships per-address /32 host routes, not one /10 prefix route, so any destination inside the range counts.)",
+    "route_tailnet_missing": "No destination inside 100.64.0.0/10 appears in 'route print -4', so the server-side tailnet route is gone and the tailnet can no longer reach this machine. Whether a TUN-mode proxy, Tailscale itself or something else removed it cannot be decided from the file system, so the cause is not guessed.",
+    "route_probe_unavailable": "The 'route print -4' probe is unavailable ({0}), so tailnet-route presence cannot be judged - not judged.",
     "https_client_only": "An HTTPS/certificate verdict is impossible from PowerShell here (node availability: see raw.nodeAvailable); curl under schannel reports false failures. This check is permanently 'unknown' and ships the manual command instead.",
     "cred_ok": "Self-audit clean: none of the executed probe command strings and none of the {0} file paths read show any access to a secret store.",
     "cred_violation": "Self-audit found {0} suspected secret-store access(es) - stop and investigate immediately.",
@@ -146,6 +152,8 @@
     "rem_dsh_exposed": "Use netstat -ano to find the process that binds the DSH port to a non-loopback address and fix that process' own configuration; this collector changes nothing.",
     "rem_exposure_loopback": "If LAN exposure was not intended, set dsh-desktop.networkExposure back to loopback and restart DSH from its own menu.",
     "rem_proxy_bypass": "Add the tailnet name/range to the proxy bypass list, or disable the system proxy while using the link.",
-    "rem_serve_443": "Republish the DSH loopback port so serve proxies to it (tailscale serve --bg <dsh port>, published on 443); change the narrow ACL only if you really intend a different published port."
+    "rem_serve_443": "Republish the DSH loopback port so serve proxies to it (tailscale serve --bg <dsh port>, published on 443); change the narrow ACL only if you really intend a different published port.",
+    "rem_proxy_server_note": "MANUAL: a server-side system proxy neither opens nor closes the inbound path; if the client still times out while it is on, look for a TUN-mode proxy and check the 100.64.0.0/10 route (TAILNET_ROUTE_PRESENT). Nothing to roll back: this collector changes no proxy setting.",
+    "rem_route_missing": "MANUAL: check Tailscale first (tailscale ip -4, tray menu); if a TUN-mode proxy really stole the route, stop it or let 100.64.0.0/10 through, then re-run this collector. Record the proxy's exact previous state so it can be restored verbatim."
   }
 }

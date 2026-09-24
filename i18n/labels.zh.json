@@ -53,6 +53,8 @@
     "peer_isolation_probes": "对端隔离端口探测",
     "magicdns_resolve": "对端 MagicDNS 名称解析",
     "browser_proxy_tsnet": "浏览器代理是否劫持 tailnet",
+    "server_proxy_state": "服务端系统代理姿态(入向链路无关)",
+    "tailnet_route_present": "100.64.0.0/10 tailnet 路由是否仍在",
     "https_client_only": "HTTPS/证书判定(只能由客户端做)",
     "credential_discipline": "凭据纪律自审",
     "no_new_wildcard_listener": "只读自证:采集前后无新增通配监听"
@@ -130,6 +132,10 @@
     "proxy_ok": "系统代理未启用({0})⇒ 浏览器不会绕过直连。",
     "proxy_hijack": "系统代理已启用,且 bypass 列表里没有 {0} / 100.64.0.0/10 ⇒ 浏览器可能走代理而超时(脚本探测却是通的)。",
     "proxy_unavailable": "读不到 Internet Settings({0})⇒ 本项不判定。",
+    "proxy_active_route_intact": "服务端系统代理已启用(ProxyServer={0})。WinINET 代理只作用于本机浏览的出向流量,不影响 tailnet 的入向链路,故路由仍保持完好;本项记为降级只是提示:若此时客户端仍超时,应排查 TUN 模式代理并核对 100.64.0.0/10 路由(见 TAILNET_ROUTE_PRESENT)。",
+    "route_ok": "route print -4 查到 tailnet 目的 {0} ⇒ 服务端仍有 100.64.0.0/10 段内的路由,入向链路完好。(Windows 客户端装的是逐主机 /32 路由而非一条 /10 前缀路由,网段内任一目的即视为命中。)",
+    "route_tailnet_missing": "route print -4 里没有任何 100.64.0.0/10 段内的目的地址 ⇒ 服务端 tailnet 路由已消失;从 tailnet 侧到达本机的链路会被打断。是谁删的(TUN 模式代理、Tailscale 自身还是别的)无法从文件系统判定,归因不猜测。",
+    "route_probe_unavailable": "route print -4 探针不可用({0})⇒ 无法判定 tailnet 路由是否仍在,本项不判定。",
     "https_client_only": "HTTPS/证书层判定无法在本机 PowerShell 完成(node 是否可用见 raw.nodeAvailable);curl 走 schannel 会给出假失败。本项恒为「未知」,并附带可人工执行的命令。",
     "cred_ok": "自审通过:本次执行的全部探针命令串({0} 个文件读取路径 / 全部命令文本)中没有任何凭据类存储的访问痕迹。",
     "cred_violation": "自审发现 {0} 处疑似凭据类访问痕迹 ⇒ 立即停止并排查。",
@@ -146,6 +152,8 @@
     "rem_dsh_exposed": "用 netstat -ano 找出把 DSH 端口绑到非回环地址的进程并修正该进程自身的配置;本采集器不改任何东西。",
     "rem_exposure_loopback": "若并非有意暴露到 LAN,把 dsh-desktop.networkExposure 改回 loopback,再用 DSH 自带菜单重启。",
     "rem_proxy_bypass": "把 tailnet 域名/100.64.0.0/10 加入代理绕过列表,或使用链路时关闭系统代理。",
-    "rem_serve_443": "把 serve 重新指到 DSH 的 loopback 端口(tailscale serve --bg <DSH端口>,发布在 443);只有确实想换发布端口时才去改窄 ACL。"
+    "rem_serve_443": "把 serve 重新指到 DSH 的 loopback 端口(tailscale serve --bg <DSH端口>,发布在 443);只有确实想换发布端口时才去改窄 ACL。",
+    "rem_proxy_server_note": "人工核对:服务端系统代理不会打开或关闭入向链路;若此代理开启时客户端仍超时,请排查 TUN 模式代理并核对 100.64.0.0/10 路由(TAILNET_ROUTE_PRESENT)。无需回滚:本采集器不改动任何代理设置。",
+    "rem_route_missing": "人工执行:先核对 Tailscale 本身(tailscale ip -4、托盘菜单);若确属 TUN 模式代理抢占了路由,停止它或放行 100.64.0.0/10,然后重跑本采集器。改动前记录代理原状,以便逐字回滚。"
   }
 }

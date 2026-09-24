@@ -322,7 +322,7 @@ Copy-Item -LiteralPath $backup -Destination $patch -Force
 **契约 verify 实测(2026-09-24;t26 复跑,全部只读)**:
 
 1. `powershell -NoProfile -ExecutionPolicy Bypass -File remote-tailnet-plugin/src/collect.ps1 -CheckOnly`
-   → 退出码 **2**(本机 verdict:1 blocked + 6 unknown;fail-closed,**不是命令失败**),`total=24 pass=15 degraded=2 blocked=1 unknown=6`。
+   → 退出码 **2**(本机 verdict:1 blocked + 6 unknown;fail-closed,**不是命令失败**),`total=26 pass=15 degraded=4 blocked=1 unknown=6`。
 2. `powershell -NoProfile -Command '(Get-ChildItem remote-tailnet-plugin -Recurse -Include *.js,*.mjs,*.cjs | Select-String -SimpleMatch "@deepseek-ai/dsh-client-runtime" | Measure-Object).Count'`
    → **0**
 3. `powershell -NoProfile -Command 'Get-ChildItem remote-tailnet-plugin -Recurse -File | Measure-Object | Select-Object -Expand Count'`
