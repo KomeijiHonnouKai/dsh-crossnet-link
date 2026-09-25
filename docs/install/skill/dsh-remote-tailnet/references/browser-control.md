@@ -1,6 +1,6 @@
 # 浏览器操控对端(`browser_*` 首选 / `ego_*` 轻量查询)
 
-> 最后更新:2026-09-26。素材:`D:\DSH\peer-channel-howto.md`(实测记录,只读引用)+ `D:\DSH\.dsh\notes\exports\ego-browser-facts.md`(ego-browser 插件真相调研,t1)。本文件已脱敏:不出现任何真实对端机器名 / `100.x` 地址 / tailnet 名。
+> 最后更新:2026-09-26。素材:两份**开发机本地**实测记录(跨网通道实测笔记、ego-browser 插件真相调研),**均未随仓库发布**(引用其结论,不引用其路径)。本文件已脱敏:不出现任何真实对端机器名 / `100.x` 地址 / tailnet 名 / 开发机绝对路径。
 > 前置:链路**已打通** —— 客户端浏览器能打开 `https://<机器名>.<tailnet>.ts.net/`,且那枚 cookie 没过期(打开方式与 30 天绝对期限见 [client-setup.md](client-setup.md) §3)。本文只讲「打开之后怎么操作对端」。
 
 ## 0. 两套工具,怎么选
@@ -95,7 +95,7 @@ $zip = (Get-ChildItem $env:USERPROFILE\Downloads -Filter 'dsh-session-session-*.
 "zip = $zip"
 
 # Pick a WRITABLE destination; do not dump into the skill folder or the repo.
-$dest = 'D:\DSH\peer-session-dump'
+$dest = Join-Path $env:TEMP 'peer-session-dump'
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
 $out = Join-Path $dest 'session.v3.jsonl'
 
@@ -151,15 +151,15 @@ if ($tc) {
 只要最后一条助手消息的正文时(自包含一段):
 
 ```powershell
-$out = 'D:\DSH\peer-session-dump\session.v3.jsonl'
+$out = Join-Path (Join-Path $env:TEMP 'peer-session-dump') 'session.v3.jsonl'
 $lines = [System.IO.File]::ReadAllLines($out, [System.Text.Encoding]::UTF8)
 $am = $lines | Where-Object { $_ -match '"type"\s*:\s*"assistant/message"' } | Select-Object -Last 1
 ($am | ConvertFrom-Json).data.message.content | Where-Object { $_.type -eq 'text' } | ForEach-Object { $_.text }
 ```
 
-写盘路径要选**可写**的位置(上面的 `D:\DSH\peer-session-dump` 是本次实测用的),**不要写进 skill 目录、也不要落在仓库里**;导出里可能含凭据原文,按纪律**不得外传**。
+写盘路径要选**可写**的位置(上面用的是 `$env:TEMP` —— 它天然在仓库与 skill 目录之外,任何 Windows 机器上都存在;也可以换成你自己的临时目录),**不要写进 skill 目录、也不要落在仓库里**;导出里可能含凭据原文,按纪律**不得外传**。
 
-> 受限环境提示(证据类 A):用户的 shell 若被限制在 `D:\DSH` 内可写,那么往 `$env:USERPROFILE\peer-session-dump` 这类**工作区外**路径写会报 `New-Item : 对路径“…”的访问被拒绝`(UnauthorizedAccess);此时把 `$dest` 换成工作区内的目录即可 —— 注意 `New-Item` 的失败**不会**中断脚本,后面 `ExtractToFile` 才会抛「未能找到路径…的一部分」,别把这两条读成「zip 坏了」。
+> 受限环境提示(证据类 A):用户的 shell 若被限制在**会话工作区**内可写,那么往工作区外(含 `$env:TEMP` 被重定向的情形)写会报 `New-Item : 对路径“…”的访问被拒绝`(UnauthorizedAccess);此时把 `$dest` 换成**工作区内**的目录即可 —— 注意 `New-Item` 的失败**不会**中断脚本,后面 `ExtractToFile` 才会抛「未能找到路径…的一部分」,别把这两条读成「zip 坏了」。
 
 ## 4. 已知局限(别在这些方向上浪费轮次)
 

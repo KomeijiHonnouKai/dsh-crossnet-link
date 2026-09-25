@@ -1,4 +1,9 @@
 > 来源:本文原样搬运自旧版 README.md 的 §18(2026-09-24 版)。2026-09-25 起 README 精简为十个章节,该节整体移入本文件,正文未改。文中出现的 §N 一律指旧 README 的节号。
+> 路径说明(2026-09-26 补,**不修改 §18 原文**):§18.1 里那三条 `verify.ps1` 命令用的是**当时那台开发机**上
+> 「项目级安装」的相对路径 `.dsh/skills/dsh-remote-tailnet/scripts/verify.ps1`;仓库里同一份脚本在
+> `docs/install/skill/dsh-remote-tailnet/scripts/verify.ps1`,照 `docs/install/link-guide.md` 或 skill 自己的
+> `README.md`「怎么用」把它复制到 `<工作区>\.dsh\skills\dsh-remote-tailnet\` 之后,那三条命令原样可跑。
+> 命令里的 `<PEER_IP>` 本就是对端地址占位符,无需改。
 
 ## 18. 证据链:本任务实测、引用自其它任务、仍未验证
 

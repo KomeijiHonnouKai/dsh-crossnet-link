@@ -2,7 +2,9 @@
 
 LAST UPDATED  : 2026-09-26 (the linking skill now ships with the repository under
                 `docs/install/skill/dsh-remote-tailnet/`, its machine-specific paths replaced with
-                placeholders, and the "not in this repository" pointers re-aimed. Previously 2026-09-25 -
+                placeholders, the "not in this repository" pointers re-aimed, and a second
+                repository-wide sweep that removed the remaining drive-letter paths outside that
+                directory. Previously 2026-09-25 -
                 readability round: both READMEs rewritten for a first-time reader; the
                 evidence ledger and the decision log moved into `docs/evidence.md` and
                 `docs/decisions.md`; `tests/readme-style-check.ps1` added as a layout gate; the hygiene
@@ -44,6 +46,23 @@ should be read as a provisional grant.
   one Markdown document link.
 - **`tests/run-smoke.ps1` lists the skill directory among the release-set paths it requires**, so
   a checkout that lost the guide fails the smoke run instead of passing quietly.
+- **A second, repository-wide sweep removed the remaining drive-letter paths.** The first pass
+  looked only at the shipped skill copy; this one read every text file, including the whole
+  `docs/` tree - which the suite's md/json scan excludes. It replaced the example directory in the
+  "do not overwrite an existing checkout" note (`docs/install/plugin-package.md`) with the
+  `<REPO>\...` placeholder that file already uses, and the clean-host simulation's re-run recipe
+  (`tests/clean-host-simulation.md`) with the clone-relative path the rest of that page already
+  uses. A review pass then decoded each JSON file before matching - a backslash inside a JSON
+  string is escaped, so a raw line scan walks straight past it - and found one more: the captured
+  `cordis.patch.yml` patch layer in `tests/fixtures/en.json` and `tests/fixtures/zh.json` quoted
+  the authoring machine's portable-Chrome path, which is now `<CHROME_PATH>`. Three accompanying
+  fixes: the English document index gained the `docs/install/link-guide.md` entry the Chinese one
+  already had; the
+  line-ending note in `.editorconfig` was re-measured at 133 tracked text files (the old 74 was
+  stale and the command beside it printed no total at all); and the evidence ledger gained a
+  pointer to where the shipped `scripts/verify.ps1` lives, so its `§18.1` commands can be
+  replayed from a clone. Note for a future round: no gate pattern covers a bare drive-letter
+  workspace path, so this class has to be found by a hand-written scan until one does.
 
 ### 2026-09-25 - documentation readability round
 

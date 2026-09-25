@@ -1,6 +1,6 @@
 ﻿<#
   verify.ps1 —— 三态验收 + soak 巡检(纯 .NET,不依赖 curl / CIM)
-  最后更新:2026-09-24 17:04(本机 DSH 会话,W4)
+  最后更新:2026-09-24 17:04(W4)
   本次使用的命令(逐字执行过;<PEER_IP> = 对端 tailnet 100.x,本文件不写死任何真实对端地址):
     powershell -NoProfile -ExecutionPolicy Bypass -File .dsh/skills/dsh-remote-tailnet/scripts/verify.ps1 -ServerIp <PEER_IP>
     powershell -NoProfile -ExecutionPolicy Bypass -File .dsh/skills/dsh-remote-tailnet/scripts/verify.ps1 -ServerIp 127.0.0.1 -Soak -Count 3 -IntervalSeconds 5

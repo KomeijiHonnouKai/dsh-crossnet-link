@@ -2,7 +2,8 @@
 #
 # LAST UPDATED  : 2026-09-26 (the published skill copy under docs/install/skill/ ships two
 #                 non-ASCII *.ps1, so the ASCII measurement below is now scoped to the rest of
-#                 the tree; previously task t12, v0)
+#                 the tree; the line-ending count further down was re-measured in the same
+#                 pass - previously task t12, v0)
 # COMMANDS USED : powershell -NoProfile -Command 'Get-ChildItem dsh-crossnet-link
 #                 -Recurse -File -Include *.ps1,*.md,*.json,*.js | % { $b=
 #                 [IO.File]::ReadAllBytes($_.FullName); $nonascii=0; foreach($x in $b)
@@ -12,6 +13,10 @@
 #                  docs/install/skill/ is pure ASCII and BOM-less, and the two scripts in that
 #                  skill copy are non-ASCII so they carry a BOM; every *.md is UTF-8 without a
 #                  BOM)
+# TEXT FILES    : powershell -NoProfile -Command "(git -C dsh-crossnet-link ls-files).Count"
+#                 -> 133 (measured 2026-09-26). Every tracked file is text - the repository
+#                 tracks no binary extension - so this is also the release set the hygiene
+#                 gate scans; it is the figure the line-ending note below refers to.
 
 root = true
 
@@ -49,8 +54,8 @@ end_of_line = lf
 # RULE 1; the CI job "encoding gate" checks both branches for every *.ps1/*.md:
 #   non-ASCII present => BOM required, pure ASCII => BOM refused.
 # Line endings: every file in this repository is LF except the two captured-output fixtures
-#   listed below (measured 2026-09-24 over all 74 text files), so a contributor's editor must
-#   not rewrite them.
+#   listed below (measured 2026-09-26 over all 133 text files = every tracked file, binary
+#   extensions excluded), so a contributor's editor must not rewrite them.
 [*.ps1]
 charset = utf-8
 end_of_line = lf

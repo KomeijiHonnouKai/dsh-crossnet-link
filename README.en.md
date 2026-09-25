@@ -233,6 +233,7 @@ Until it is pinned, the step honestly reports blocked; the checker never downloa
 - `docs/install/prerequisites.md` prerequisites and the four proxy combinations.
 - `docs/install/install.md` form 1 dynamic package steps.
 - `docs/install/plugin-package.md` form 2 enable, verify, rollback.
+- `docs/install/link-guide.md` linking two machines for real (the repo does not do it).
 - `docs/install/skill/dsh-remote-tailnet/SKILL.md` the full step-by-step linking skill.
 - `docs/install/agent-brief.md` the install walkthrough for AI, with the chat output template.
 - `docs/install/uninstall.md` the long six-step uninstall.

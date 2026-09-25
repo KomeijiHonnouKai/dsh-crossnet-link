@@ -1,6 +1,6 @@
 # dsh-remote-tailnet(DSH skill)
 
-> 最后更新:2026-09-24 17:04(本机 DSH 会话,W4)。本次修订的文件、命令与待办见文末「本次修订」。
+> 最后更新:2026-09-24 17:04。本次修订的文件与命令见文末「本次修订」。
 
 跨网远程控制另一台 DSH:本机浏览器直接操作另一台机器上的 DSH 界面。
 
@@ -12,37 +12,40 @@
 
 ## 怎么用(给用户)
 
-1. 装到 skill 根目录(二选一,**注意两份副本的生效规则**见下节):
-   - 项目级:`<工作区>\.dsh\skills\dsh-remote-tailnet\`(本仓库即此形态)
+1. 装到 skill 根目录(二选一,**注意两处的生效优先级**见下节):
+   - 项目级:`<工作区>\.dsh\skills\dsh-remote-tailnet\`(本仓库把这份 skill 放在
+     `docs/install/skill/dsh-remote-tailnet/`,**要复制到下面两个位置之一才会被 DSH 扫到**)
    - 用户级:`%USERPROFILE%\.dsh\skills\dsh-remote-tailnet\`(对所有工作区生效)
 2. 在对话里说「用 dsh-remote-tailnet」或直接描述场景,DSH 会加载 `SKILL.md` 并按其中步骤执行。
 3. 也可以人工照着读:`SKILL.md`(总览)→ `references/server-setup.md` / `client-setup.md`(两端操作)→ `references/browser-control.md`(打通后操控对端)→ `references/verify.md`(验收)。
 
-## ⚠️ 两份副本必须同步(否则改了一份等于没改)
+## ⚠️ 两处安装位置与生效优先级(装错地方等于没装)
 
 同名 skill 在两处各有一份时,DSH 的装载规则是「按 rank 升序,首见者胜」:
 
-| 副本 | rank | 在 `cwd = D:\DSH` 的会话里 |
+| 副本 | rank | 在 `cwd = <工作区根目录>` 的会话里 |
 | --- | --- | --- |
-| 项目级 `D:\DSH\.dsh\skills\dsh-remote-tailnet\` | 100(更优先) | ✅ **生效的就是这一份** |
+| 项目级 `<工作区>\.dsh\skills\dsh-remote-tailnet\` | 100(更优先) | ✅ **生效的就是这一份** |
 | 用户级 `%USERPROFILE%\.dsh\skills\dsh-remote-tailnet\` | 400 | ❌ 被遮蔽(日志会写 `ignored because a higher-priority skill already exists`) |
 
-反之,**在别的 `cwd`(例如 `I:\DSH`)的会话里,只有用户级那份生效**。所以:改完一份必须同步另一份,**否则两处的行为会分叉**。
+反之,**`cwd` 不在那个工作区里的会话,只有用户级那份生效**。所以:你若在机器上装了两处,改完一处记得对齐另一处,**否则两处的行为会分叉**。
 
-比对命令(逐文件 SHA256,两边应完全一致):
+比对命令(逐文件 SHA256,两边应完全一致;`<工作区>` 换成你自己的路径):
 
-    $a='D:\DSH\.dsh\skills\dsh-remote-tailnet'; $b="$env:USERPROFILE\.dsh\skills\dsh-remote-tailnet"
+    $a='<工作区>\.dsh\skills\dsh-remote-tailnet'; $b="$env:USERPROFILE\.dsh\skills\dsh-remote-tailnet"
     $fa=Get-ChildItem -Recurse -File $a | ForEach-Object { $_.FullName.Substring($a.Length).TrimStart('\') + ' ' + (Get-FileHash $_.FullName -Algorithm SHA256).Hash }
     $fb=Get-ChildItem -Recurse -File $b | ForEach-Object { $_.FullName.Substring($b.Length).TrimStart('\') + ' ' + (Get-FileHash $_.FullName -Algorithm SHA256).Hash }
     if (Compare-Object $fa $fb) { 'DIFFERENT' } else { 'IDENTICAL' }
 
-同步命令(**以工作区副本为准**;用户级路径在工作区之外,需用户自己确认后执行):
+同步命令(**以你正在用的那份为准**;另一处若在工作区之外,需用户自己确认后执行):
 
-    Copy-Item -Recurse -Force 'D:\DSH\.dsh\skills\dsh-remote-tailnet\*' "$env:USERPROFILE\.dsh\skills\dsh-remote-tailnet\"
+    Copy-Item -Recurse -Force '<工作区>\.dsh\skills\dsh-remote-tailnet\*' "$env:USERPROFILE\.dsh\skills\dsh-remote-tailnet\"
 
-> **状态声明(不得含糊)**:本版(见文末「本次修订」)**已同步到两份副本** —— 工作区 `D:\DSH\.dsh\skills\dsh-remote-tailnet\` 与用户级 `%USERPROFILE%\.dsh\skills\dsh-remote-tailnet\` **逐字节一致**(2026-09-26 04:02 整目录 `Copy-Item` 后逐文件 SHA256 比对:**12/12 相同**,该次比对在 04:02:15–04:02:47 之间完成并有独立复核记录;agent 沙箱默认拒跨盘写,经用户授权一次性提权执行)。
-> 因此:在 `cwd = D:\DSH` 的会话与在其他 `cwd` 的会话里,读到的**是同一版**。改完任一侧仍须按上面的比对/同步命令重新对齐 —— **不要凭记忆宣称「已生效」**。
-> (2026-09-26 补 `browser-control.md` 的清单行与阅读路径;按用户「不改变原本结构」的要求,未新开小节、也未登记进下方「本次修订」历史表。)
+> **本版形态(不得含糊)**:仓库里的这份是**发布形态** —— 路径已占位化,不含任何开发机的具体路径、
+> 机器名或 tailnet 名。开发机上自用的两份副本是**自用形态**(保留本机真实路径),与发布形态**本就分叉,
+> 也不需要逐字节一致**;拿「两份必须一样」来核对仓库副本会得到错误结论。
+> 你在自己机器上装完之后,**如果你同时装了两处**,请按上面的比对/同步命令让**它们俩**对齐 ——
+> **不要凭记忆宣称「已生效」**。
 
 ## 目录
 
@@ -69,20 +72,27 @@
 
 ## 发布/共享前:零硬编码扫描
 
-这份 skill 会被复制到别的机器,文件里**不得留任何真实对端地址/机器名**(含 `*.ps1` / `*.md` / `*.json`)。发布或共享前跑一次(模式用字符串拼接拼出,免得扫描命令**自匹配**自己):
+这份 skill 会被复制到别的机器,文件里**不得留任何真实对端地址 / 机器名 / tailnet DNS 名 / 用户主目录绝对路径 / 凭据值**(含 `*.ps1` / `*.psm1` / `*.md` / `*.json` / `*.js`)。发布或共享前跑一次(模式用字符串拼接拼出,免得扫描命令**自匹配**自己;五类口径与仓库 `tests/run-tests.ps1` §7 的模式表一致):
 
-    $root='D:\DSH\.dsh\skills\dsh-remote-tailnet'
-    $pat = @(('100\.'+'\d{1,3}\.\d{1,3}\.\d{1,3}'), ('dqkm'+'4aat'), ('tailbd'+'5a21'))
-    Get-ChildItem -Recurse -File $root -Include *.ps1,*.md,*.json |
+    $root = Join-Path $env:USERPROFILE '.dsh\skills\dsh-remote-tailnet'   # 或 '<工作区>\.dsh\skills\dsh-remote-tailnet'
+    $pat = @(
+      ('100\.'+'\d{1,3}\.\d{1,3}\.\d{1,3}'),            # 对端 IP
+      ('[A-Za-z]:'+'\\Users\\[^\\]+'),                   # 用户主目录绝对路径
+      ('DESKTOP-'+'[A-Z0-9]+|LAPTOP-'+'[A-Z0-9]+'),      # 工作站 / 笔记本式主机名
+      ('[A-Za-z0-9-]+\.'+'tail[a-z0-9]+\.ts\.net'),      # tailnet DNS 名
+      ('tskey-'+'[A-Za-z0-9]+')                          # 凭据值形状
+    )
+    Get-ChildItem -Recurse -File $root -Include *.ps1,*.psm1,*.md,*.json,*.js |
       Select-String -Pattern $pat |
       Where-Object { $_.Line -notmatch '100\.64\.0\.0/10' } |
-      ForEach-Object { '{0}:{1}: {2}' -f $_.Filename, $_.LineNumber, $_.Line.Trim() }
+      ForEach-Object { '{0}:{1}: {2}' -f $_.Path, $_.LineNumber, $_.Line.Trim() }
 
-期望:**除 `100.64.0.0/10`(Tailscale 文档化网段,允许)外,命中为 0**。实测本版(2026-09-24 17:01)= **0 条**。
+期望:**命中 0 条**(`100.64.0.0/10` 是 Tailscale 文档化网段,已在上面的 `Where-Object` 里放行)。
+本仓库里这份副本实测 = **0 条**(2026-09-26,五类模式各做过一次正控:埋一条样例都能抓到)。
 
 ## 本次修订(W4,P1–P4)
 
-**改了什么**(工作区副本 9 个文件,`changedPaths` 见任务记录):
+**改了什么**(9 个文件):
 
 | 文件 | 改动 |
 | --- | --- |
@@ -96,7 +106,7 @@
 | `references/facts-verified.md` | 发布前脱敏:去掉对端机器名(内容结论未改) |
 | `scripts/verify.ps1` | 头部改为 `-File` 形态 + 去掉写死的真实对端 IP;新增 `-LinkPort`;退出码 0/1/2 + `VERDICT`/`EXIT` 行;修掉 `-File` 下 `[int[]] -Ports` 把 `135,5357` 绑成 `1355357` 的静默少探缺陷(改字符串切分 + 阻断);`-ServerIp` 不再用 Mandatory(避免漏参时弹交互提示) |
 | `scripts/server-setup.ps1` | 头部改为 `-File` 形态;端口判定改「TcpClient 真连 + netstat 行结构」(不依赖 `LISTENING` 本地化文本);§5 改显式 profile 名/`DSH_HOME`/`-ProfileDir` 优先级链(去掉 `Select-Object -First 1`);§6 标题与项数一致(四件) |
-| `README.md` | 本节 + 双副本同步规则与比对/同步命令 + 未同步状态声明 + 零硬编码扫描 |
+| `README.md` | 本节 + 两处安装位置与生效优先级 + 比对/同步命令 + 本版形态声明 + 零硬编码扫描 |
 
 ### t18 补充修订(2026-09-24,skill 侧 F1/F2)
 
@@ -133,5 +143,3 @@
 
     # 本机 Node 不在 PATH 时的 TLS 探针替代(实测可用)
     cmd /c "set ELECTRON_RUN_AS_NODE=1&& \"<APP_DIR>\DSH Desktop.exe\" -e \"console.log('node='+process.version+' zstd='+(typeof require('zlib').createZstdDecompress))\""   # ⇒ node=v24.18.1 zstd=function
-
-**t9 待办**:① 把工作区副本同步到 `%USERPROFILE%\.dsh\skills\dsh-remote-tailnet`(**需用户授权**,沙箱不能写工作区外);② 同步后用上文比对命令确认 `IDENTICAL`;③ **t18 之后该副本更旧了**(F1/F2 修订只落在工作区副本)⇒ 同步请整目录覆盖,同样**需用户授权**。

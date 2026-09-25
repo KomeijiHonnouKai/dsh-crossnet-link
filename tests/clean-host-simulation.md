@@ -107,7 +107,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File dsh-crossnet-link/.github/sc
 ## 6. 复跑本页所有结论的最小命令
 
 ```powershell
-$f='D:\DSH\dsh-crossnet-link\tests\run-tests.ps1'
+$f='dsh-crossnet-link/tests/run-tests.ps1'   # 相对克隆所在的那一级目录;克隆在别处时换成你自己的路径
 # 复现（把 _base 的 tools 块临时删掉即可回到修复前状态）
 Select-String -Path (Join-Path (Split-Path $f) 'cases\_base\server-en.json') -Pattern '"tools"'
 # 取证
