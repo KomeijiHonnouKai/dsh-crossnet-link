@@ -1,6 +1,9 @@
 # Changelog
 
-LAST UPDATED  : 2026-09-25 (readability round: both READMEs rewritten for a first-time reader; the
+LAST UPDATED  : 2026-09-26 (the linking skill now ships with the repository under
+                `docs/install/skill/dsh-remote-tailnet/`, its machine-specific paths replaced with
+                placeholders, and the "not in this repository" pointers re-aimed. Previously 2026-09-25 -
+                readability round: both READMEs rewritten for a first-time reader; the
                 evidence ledger and the decision log moved into `docs/evidence.md` and
                 `docs/decisions.md`; `tests/readme-style-check.ps1` added as a layout gate; the hygiene
                 gate's default roots extended to those two documents. Previously 2026-09-24 - task t4 -
@@ -22,6 +25,25 @@ copyright line `Copyright (c) 2026 KomeijiHonnouKai`. The choice is settled, so 
 should be read as a provisional grant.
 
 ## [Unreleased]
+
+### 2026-09-26 - the linking skill ships with the repository
+
+- **The `dsh-remote-tailnet` skill is now part of the release set**, at
+  `docs/install/skill/dsh-remote-tailnet/` (12 files: `SKILL.md`, `README.md`, eight
+  `references/*.md`, and `scripts/server-setup.ps1` plus `scripts/verify.ps1`). `docs/install/`
+  is already a default scan root, so the hygiene gate covers the new directory with **no** change
+  to `$PublishRoots`; a clone that lacks the guide is a clone whose reader cannot follow it.
+- **The repository copy is the sanitized face of the local skill.** Nine lines across five files
+  quoted machine-specific paths from the authoring machine, and each was replaced with a
+  placeholder: the user home path became `%USERPROFILE%` and the application directory became
+  `<APP_DIR>`. Every other byte is identical to the local original, and the two `scripts/*.ps1`
+  keep the UTF-8 BOM their non-ASCII comments require (see `.editorconfig`).
+- **The "not in this repository" pointers were re-aimed** in `README.md`, `README.en.md`,
+  `docs/install/link-guide.md` and `SECURITY.md`, and both READMEs now index the guide in their
+  document section. The security scope note uses inline code, so that file still carries exactly
+  one Markdown document link.
+- **`tests/run-smoke.ps1` lists the skill directory among the release-set paths it requires**, so
+  a checkout that lost the guide fails the smoke run instead of passing quietly.
 
 ### 2026-09-25 - documentation readability round
 

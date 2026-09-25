@@ -1054,7 +1054,9 @@ $requiredFiles = @(
   'panel/prereq.ps1','panel/prereq-manifest.json',
   'tests/run-tests.ps1','tests/run-fixtures.ps1','tests/run-smoke.ps1'
 )
-$requiredDirs = @('tests/cases','tests/fixtures')
+# The published linking guide is a release-set member (CHANGELOG, 2026-09-26): a clone that lost it
+# is a clone whose reader cannot follow the linking steps, so it is REQUIRED here, not informational.
+$requiredDirs = @('tests/cases','tests/fixtures','docs/install/skill/dsh-remote-tailnet')
 $infoFiles = @(
   'README.md','CHANGELOG.md','CONTRIBUTING.md','SECURITY.md','LICENSE','.editorconfig','.gitignore',
   'tests/cases/README.md','.github/scripts/repo-hygiene.ps1',

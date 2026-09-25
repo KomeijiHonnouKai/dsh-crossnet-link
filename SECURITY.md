@@ -36,8 +36,9 @@
 
 Scope: everything under `dsh-crossnet-link/` — the read-only collector (`src/collect.ps1`), the
 host/client halves (`src/host-half.js`, `panel/*.js`), the prerequisite checker
-(`panel/prereq.ps1`) and the docs. It does **not** cover the DSH product itself or the
-`dsh-remote-tailnet` skill (separate artefacts, separate reviews).
+(`panel/prereq.ps1`) and the docs. The `dsh-remote-tailnet` skill copy under
+`docs/install/skill/dsh-remote-tailnet/` ships with the repository as documentation; it is a
+separate artefact with its own review, and the DSH product itself stays out of scope.
 
 ---
 

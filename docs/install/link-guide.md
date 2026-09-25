@@ -222,8 +222,8 @@ token 只在服务端机器上取：服务端 DSH → 设置 → 桌面/Desktop 
 它不做的：不负责打通两台机器之间的链路、不装任何软件、不提权、不代点 UAC、
 不转发流量、不做中转、不卸载 Tailscale、不动你自己建的防火墙规则。
 
-打通的动作在第 3 节与第 8 节，或者按 skill `dsh-remote-tailnet` 做；
-那份 skill 与本文件同源，不随本仓库发布。
+打通的动作在第 3 节与第 8 节，或者按仓库内那份 skill 副本做：
+`docs/install/skill/dsh-remote-tailnet/SKILL.md`（与本文件同源，随本仓库发布）。
 本仓库能在打通前后告诉你现状是什么、哪里可能有风险、缺哪件前置件：
 
 ```powershell

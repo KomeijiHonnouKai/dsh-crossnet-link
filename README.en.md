@@ -6,7 +6,8 @@ report-only: installs nothing, forwards no traffic; both write paths are in P2.
 
 **What it does not do**: this repository does not link the two machines itself, and
 installing the plugin does not connect them either -- do not expect cross-network access
-after installing it. The real linking steps live in the skill `dsh-remote-tailnet`.
+after installing it. The real linking steps live in the skill copy inside this repository,
+`docs/install/skill/dsh-remote-tailnet/SKILL.md`.
 
 [简体中文](README.md) · MIT
 
@@ -232,6 +233,7 @@ Until it is pinned, the step honestly reports blocked; the checker never downloa
 - `docs/install/prerequisites.md` prerequisites and the four proxy combinations.
 - `docs/install/install.md` form 1 dynamic package steps.
 - `docs/install/plugin-package.md` form 2 enable, verify, rollback.
+- `docs/install/skill/dsh-remote-tailnet/SKILL.md` the full step-by-step linking skill.
 - `docs/install/agent-brief.md` the install walkthrough for AI, with the chat output template.
 - `docs/install/uninstall.md` the long six-step uninstall.
 - `docs/install/rollback.md` rollback for each class of change.

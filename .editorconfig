@@ -1,13 +1,17 @@
 # dsh-crossnet-link - shared editor defaults
 #
-# LAST UPDATED  : 2026-09-24 (task t12, v0)
+# LAST UPDATED  : 2026-09-26 (the published skill copy under docs/install/skill/ ships two
+#                 non-ASCII *.ps1, so the ASCII measurement below is now scoped to the rest of
+#                 the tree; previously task t12, v0)
 # COMMANDS USED : powershell -NoProfile -Command 'Get-ChildItem dsh-crossnet-link
 #                 -Recurse -File -Include *.ps1,*.md,*.json,*.js | % { $b=
 #                 [IO.File]::ReadAllBytes($_.FullName); $nonascii=0; foreach($x in $b)
 #                 { if($x -gt 127){$nonascii++} }; "$($_.Name) BOM=$($b[0] -eq 0xEF)
 #                 nonascii=$nonascii" }'
-#                 (measured 2026-09-24: every *.ps1 in this repository is pure ASCII and
-#                  BOM-less; every *.md is UTF-8 without a BOM)
+#                 (measured 2026-09-24; re-checked 2026-09-26: every *.ps1 outside
+#                  docs/install/skill/ is pure ASCII and BOM-less, and the two scripts in that
+#                  skill copy are non-ASCII so they carry a BOM; every *.md is UTF-8 without a
+#                  BOM)
 
 root = true
 
@@ -39,6 +43,8 @@ end_of_line = lf
 #   is saved as UTF-8 WITH a BOM. Windows PowerShell 5.1 decodes a BOM-less script
 #   using the system ANSI code page, where a UTF-8 sequence can swallow the next
 #   quote byte and produce a wall of fake syntax errors.
+#   The only scripts in the release set that need RULE 2 today are the two under
+#   docs/install/skill/dsh-remote-tailnet/scripts/ (Chinese comments and messages).
 # .editorconfig cannot branch on file content, so the mechanical default below is
 # RULE 1; the CI job "encoding gate" checks both branches for every *.ps1/*.md:
 #   non-ASCII present => BOM required, pure ASCII => BOM refused.

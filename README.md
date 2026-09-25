@@ -5,8 +5,8 @@
 不装任何东西，不转发流量；两处写入（卸载器与插件首次加载）见 P2。
 
 **本仓库不做什么**：它自己不把两台机器连起来，装完本插件不会连通两台机器，
-别指望装完就能跨网操作对端。真正打通两台 DSH 的步骤见 skill `dsh-remote-tailnet`，
-那不在本仓库里。
+别指望装完就能跨网操作对端。真正打通两台 DSH 的步骤在仓库内那份 skill 副本里：
+`docs/install/skill/dsh-remote-tailnet/SKILL.md`。
 
 [English](README.en.md) · MIT
 
@@ -217,6 +217,7 @@ loopback 按设计可信，本工具不改变也不扩大它。
 - `docs/install/install.md` 形态 1 动态包步骤。
 - `docs/install/plugin-package.md` 形态 2 三步启用、验证、回滚。
 - `docs/install/link-guide.md` 怎么把两台机器的 DSH 连起来（本仓库不负责打通）。
+- `docs/install/skill/dsh-remote-tailnet/SKILL.md` 打通两台 DSH 的步骤全文。
 - `docs/install/agent-brief.md` 给 AI 读的安装流程，含对话输出模板。
 - `docs/install/uninstall.md` 卸载六步长版。
 - `docs/install/rollback.md` 每类改动的回滚。
