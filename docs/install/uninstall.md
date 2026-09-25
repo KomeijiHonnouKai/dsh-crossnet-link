@@ -54,6 +54,10 @@ Remove-NetFirewallRule -DisplayName 'DSH via Tailscale serve (tcp 443)'
 cordis_undefine(<PLUGIN_ID>)
 ```
 
+> ⚠️ **`tailscale serve reset` 是整机级回退,不是只停 DSH 这一个端口。** 它会清掉本机**所有** serve 配置
+> (不止 DSH 的 tcp 443 这一条),你配过的其它 serve 目标也会一起被清掉。**回退前先跑 `tailscale serve status`
+> 把现有配置记下来**,以便之后按原样重建。
+
 **应观察到**:命令成功或明确报错。需要提权的**必须由你在管理员窗口自己跑** —— 这个工具从不提权,它只会把该跑的命令打印出来。
 
 ### 1.3 第 3 步:再记录一次(填 `after`)

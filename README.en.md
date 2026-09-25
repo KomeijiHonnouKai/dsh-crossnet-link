@@ -1,12 +1,12 @@
 # dsh-crossnet-link
 
-**Purpose**: inside the DSH on machine A, a browser plugin drives an authenticated channel page
-to operate the DSH running on machine B - the two DSH instances link up (agent to agent).
+**What this repository does**: read-only checkups for the link between two DSH machines
+(posture and prerequisites), a read-only panel, a clean uninstall of the plugin. It is
+report-only: installs nothing, forwards no traffic; both write paths are in P2.
 
-**This repository's role**: read-only checkup, prerequisite checks, a read-only panel
-and a clean uninstall for that link. It installs nothing, changes no configuration,
-forwards no traffic.
-For making the link itself work, see the skill `dsh-remote-tailnet`; this repository does not build the link.
+**What it does not do**: this repository does not link the two machines itself, and
+installing the plugin does not connect them either -- do not expect cross-network access
+after installing it. The real linking steps live in the skill `dsh-remote-tailnet`.
 
 [简体中文](README.md) · MIT
 
@@ -198,16 +198,24 @@ If none of these match, run `tests\run-smoke.ps1` for first-hand evidence and re
 
 ## 8 Security and privacy
 
-- **P1** No new listeners, routes or firewall rules.
-- **P2** Read-only by default; the only writer is the uninstaller, dry-run by default.
+- **P1** No new network listeners, network routes or firewall rules: the only route this
+  plugin registers is a read-only HTTP route on the existing web server (see P9), so the
+  listening surface stays exactly DSH's own.
+- **P2** Read-only by default; the only component that writes to the system surface is
+  the uninstaller, dry-run by default. First load writes 4 settings.yaml keys
+  via auto-config -- the plugin's only configuration side effect (see section 5).
 - **P3** No automatic writes; `-Apply` is refused.
 - **P4** Never reads, prints, stores or transmits credentials.
 - **P5** No telemetry, no callbacks, no auto-update.
 - **P6** No restart logic; never kills or relaunches the DSH host.
 - **P7** Every side effect hangs off ctx.effect and can be removed completely.
 - **P8** The panel is display-only; no write button.
-- **P9** Routes registered on the existing web server skip DSH web auth:
-  loopback only, read-only posture results only, no credentials; same-origin needs Origin.
+- **P9** Routes registered on the existing web server skip DSH web auth. DSH listens on
+  loopback by default, so the route is reachable from this machine only; publish the DSH
+  port with `tailscale serve` and the same route becomes reachable from the tailnet (the
+  same-origin check is void without an `Origin` header). It is read-only, returns posture
+  results only, reads no credentials and is not RCE; the risk is a resource-consumption
+  surface -- a peer can trigger the collector repeatedly.
 
 Two conclusions from the threat model, `docs/threat-model.md`:
 whoever can open that UI can operate that machine;

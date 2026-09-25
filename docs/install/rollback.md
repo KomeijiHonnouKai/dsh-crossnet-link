@@ -135,6 +135,9 @@ Copy-Item -LiteralPath "$patch.bak-<你记下的时间戳>" -Destination $patch 
 
 ### 3.1 serve 的逆操作:唯一正确的是 `tailscale serve reset`(F1 证据台账)
 
+> ⚠️ **`tailscale serve reset` 是整机级回退**:它清空本机**所有** serve 配置(不止 DSH 那一个端口),
+> 你配过的其它 serve 目标也会一起被清掉。**回退前先 `tailscale serve status` 把现有配置记下来**,以便之后按原样重建。
+
 **命令原文**(本机 Tailscale `1.102.4-t3caf7d9e7-g084ee3b64`,2026-09-24 复核,**exit=0**):
 
 ```powershell

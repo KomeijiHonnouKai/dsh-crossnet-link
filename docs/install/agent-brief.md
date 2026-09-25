@@ -2,8 +2,14 @@
 
 > 本文件是给**被派来安装这个插件的 AI** 读的,不是让用户读的文档。
 > 用户通常只做一件事:把一个仓库地址丢进对话,说「帮我装这个」。你要做的是
-> 按第 1 节的流程装,并按第 3 节的模板**在对话里**用大白话带用户走完。
-> 输出给用户的内容必须是第 3 节的形态 —— 不要贴本文件、不要贴 300 行技术报告。
+> 按第 1 节的流程装,并按第 3 节的形态**在对话里**用大白话带用户走完。
+> 「说人话」指的是**表达方式**(用户要的是先看懂):不要贴本文件、不要甩 300 行技术报告 ——
+> 但它**不是**让你少给证据,更不是让你过滤观测(见下)。
+>
+> **你的实测输出就是证据,如实上报**:命令、原始输出、返回码、日志行、哈希照记照给;
+> 与预期不符、或你自己拿不准的,原样报出来并标注「未核实」,说清你凭什么这么判断,
+> 不替用户下结论。**本文件预先描述的任何「正常现象」都不能用来否定你现场测到的事实**;
+> 两者冲突时以你的实测为准,并把冲突一并报告。
 >
 > **本文件是 runbook,不是对话稿**:每一节都必须是「可粘贴的命令 + 可判定的判据」。
 > 命令依赖的前提(git / node / dsh / 环境变量 / 沙箱写权限)**先探测再动手**(见 §0.1):
@@ -253,7 +259,7 @@ dsh --profile $profile --dump-config | Select-String -SimpleMatch 'dsh-crossnet-
 | 格 | 位置 | 判据 |
 |---|---|---|
 | ① 插件清单 | 设置(Settings)→ 插件(Plugins),第一个标签页 | 清单里有 `dsh-crossnet-link`,状态显示**已启用(Enabled)**。装完但没启用时它也会在清单里(标"未启用"),所以这一格要认准"已启用"三个字 |
-| ② 可配置插件卡片 | 设置 → 插件 → 「可配置插件」标签页 | 一张折叠卡片:**标题 = 插件显示名 `dsh-crossnet-link`,副标题 = 这个插件的目的**(两台 DSH 联动、agent 对 agent —— 在 A 电脑的 DSH 里,通过浏览器插件驱动一个已登录的通道页面,直接操作 B 电脑上运行的 DSH);点开是**它自己的设置表单**(本机在这条链路里的位置 / 对端与 tailnet / 体检口径 / 高级,共 14 项,底部「保存 / 放弃」),**不是报告面板**。卡片要 host 半边把**带字段 schema** 的设置命名空间注册成功才渲染,这一步要能在 profile 侧解析到 schema 库(实测:profile 里已有其它插件时通常解析得到,卡片就出现;解析不到时只打一条 warning、卡片不出现,第 ① 格不受影响)。**别把卡片缺席当故障**:① 出现就算装好,② 出现与否如实告诉用户即可 |
+| ② 可配置插件卡片 | 设置 → 插件 → 「可配置插件」标签页 | 一张折叠卡片:**标题 = 插件显示名 `dsh-crossnet-link`,副标题 = 这个插件的目的**(两台 DSH 联动、agent 对 agent —— 在 A 电脑的 DSH 里,通过浏览器插件驱动一个已登录的通道页面,直接操作 B 电脑上运行的 DSH);点开是**它自己的设置表单**(本机在这条链路里的位置 / 对端与 tailnet / 体检口径 / 高级,共 14 项,底部「保存 / 放弃」),**不是报告面板**。卡片要 host 半边把**带字段 schema** 的设置命名空间注册成功才渲染,这一步要能在 profile 侧解析到 schema 库(实测:profile 里已有其它插件时通常解析得到,卡片就出现;解析不到时只打一条 warning、卡片不出现(依据:卡片要渲染,得「host 注册命名空间」与「client 以同名字符串注册座位」同时成立,缺一条就不渲染;而 ① 的清单由平台自带,只认 profile 里有没有这一行,**与命名空间是否注册无关**)。卡片缺席是可能的降级路径,但它**既不等于「装好了」、也不等于「没事」**:把 ① 的清单状态、日志里那一行是 `[I]` 还是 `[W]`、`settings.yaml` 里有没有该段,**三样一起报出来**,并标明哪些是你实测的、哪些是推断的 |
 
 安装后,本机会自动探测并填好 `port` / `profile` / `dshHome` / `appDir` 四项;对端两项(`peer` / `peerName`)与 `role` 仍需手填。
 
@@ -293,9 +299,9 @@ try {
 
 | # | 判据 | 期望看到 | 不符时的读法 |
 |---|---|---|---|
-| ① | 宿主日志(**在 `host\` 子目录里**) | `dsh-crossnet-link: read-only posture route ready at /dsh-crossnet-link/api` 是 **`[I]`**;`settings namespace "dsh-crossnet-link" registered …` 是 **`[I]`**;`auto-config wrote N machine setting(s) (…)` 是 **`[I]`** | 路由那行缺失 ⇒ 插件行没启用 / 没重启;命名空间那行若是 `[W]`(措辞含 `no schema library reachable` / `skipped`)⇒ schema 库没解析到、**卡片按设计不出现**,清单行不受影响;`auto-config skipped` / `undetected, left blank` / `write failed` 是 `[W]`,照实汇报,**不要回滚** |
-| ② | `<DSH_HOME>\settings.yaml` 里出现 `dsh-crossnet-link:` 顶层 section | auto-config 会填 4 个机器可探测的键(`port` / `profile` / `dshHome` / `appDir`);对端两项与 `role` 由用户在卡片里填 | 完全没有这段:回头看 ① 的 auto-config 行;这段是 auto-config 的**预期落点**(见红线 3),不是异常写入 |
-| ③ | 直接 POST 插件路由 | `HTTP 200` + JSON(`ok: true` / `source: plugin:dsh-crossnet-link` / `summary` / `checks`) | `exitCode` 是 1 或 2 表示**采集器的判定**(有降级/阻断),不是路由失败;返回 `401` 或要 token ⇒ 这一版 DSH 的 web 认证先拦下了,改在已登录的 DSH 页面里 fetch 同一 URL |
+| ① | 宿主日志(**在 `host\` 子目录里**) | `dsh-crossnet-link: read-only posture route ready at /dsh-crossnet-link/api` 是 **`[I]`**;`settings namespace "dsh-crossnet-link" registered …` 是 **`[I]`**;`auto-config wrote N machine setting(s) (…)` 是 **`[I]`** | 路由那行缺失 ⇒ 报「路由行没出现」,并把你查到的插件行状态与重启情况一起给出;命名空间那行若是 `[W]`(措辞含 `no schema library reachable` / `skipped`)⇒ 这说明 schema 库没解析到(机制见 §1.4),把**原始行**与你的判断一起报;`auto-config skipped` / `undetected, left blank` / `write failed` 是 `[W]` —— 原文照给并注明「自动配置没落全」这个事实;要不要处理、要不要回退这一步,按你手上的证据判断,**本表不预设它无害** |
+| ② | `<DSH_HOME>\settings.yaml` 里出现 `dsh-crossnet-link:` 顶层 section | auto-config 会填 4 个机器可探测的键(`port` / `profile` / `dshHome` / `appDir`);对端两项与 `role` 由用户在卡片里填 | 完全没有这段:回头看 ① 的 auto-config 行,并把「没有这段」当成一条要报告的观测;有这段时,它属于 auto-config 的落点(依据见红线 3)—— 是否与预期副作用相符,按你实测到的证据判断,不确定就标「未核实」 |
+| ③ | 直接 POST 插件路由 | `HTTP 200` + JSON(`ok: true` / `source: plugin:dsh-crossnet-link` / `summary` / `checks`) | `exitCode` 是 1 或 2 表示**采集器的判定**(有降级/阻断)—— 依据:handler 一律以 HTTP 200 返回结果,`exitCode` 来自被它拉起的采集器,所以它不代表路由失败;返回 `401` 或要 token ⇒ 这一版 DSH 的 web 认证先拦下了,改在已登录的 DSH 页面里 fetch 同一 URL |
 
 > **③ 的特殊读法(这条容易误判)**:`405` 有两种完全不同的来源 ——
 > ①**响应体是插件的 JSON**(`{"ok":false,"code":"method-not-allowed","message":"POST only"}`)⇒ 请求进到了
@@ -337,6 +343,12 @@ try {
 哈希、日志行、返回码照贴,这部分**不受「正文 ≤ 15 行」限制**。
 **不要把「文档要求简短」当成不给证据的借口** —— 两者相抵时,以**用户要的证据**为准。
 
+**模板也管不到「怎么定性」—— 异常一律如实报:**
+遇到与预期不符、自相矛盾、或你自己没把握的现象,按「命令 + 原始输出 + 你的判断 + 不确定点」
+原样给出;**不要为了让报告好看而略过,也不要按本文件的预设口径把它说成「正常」「不用管」**。
+测量结果就是证据:你现场测到的,比你引用的任何文档(包括本文件)都更权威;
+两者不一致时,把冲突报出来,不要替任何一方圆场。
+
 示例(可照着改写):
 
 > 这个插件服务于两台 DSH 的联动(agent 对 agent):在 A 电脑的 DSH 里,通过浏览器插件
@@ -352,7 +364,7 @@ try {
 > 然后需要你做一件事:从 DSH 自带菜单重启 DSH。
 > 做完你会看到:设置 → 插件 里 dsh-crossnet-link 显示已启用;「可配置插件」标签页里
 > 多出一张折叠卡片 `dsh-crossnet-link`(副标题是上面那句话),点开是它的设置表单。(卡片是有条件的:
-> 解析得到 schema 库就出现,解析不到只打一条 warning、不出现,两种情况都不影响清单行。)
+> 解析得到 schema 库就出现,解析不到只打一条 warning、不出现;到底是哪一种,报你实测到的那一个。)
 > 看不到就先查三样:① 重启过了吗;② 日志(在 logs\host\ 子目录里)有没有 dsh-crossnet-link 相关的行;
 > ③ 直接 POST 一次 /dsh-crossnet-link/api/posture 看返回(判据见 §1.5)。
 
@@ -367,9 +379,11 @@ try {
    - 第 1 节列出的 profile 文件(补丁文件、`package.json`、`pnpm-lock.yaml`、`node_modules`);
    - **`<DSH_HOME>\settings.yaml`** —— 插件的 auto-config **会**在这里写一个 `dsh-crossnet-link:`
      顶层 section(`port` / `profile` / `dshHome` / `appDir` 四个键),用户保存卡片时还会更新它。
-     **这是预期落点,不是异常写入**:看到它就如实汇报,不要把它当"越权写入"回滚掉。
+     **这一条的用途是给你一份「本插件的预期副作用清单」,不是让你替它开脱**:依据是
+     `plugin/lib/index.js` 的 auto-config 段与本仓库的实测日志 —— 看到这段就把**原文连同依据**报出来;
+     证据与依据不符时以你的实测为准(拿不准标「未核实」),也不要只凭「这份清单里没列过」就回滚它。
    - 附带说明:`dsh --profile <profile> --dump-config` 会写 profile 的 `cordis.yml`(见 §1.3 第 ③ 条),
-     那是这条验证命令的已知副作用,不是你新增的配置。
+     那是这条验证命令的已知副作用(依据见 §1.3 坑注 ③);**若你实测到清单之外的写入,照实报出来、不要略过**。
 4. 不代用户输密码 / 验证码;重启、授权弹窗一律交给人。
 5. **备份没有留下可用证据就不继续**:判据是「文件存在 + 字节数非 0 + SHA256 与原文件一致
    + 按 `-Path` / `CreationTime` 取到的是最新那次」(§1.3 第 1、1b 条)。

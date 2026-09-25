@@ -466,7 +466,13 @@ self-test: 7 cases  matched: 7  mismatched: 0
 > 本包**没有发布到任何 registry**(`package.json` 里 `"private": true`),所以安装一律用 `link:<插件目录>`;
 > 别试 `dsh plugin --profile <profile> add dsh-crossnet-link`(装不到)。
 > `link:` 的含义是**符号链接**:profile 直接加载这份 checkout 里的代码,因此插件启用期间不要移动或删掉仓库目录。
->
+
+> ⚠️ **只能从完整 checkout 用 `link:` 装,不要从「只含 `lib/` 的打包产物」装 —— 否则面板会报 `collector-missing`。**
+> 采集器由 host 半边按 `../../src/collect.ps1` 相对定位(`plugin/lib/index.js` 的 `COLLECTOR_REL`),落在 `plugin/`
+> 上一级目录的 `src/collect.ps1`;而 `plugin/package.json` 的 `files` 只发布 `lib/` 与 `cordis.patch.yml`,
+> **不含 `src/collect.ps1`**。从完整 checkout `dsh plugin add 'link:<repo>\plugin'` 装 → `../src/collect.ps1` 找得到;
+> 从打包产物(如 `npm pack` / `pnpm pack` 出的 tgz,只有 `lib/`)装 → 找不到,报 `collector-missing`。
+
 > **下一步做什么,写在最前面**:跑完第 0 步与下面三步后,**从 DSH 自带菜单重启 DSH**(设置 → 桌面 → 重启;或退出应用再打开),
 > 然后去 **设置 → 插件**,清单里 `dsh-crossnet-link` 应显示**已启用**;「可配置插件」tab 里应出现
 > 一张折叠卡片 **`dsh-crossnet-link`**(副标题是插件目的,点开是**设置表单**:本机视角 / 对端地址 / 体检口径 / 高级,

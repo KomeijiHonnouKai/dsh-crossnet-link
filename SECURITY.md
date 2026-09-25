@@ -1,10 +1,12 @@
 # Security policy and verifiable promises
 
-- **Last updated**: 2026-09-25(v1.4; **P9 added** — the plugin route of the packaged plugin
-  (`plugin/lib/index.js`, `POST /dsh-crossnet-link/api/posture`) **does not go through DSH's web
-  authentication**, is reachable **only over loopback**, and returns **read-only posture results only**.
-  This is stated here once, in the same words the README §8 uses, so the two files cannot disagree.
-  No P1–P8 promise was touched. v1.3: t27 re-checked every internal-document reference in this file —
+- **Last updated**: 2026-09-25(v1.5; **P9 re-scoped after the smoke audit** — the route of the packaged
+  plugin (`plugin/lib/index.js`, `POST /dsh-crossnet-link/api/posture`) **does not go through DSH's web
+  authentication**, is reachable **only over loopback while DSH listens on loopback**, and becomes
+  **reachable from the tailnet as soon as the DSH port is published with `tailscale serve`**; it returns
+  **read-only posture results only**. v1.4 added P9 with a flat "loopback-only" claim, which is wrong
+  under a served deployment — the wording changed (here and in the README §8 wording it mirrors), the
+  measured facts did not. No P1–P8 promise was touched. v1.3: t27 re-checked every internal-document reference in this file —
   **0 hits** — and added the Link scope bullet below; no promise was touched. v1.2: t23 made **P2 relative** — the absolute file count is a moving
   target in a tree other tasks also write to — and left every other promise untouched). v1.1 was the
   t20 refresh of the measured values and source line numbers. Original draft: t16 repair-round-2,
@@ -19,8 +21,8 @@
   unchanged.
 - **Promise index**: P1 no new listener / P2 read-only by default / P3 no automated write or elevation /
   P4 no credential access / P5 no telemetry or callback / P6 no restart logic / P7 reversible
-  (`ctx.effect`) / P8 panel is display-only / P9 plugin route bypasses DSH web auth (loopback-only,
-  read-only).
+  (`ctx.effect`) / P8 panel is display-only / P9 plugin route bypasses DSH web auth (loopback by
+  default, tailnet-reachable once the DSH port is served, read-only).
 - **Commands used (all read-only)**: see §2 — each promise lists its own command; the results in the
   "measured" column come from running them in this repository on 2026-09-24.
 - **Link scope (t27, 2026-09-24)**: this file links **no internal analysis material**. Its only
@@ -50,7 +52,8 @@ matter most:
    capability.
 2. **Loopback is trusted by design.** A local process can open `http://127.0.0.1:43120` without a
    token or cookie. This plugin does not change that; it also never widens it (no new listener, no
-   proxy).
+   proxy) — but reachability belongs to the web server, not to the plugin: publishing that server
+   with `tailscale serve` publishes this plugin's route with it (P9).
 3. **DERP relays see connection metadata, not content.** Relayed traffic is WireGuard-encrypted;
    a relay can observe which nodes talk, when, and how much — not HTTP bodies, tokens or cookies.
 
@@ -203,21 +206,32 @@ Invoke-WebRequest -Uri 'http://127.0.0.1:43120/' -Method GET -SkipHttpErrorCheck
 ```
 
 - **The statement (identical wording to README §8, one fact, one phrasing)**:
-  > The plugin's route does **not** go through DSH's web authentication; it is reachable **only over
-  > loopback**; it returns **read-only posture results only** — it writes nothing and returns no credentials.
+  > Routes registered on the existing web server skip DSH web auth. DSH listens on
+  > loopback by default, so the route is reachable from this machine only; publish the DSH
+  > port with `tailscale serve` and the same route becomes reachable from the tailnet (the
+  > same-origin check is void without an `Origin` header). It is read-only, returns posture
+  > results only, reads no credentials and is not RCE; the risk is a resource-consumption
+  > surface -- a peer can trigger the collector repeatedly.
+- **Why "loopback-only" needs that qualifier (v1.5)**: the plugin binds nothing of its own — it registers
+  a prefix on DSH's existing web server (`ctx.get("webServer")`), so it inherits whatever reachability
+  that server has (P1). Under DSH's default loopback listener that is this machine only; under
+  `tailscale serve --bg` the same server is published on the tailnet, and this route with it. Nothing
+  about the plugin differs between the two deployments — the exposure is a deployment choice, and the
+  promise has to say so.
 - Measured on the peer machine (2026-09-25, read-only): `GET /` → **401** (DSH's own page does require the
   web session) while `GET /dsh-crossnet-link/api/posture` → **405** with
   `{"code":"method-not-allowed","message":"POST only"}` — i.e. the request **reached the plugin's own
-  handler** instead of being stopped by web auth. The plugin is bound to the same loopback web server as
-  DSH (`ctx.get("webServer")`, prefix registration), so it never listens on anything wider (P1).
+  handler** instead of being stopped by web auth.
 - **Boundary of the same-origin check, stated honestly**: `guardOrigin` in `plugin/lib/index.js` **lets a
   request through when the `Origin` header is absent**. So "same-origin validation" only constrains
-  browser cross-origin pages — it does **not** constrain an arbitrary local process. That is consistent
-  with §1's trust assumption ("loopback is trusted by design"), and it is **not a defect**: the route is
-  read-only, returns no credentials, and is loopback-limited.
+  browser cross-origin pages — it does **not** constrain an arbitrary local process, nor a tailnet peer
+  that speaks HTTP without an `Origin` header. That is consistent with §1's trust assumption ("loopback
+  is trusted by design"), and it is **not a defect**: the route is read-only and returns no credentials.
+  The honest caveat is about who can reach it, not about what it can do.
 - **Cost, so it is not a surprise**: every request spawns one PowerShell collector child
-  (`graceMs` 120 s, stdout ≤ 8 MiB), which a local process can trigger repeatedly. Low-severity resource
-  surface, not a privilege boundary — do not treat this route as an authenticated API.
+  (`graceMs` 120 s, stdout ≤ 8 MiB), which any process that can reach the route can trigger repeatedly
+  (local by default, a tailnet peer under `tailscale serve`). Low-severity resource surface, not a
+  privilege boundary — do not treat this route as an authenticated API.
 - Scope note: this applies to the **packaged plugin** route. The dynamic-package path uses a private
   `harness.handle` method that is not exposed over HTTP at all (P1).
 
